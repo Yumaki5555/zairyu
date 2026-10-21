@@ -1,8 +1,8 @@
-# 公開用の写し（Dropbox の外）を作り直して、GitHub（Yumaki5555/zairyu-gaikokujin）に上げる
+# 公開用の写し（Dropbox の外）を作り直して、GitHub（Yumaki5555/zairyu）に上げる
 # 使い方: python -I upload_github.py            … 写して、変わった所があれば1回の記録（コミット）にまとめて上げる
 #         python -I upload_github.py --dry-run  … 写して、変わったファイルの数だけ出す（上げない）
 #
-#   写し: <ホームのフォルダ>/github/zairyu-gaikokujin（copy_public.py で作る。サイトは docs/ に入り、GitHub Pages で公開される）
+#   写し: <ホームのフォルダ>/github/zairyu（copy_public.py で作る。サイトは docs/ に入り、GitHub Pages で公開される）
 #   先に GitHub の最新に合わせてから写す。記録の名前・メールは写しの git の設定（Yumaki5555、GitHub のメールを隠す代わりのアドレス）
 #   新しい時点のデータが出たときは make_data.py → make_site.py のあとにこれを動かす
 import os
@@ -12,8 +12,8 @@ from datetime import datetime
 
 sys.stdout.reconfigure(encoding="utf-8")
 BASE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.join(os.path.expanduser("~"), "github", "zairyu-gaikokujin")
-SITE_URL = "https://yumaki5555.github.io/zairyu-gaikokujin/"
+REPO = os.path.join(os.path.expanduser("~"), "github", "zairyu")
+SITE_URL = "https://yumaki5555.github.io/zairyu/"
 
 
 def git(*args):
