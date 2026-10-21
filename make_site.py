@@ -1,0 +1,775 @@
+# データ/ の表から、サイト「数でみる在留外国人」のページ（site/）を作る
+# 使い方: <pandas の入った python> -I make_site.py
+#
+#   作るページ
+#     index.html            日本全体（移り変わり・国籍・在留資格・国籍ごとの在留資格の移り変わり・日本の地図・都道府県の一覧）
+#     nat-index.html        国籍・地域の一覧
+#     about.html            このサイトについて（目的・データ・数え方の注意・出典）
+#     pref-<ローマ字>.html  47都道府県（市区町村の地図つき）
+#     muni-<コード>.html    市区町村と政令市の区（全国地方公共団体コードの5けた）
+#     city-<名前>.html      政令市（区の合計）
+#     nat-<国籍>.html       国籍・地域ごと（在留資格とその移り変わり・都道府県の地図・市区町村）
+#   グラフの部品（円グラフ・棒グラフ・表の切り替え、地図、いくつかの線の折れ線、選んで見る表）は site_assets/app.js、見た目は site_assets/style.css
+#   地図の形は site_assets/map/*.json（make_map.py で国土地理院「地球地図日本」から作る）。site/assets/ に写す
+#   （ページに書いた数から JavaScript でグラフを作る。JavaScript が動かなくても表は見える）。
+#   数はそのまま示し、良い・悪いの言葉は使わない。数え方のちがい（2011年までは登録外国人統計）はグラフと注意書きで示す
+import html
+import json
+import os
+import re
+import shutil
+import sys
+from collections import defaultdict
+from datetime import date
+from urllib.parse import quote
+
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from read_tables import group_visas  # noqa: E402
+
+sys.stdout.reconfigure(encoding="utf-8")
+BASE = os.path.dirname(os.path.abspath(__file__))
+DATA = os.path.join(BASE, "データ")
+OUT = os.path.join(BASE, "site")
+SITE_NAME = "数でみる在留外国人"
+REPO_URL = "https://github.com/Yumaki5555/zairyu-gaikokujin"  # ページ・表・作り方を公開している所
+TAGLINE = "国籍・在留資格・都道府県・市区町村"
+LATEST, YEAR_AGO, TEN_AGO = "2025-12", "2024-12", "2015-12"
+PREFS = ("北海道 青森県 岩手県 宮城県 秋田県 山形県 福島県 茨城県 栃木県 群馬県 埼玉県 千葉県 東京都 神奈川県 新潟県 富山県 石川県 福井県 "
+         "山梨県 長野県 岐阜県 静岡県 愛知県 三重県 滋賀県 京都府 大阪府 兵庫県 奈良県 和歌山県 鳥取県 島根県 岡山県 広島県 山口県 徳島県 "
+         "香川県 愛媛県 高知県 福岡県 佐賀県 長崎県 熊本県 大分県 宮崎県 鹿児島県 沖縄県").split()
+ROMA = ("hokkaido aomori iwate miyagi akita yamagata fukushima ibaraki tochigi gunma saitama chiba tokyo kanagawa niigata toyama "
+        "ishikawa fukui yamanashi nagano gifu shizuoka aichi mie shiga kyoto osaka hyogo nara wakayama tottori shimane okayama "
+        "hiroshima yamaguchi tokushima kagawa ehime kochi fukuoka saga nagasaki kumamoto oita miyazaki kagoshima okinawa").split()
+PREF_FILE = {p: f"pref-{r}.html" for p, r in zip(PREFS, ROMA)}
+HIDDEN = "（秘匿）"
+HIDDEN_LABEL = "公表されていない（10人以下の市町村）"
+# 地図にあって今の表にない町村（外国人のいない町村は2017年12月末から表にのらない。古い表にはコードがないので、名前とコードを手で結ぶ）
+MAP_ONLY = {"02343": ("青森県", "西目屋村")}
+
+
+# ---------------------------------------------------------------- 書き方の部品
+def num(n):
+    return f"{int(n):,}"
+
+
+def esc(s):
+    return html.escape(str(s))
+
+
+def href(fname):
+    return quote(fname)
+
+
+def nat_file(n):
+    return f"nat-{n}.html"
+
+
+def when_label(w):
+    y, m = w.split("-")
+    return f"{y}年{int(m)}月末"
+
+
+def when_x(w):
+    y, m = w.split("-")
+    return int(y) + (0.5 if m == "06" else 1.0) - 0.5
+
+
+def jdump(o):
+    return json.dumps(o, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+
+
+def signed(d):
+    return ("+" if d > 0 else ("−" if d < 0 else "±")) + num(abs(d))
+
+
+def diff_text(now, before, since):
+    if not before:
+        return ""
+    d = now - before
+    return f"{since}から {signed(d)}人（{'+' if d > 0 else ('−' if d < 0 else '±')}{abs(d) / before * 100:.1f}%）"
+
+
+def man(n):
+    return f"{n / 10000:g}万" if n >= 10000 else num(n)
+
+
+def nice_step(v):
+    for k in range(0, 9):
+        for step in (1, 2, 2.5, 5):
+            if step * 10 ** k >= v:
+                return step * 10 ** k
+    return v
+
+
+def line_chart(series, title, change_at="2012-12"):
+    """移り変わりの折れ線（SVG）。数え方が変わる時点（2012年12月末）で線の色を分け、縦の線で示す"""
+    pts = [(when_x(w), v, w) for w, v in series.items()]
+    if len(pts) < 2:
+        return "<p class='note'>移り変わりを示せるほどの数がありません。</p>"
+    W, H, L, R, T, B = 720, 300, 64, 16, 20, 36
+    x0, x1 = min(p[0] for p in pts), max(p[0] for p in pts)
+    top = max(p[1] for p in pts) * 1.05 or 1
+    ystep = nice_step(top / 5)
+    nt = int(-(-top // ystep))
+    ymax = ystep * nt
+
+    def X(x):
+        return L + (x - x0) / (x1 - x0) * (W - L - R)
+
+    def Y(y):
+        return T + (1 - y / ymax) * (H - T - B)
+    g = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="{esc(title)}">']
+    for k in range(nt + 1):
+        y = ystep * k
+        g.append(f'<line class="grid" x1="{L}" x2="{W - R}" y1="{Y(y):.1f}" y2="{Y(y):.1f}"/>'
+                 f'<text class="ax" x="{L - 6}" y="{Y(y) + 4:.1f}" text-anchor="end">{man(int(y))}</text>')
+    span = x1 - x0
+    step = 10 if span > 30 else (5 if span > 12 else (2 if span > 6 else 1))
+    first = int(-(-x0 // step) * step)
+    for yr in range(first, int(x1) + 1, step):
+        g.append(f'<text class="ax" x="{X(yr):.1f}" y="{H - 12}" text-anchor="middle">{yr}</text>')
+    cx = when_x(change_at)
+    if x0 < cx <= x1:
+        g.append(f'<line class="mark" x1="{X(cx):.1f}" x2="{X(cx):.1f}" y1="{T}" y2="{H - B}"/>'
+                 f'<text class="ax mk" x="{X(cx) - 4:.1f}" y="{T - 6}" text-anchor="end">←登録外国人統計</text>'
+                 f'<text class="ax mk" x="{X(cx) + 4:.1f}" y="{T - 6}">在留外国人統計→</text>')
+    for cls, part in (("old", [p for p in pts if p[2] < change_at]), ("new", [p for p in pts if p[2] >= change_at])):
+        if len(part) > 1:
+            d = " ".join(f"{'M' if i == 0 else 'L'}{X(x):.1f},{Y(y):.1f}" for i, (x, y, _) in enumerate(part))
+            g.append(f'<path class="line {cls}" d="{d}"/>')
+        for x, y, w in part:
+            g.append(f'<circle class="dot {cls}" cx="{X(x):.1f}" cy="{Y(y):.1f}" r="4"><title>{when_label(w)}：{num(y)}人</title></circle>')
+    g.append("</svg>")
+    rows = "".join(f"<tr><td>{when_label(w)}</td><td class='n'>{num(v)}</td></tr>" for w, v in series.items())
+    legend = ("<p class='note'>灰色の線は登録外国人統計（2011年まで）、青い線は在留外国人統計（2012年12月末から）。点にマウスを合わせると数が出ます。</p>"
+              if any(p[2] < change_at for p in pts) else "")
+    return ("".join(g) + legend + "<details><summary>グラフの数を表で見る</summary><div class='scroll'><table class='t'><tr><th>時点</th>"
+            f"<th class='n'>人数</th></tr>{rows}</table></div></details>")
+
+
+def breakdown(title, items, total, head):
+    """内わけ（国籍・在留資格）のグラフ。円グラフ・棒グラフ・表をボタンで切り替え（app.js）。表はページにも書いておく"""
+    items = [(n, int(v), l) for n, v, l in items if v > 0]
+    if not items or not total:
+        return "<p class='note'>数がありません。</p>"
+    rows = "".join(f"<tr><td>{f'<a href={chr(34)}{esc(l)}{chr(34)}>{esc(n)}</a>' if l else esc(n)}</td><td class='n'>{num(v)}</td>"
+                   f"<td class='n'>{v / total * 100:.1f}%</td></tr>" for n, v, l in items)
+    data = {"title": title, "total": int(total), "items": [[n, v, l] for n, v, l in items]}
+    return (f'<div class="viz" data-viz="breakdown"><div class="viz-body"></div>'
+            f'<div class="viz-table scroll"><table class="t"><tr><th>{esc(head)}</th><th class="n">人数</th><th class="n">割合</th></tr>{rows}'
+            f'</table></div><script type="application/json">{jdump(data)}</script></div>')
+
+
+def shape_map(options, links, shape, names=None, notes=None, tiles=False, label="色で示す数", note=""):
+    """地図（数を青の濃さで）。形は国土地理院「地球地図日本」から作ったもの（make_map.py）。
+    options: [(名前, {場所: 数}, 公表されていない場所の一覧), …]。2つ以上なら選べる。tiles=True なら「四角で並べる」地図にも切り替えられる（日本全体）"""
+    opts = []
+    for n, vals, unknown in options:
+        o = {"label": n, "values": {k: int(v) for k, v in vals.items()}, "total": int(sum(vals.values()))}
+        if unknown:
+            o["unknown"] = sorted(unknown)
+        opts.append(o)
+    sel = ""
+    if len(opts) > 1:
+        sel = (f'<div class="map-ctl"><label>{esc(label)}：<select>' +
+               "".join(f"<option>{esc(o['label'])}</option>" for o in opts) + "</select></label></div>")
+    nm = names or {}
+    rows = "".join(f"<tr><td>{esc(nm.get(k, k))}</td><td class='n'>{num(v)}</td></tr>"
+                   for k, v in sorted(opts[0]["values"].items(), key=lambda x: -x[1]))
+    data = {"options": opts, "links": links, "shape": shape}
+    if names:
+        data["names"] = names
+    if notes:
+        data["notes"] = notes  # 数の代わりに書くこと（国の表にない町村）
+    if tiles:
+        data["tiles"] = True
+    tw = ('<div class="tiles-wrap" hidden><div class="scroll"><div class="tiles" aria-label="日本の都道府県の地図（四角で並べたもの）"></div></div></div>'
+          if tiles else "")
+    return (f'<div class="viz" data-viz="map">{sel}<div class="map-shape"></div>{tw}<div class="map-legend"></div>'
+            f'<noscript><div class="scroll"><table class="t">{rows}</table></div></noscript>'
+            f'<script type="application/json">{jdump(data)}</script></div><p class="note">{note}</p>')
+
+
+def japan_map(options, label="色で示す数"):
+    return shape_map([(n, v, None) for n, v in options], PREF_FILE, "assets/map/japan.json", tiles=True, label=label,
+                     note="色が濃いほど多い。都道府県を押すと、その都道府県のページへ。沖縄県は左上の枠の中に移し、1.3倍の大きさにしています（小笠原諸島は入れていません）。"
+                          "「四角で並べる」にすると、都道府県を同じ大きさの四角でおおよその位置に並べた地図になります（小さい都道府県も見やすくなります）。")
+
+
+# 在留資格の移り変わりの線：名前が変わった・まとめられた在留資格は今の名前にそろえる
+VISA_RENAME = {"投資・経営": "経営・管理", "技術": "技術・人文知識・国際業務", "人文知識・国際業務": "技術・人文知識・国際業務", "就学": "留学"}
+OTHER = "その他"
+VISA_LINES_NOTE = ("各年12月末の数。いちばん新しい年に多い在留資格7つと、それ以外を合わせた「その他」の線です。線の名前を押すと、その線を消したり出したりできます"
+                   "（残った線に合わせて目もりが変わります）。2015年4月より前の「投資・経営」は「経営・管理」に、「技術」と「人文知識・国際業務」は"
+                   "「技術・人文知識・国際業務」に、2010年7月より前の「就学」は「留学」にまとめて示しています。"
+                   "点線より左（2011年まで）は登録外国人統計で、数え方が違います（短い期間の滞在の人なども入ります）。")
+
+
+def visa_set(d, label, getter, top_n=7):
+    """在留資格の移り変わり（各年12月末）の線の数。getter(時点) → {在留資格: 人数}（数のない時点は None）。
+    いちばん新しい年に多い在留資格 top_n 個（円グラフと同じ順・同じ色になる）と「その他」"""
+    per = {}
+    for w in d.visa_years:
+        c = getter(w)
+        if c:
+            m = defaultdict(int)
+            for v, k in c.items():
+                m[VISA_RENAME.get(v, v)] += k
+            per[w] = m
+    if len(per) < 2:
+        return None
+    years = [w for w in d.visa_years if min(per) <= w <= max(per)]
+    last = per[max(per)]
+    top = [v for v, k in sorted(last.items(), key=lambda x: -x[1]) if v != OTHER and k > 0][:top_n]
+    series = [{"name": v, "values": [per[w].get(v, 0) if w in per and v in d.visa_exists[w] else None for w in years]} for v in top]
+    rest = [sum(k for v, k in per[w].items() if v not in top) if w in per else None for w in years]
+    if any(rest):
+        series.append({"name": OTHER, "values": rest, "other": True})
+    out = {"label": label, "whens": [w[:4] for w in years], "series": series}
+    if "2012-12" in years and years.index("2012-12") > 0:
+        out["mark"] = years.index("2012-12")
+    return out
+
+
+def visa_lines(sets, label="国籍・地域"):
+    """在留資格の移り変わりの折れ線（いくつかの線。凡例で消す・出す、表に切り替え：app.js）。sets が2つ以上なら選べる"""
+    sets = [s for s in sets if s]
+    if not sets:
+        return "<p class='note'>移り変わりを示せるほどの数がありません。</p>"
+    sel = ""
+    if len(sets) > 1:
+        sel = (f'<div class="lines-ctl"><label>{esc(label)}：<select>' +
+               "".join(f"<option>{esc(s['label'])}</option>" for s in sets) + "</select></label></div>")
+    s0 = sets[0]
+    head = "".join(f"<th class='n'>{esc(s['name'])}</th>" for s in s0["series"])
+    rows = "".join(f"<tr><td>{w}</td>" + "".join(f"<td class='n'>{'—' if s['values'][j] is None else num(s['values'][j])}</td>" for s in s0["series"]) + "</tr>"
+                   for j, w in enumerate(s0["whens"]))
+    return (f'<div class="viz" data-viz="lines">{sel}<div class="lines-body"></div>'
+            f'<noscript><div class="scroll"><table class="t"><tr><th>年</th>{head}</tr>{rows}</table></div></noscript>'
+            f'<script type="application/json">{jdump({"sets": sets})}</script></div><p class="note">{VISA_LINES_NOTE}</p>')
+
+
+def pick_by_nat(cols, rows, head="市区町村"):
+    """国籍を選んで、市区町村の多い順。rows: [(名前, リンク, 補足, [総数, 国籍1の数, …]), …]"""
+    sel = "".join(f"<option>{esc(c)}</option>" for c in cols[1:])
+    data = {"cols": cols, "rows": [list(r) for r in rows], "head": head, "share": "その中の割合", "limit": 30}
+    return (f'<div class="viz" data-viz="pick"><div class="pick-ctl"><label>国籍・地域：<select>{sel}</select></label></div>'
+            f'<div class="pick-body scroll"></div><button type="button" class="pick-more" hidden></button>'
+            f'<script type="application/json">{jdump(data)}</script></div>'
+            '<p class="note">「その中の割合」は、その市区町村に住む外国人のうち、選んだ国籍・地域の人の割合。</p>')
+
+
+def pick_by_pref(rows):
+    """都道府県を選んで、市区町村の多い順（国籍のページ）。rows: [名前, リンク, 都道府県, その国籍の数, その市区町村の外国人の数]"""
+    prefs = sorted({r[2] for r in rows}, key=PREFS.index)
+    sel = '<option value="">全国</option>' + "".join(f"<option>{esc(p)}</option>" for p in prefs)
+    data = {"rows": rows, "filter": 2, "value": 3, "base": 4, "sub": 2, "head": "市区町村", "share": "その中の割合", "limit": 30}
+    return (f'<div class="viz" data-viz="pick"><div class="pick-ctl"><label>都道府県：<select>{sel}</select></label></div>'
+            f'<div class="pick-body scroll"></div><button type="button" class="pick-more" hidden></button>'
+            f'<script type="application/json">{jdump(data)}</script></div>'
+            '<p class="note">「その中の割合」は、その市区町村に住む外国人のうち、この国籍・地域の人の割合。</p>')
+
+
+def cross_table(nat_items, xd, n=8):
+    """国籍・地域ごとの多い在留資格（上位の国籍それぞれの、多い在留資格3つ）"""
+    out = ""
+    for name, tot, link in nat_items[:n]:
+        vs = sorted(xd.get(name, {}).items(), key=lambda x: -x[1])[:3]
+        parts = "、".join(f"{esc(v)} {num(c)}人（{c / tot * 100:.0f}%）" for v, c in vs)
+        nm = f'<a href="{esc(link)}">{esc(name)}</a>' if link else esc(name)
+        out += f"<tr><td>{nm}</td><td class='n'>{num(tot)}</td><td>{parts}</td></tr>"
+    return ("<div class='scroll'><table class='t'><tr><th>国籍・地域</th><th class='n'>人数</th><th>多い在留資格（その国籍・地域の中の割合）</th></tr>"
+            f"{out}</table></div>")
+
+
+CSS_VER = "3"
+
+
+def page(title, crumbs, body, desc):
+    crumb = " › ".join(f'<a href="{h}">{esc(t)}</a>' if h else esc(t) for t, h in crumbs)
+    return f"""<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{esc(title)}｜{esc(SITE_NAME)}</title><meta name="description" content="{esc(desc)}">
+<link rel="stylesheet" href="assets/style.css?v={CSS_VER}"></head><body>
+<header class="top"><div class="in"><div class="brand"><a class="home" href="index.html">{esc(SITE_NAME)}</a><span class="tag">{esc(TAGLINE)}</span></div>
+<nav class="menu"><a href="index.html">日本全体</a><a href="index.html#prefs">都道府県</a><a href="nat-index.html">国籍・地域</a><a href="about.html">このサイトについて</a></nav>
+<nav class="crumb">{crumb}</nav></div></header>
+<main>{body}</main>
+<footer>出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」を加工して作成。
+数は国の発表のまま示しています。良い・悪いの判断はしていません。データは{when_label(LATEST)}まで。ページを作った日 {date.today():%Y年%m月%d日}。</footer>
+<script src="assets/app.js?v={CSS_VER}" defer></script>
+</body></html>
+"""
+
+
+NOTES = """<section class="card note"><h2>数を見るときの注意</h2><ul>
+<li><b>2011年までと2012年からで数え方が違います。</b>2011年までは「外国人登録をした人」（登録外国人統計）、2012年12月末からは「中長期在留者と特別永住者」（在留外国人統計）です。</li>
+<li>国籍・地域の名前は国の表のとおりです。「韓国・朝鮮」は2015年6月末まで1つにまとめて数えられています。</li>
+<li>在留資格の「技能実習」「特定技能」「高度専門職」は、号ごとの細かい区分をまとめて示しています。</li>
+<li>くわしくは<a href="about.html">このサイトについて</a>。</li>
+</ul></section>"""
+
+
+def kpis(now, s, rank_text):
+    return (f'<div class="kpis"><div class="kpi"><div class="lab">{when_label(LATEST)}の在留外国人</div><div class="big">{num(now)}人</div>'
+            f'<div class="lab">{rank_text}</div></div><div class="kpi"><div class="lab">増減</div><div class="ch">'
+            f'{diff_text(now, s.get(YEAR_AGO), "1年前") or "1年前の数はありません"}<br>{diff_text(now, s.get(TEN_AGO), "10年前") or "10年前の数はありません"}</div></div></div>')
+
+
+# ---------------------------------------------------------------- 数をまとめる
+class D:
+    pass
+
+
+def load():
+    d = D()
+    nat = pd.read_csv(os.path.join(DATA, "全国_国籍_在留資格.csv"))
+    tot = nat[nat["在留資格"] == "総数"]
+    d.nat_series = defaultdict(dict)  # 国籍 → {時点: 人数}（全国）
+    for (n, w), v in tot.groupby(["国籍・地域", "時点"])["人数"].sum().items():
+        d.nat_series[n][w] = int(v)
+    d.japan = {w: int(v) for w, v in tot.groupby("時点")["人数"].sum().items()}
+    g = group_visas(nat[nat["在留資格"] != "総数"])
+    d.nat_visa = defaultdict(dict)  # (時点, 国籍) → {在留資格: 人数}
+    for (w, n, v), c in g.groupby(["時点", "国籍・地域", "在留資格"])["人数"].sum().items():
+        d.nat_visa[(w, n)][v] = int(c)
+    d.japan_visa = defaultdict(dict)  # 時点 → {在留資格: 人数}
+    for (w, v), c in g.groupby(["時点", "在留資格"])["人数"].sum().items():
+        d.japan_visa[w][v] = int(c)
+    d.visa_years = sorted(w for w in d.japan_visa if w.endswith("-12"))  # 在留資格の移り変わりの線は各年12月末
+    d.visa_exists = {w: {VISA_RENAME.get(v, v) for v in d.japan_visa[w]} for w in d.visa_years}  # その年にあった在留資格
+    # 古い表（1959〜2005年）の総数。1964年は「その他の国籍」の表がないので入れない
+    old = pd.read_csv(os.path.join(DATA, "古い表", "都道府県_在留資格.csv"), dtype={"内わけ": str})
+    old = old[(old["在留資格"] == "総数") & (old["時点"] != "1964-12")]
+    d.old = defaultdict(dict)  # 都道府県（"総数"＝全国）→ {時点: 人数}
+    for (p, w), g2 in old.groupby(["都道府県", "時点"]):
+        t = g2[g2["国籍"] == "総数"]
+        d.old[p][w] = int(t["人数"].sum() if len(t) else g2["人数"].sum())
+    d.japan = {**d.old["総数"], **d.japan}
+    # 都道府県
+    pn = pd.read_csv(os.path.join(DATA, "都道府県_国籍.csv"))
+    d.pref_series = defaultdict(dict)
+    for (p, w), v in pn[pn["国籍・地域"] == "総数"].groupby(["都道府県", "時点"])["人数"].sum().items():
+        d.pref_series[p][w] = int(v)
+    for p in PREFS:
+        d.pref_series[p] = dict(sorted({**d.old[p], **d.pref_series[p]}.items()))
+    d.pref_nat = defaultdict(dict)  # (時点, 都道府県) → {国籍: 人数}
+    for (w, p, n), v in pn[pn["国籍・地域"] != "総数"].groupby(["時点", "都道府県", "国籍・地域"])["人数"].sum().items():
+        d.pref_nat[(w, p)][n] = int(v)
+    pv = group_visas(pd.read_csv(os.path.join(DATA, "都道府県_在留資格.csv")).drop(columns=["出どころ"]))
+    d.pref_visa = defaultdict(dict)
+    for (w, p, v), c in pv[pv["在留資格"] != "総数"].groupby(["時点", "都道府県", "在留資格"])["人数"].sum().items():
+        d.pref_visa[(w, p)][v] = int(c)
+    px = group_visas(pd.read_csv(os.path.join(DATA, "都道府県_国籍_在留資格", f"{LATEST}.csv")))
+    d.pref_x = defaultdict(lambda: defaultdict(dict))  # 都道府県 → 国籍 → {在留資格: 人数}
+    for (p, n, v), c in px[(px["在留資格"] != "総数") & (px["国籍・地域"] != "総数")].groupby(["都道府県", "国籍・地域", "在留資格"])["人数"].sum().items():
+        d.pref_x[p][n][v] = int(c)
+    # 市区町村
+    folder = os.path.join(DATA, "市区町村_国籍")
+    mn = pd.concat([pd.read_csv(os.path.join(folder, f), dtype={"市区町村コード": str}) for f in sorted(os.listdir(folder))], ignore_index=True)
+    cur = mn[(mn["時点"] == LATEST) & (mn["国籍・地域"] == "総数") & (mn["都道府県"].isin(PREFS))]  # 「未定・不詳」（住む所が決まっていない人）は除く
+    d.munis = {}  # コード → {名前, 都道府県, 郡, 種別}
+    for _, r in cur.iterrows():
+        d.munis[r["市区町村コード"]] = {"name": r["市区町村"], "pref": r["都道府県"], "gun": r["郡"] if isinstance(r["郡"], str) else "",
+                                   "kind": r["種別"]}
+    name2code = {}
+    for _, r in mn[mn["市区町村コード"].notna()][["都道府県", "市区町村", "市区町村コード"]].drop_duplicates().iterrows():
+        name2code.setdefault((r["都道府県"], r["市区町村"]), r["市区町村コード"])
+    for code, m in d.munis.items():
+        name2code[(m["pref"], m["name"])] = code
+    for code, key in MAP_ONLY.items():
+        name2code.setdefault(key, code)
+    d.code_name = {c: n for (p, n), c in name2code.items()}  # コード → 名前（古い時点の名前も）
+    tots = mn[mn["国籍・地域"] == "総数"].copy()
+    tots["key"] = [c if isinstance(c, str) else name2code.get((p, n)) for c, p, n in zip(tots["市区町村コード"], tots["都道府県"], tots["市区町村"])]
+    d.muni_series = defaultdict(dict)
+    d.city_total_rows = defaultdict(dict)  # (都道府県, 政令市) → {時点: 人数}（古い時点の「合計の行」）
+    for (key, kind, p, name, w), v in tots.groupby(["key", "種別", "都道府県", "市区町村", "時点"], dropna=False)["人数"].sum().items():
+        if kind == "合計の行":
+            d.city_total_rows[(p, name)][w] = int(v)
+        elif isinstance(key, str):
+            d.muni_series[key][w] = int(v)
+    d.muni_nat = defaultdict(dict)  # (時点, コード) → {国籍: 人数}
+    sub = mn[(mn["時点"].isin([LATEST, YEAR_AGO])) & (mn["国籍・地域"] != "総数")]
+    sub = sub.assign(key=[c if isinstance(c, str) else name2code.get((p, n)) for c, p, n in zip(sub["市区町村コード"], sub["都道府県"], sub["市区町村"])])
+    for (w, k, n), v in sub.groupby(["時点", "key", "国籍・地域"])["人数"].sum().items():
+        d.muni_nat[(w, k)][n] = int(v)
+    mv = group_visas(pd.read_csv(os.path.join(DATA, "市区町村_在留資格", f"{LATEST}.csv"), dtype={"市区町村コード": str}).drop(columns=["出どころ"]))
+    d.muni_visa = defaultdict(dict)
+    for (k, v), c in mv[mv["在留資格"] != "総数"].groupby(["市区町村コード", "在留資格"])["人数"].sum().items():
+        d.muni_visa[k][v] = int(c)
+    mx = group_visas(pd.read_csv(os.path.join(DATA, "市区町村_国籍_在留資格", f"{LATEST}.csv"), dtype={"市区町村コード": str}))
+    d.muni_x = defaultdict(lambda: defaultdict(dict))
+    for (k, n, v), c in mx[(mx["在留資格"] != "総数") & (mx["国籍・地域"] != "総数")].groupby(["市区町村コード", "国籍・地域", "在留資格"])["人数"].sum().items():
+        d.muni_x[k][n][v] = int(c)
+    # 政令市（区の合計）
+    d.cities = defaultdict(list)  # (都道府県, 政令市) → [区のコード]
+    for code, m in d.munis.items():
+        if m["kind"] == "区":
+            mt = re.match(r"(.+?市)(.+区)$", m["name"])
+            if mt:
+                d.cities[(m["pref"], mt.group(1))].append(code)
+    return d
+
+
+def ward_sum(d, codes, getter):
+    out = defaultdict(int)
+    for c in codes:
+        for k, v in getter(c).items():
+            out[k] += v
+    return dict(out)
+
+
+def city_series(d, key):
+    s = dict(d.city_total_rows.get(key, {}))
+    wards = ward_sum(d, d.cities[key], lambda c: d.muni_series.get(c, {}))
+    for w, v in wards.items():
+        s.setdefault(w, v)
+    return dict(sorted(s.items()))
+
+
+def area_name(n):
+    return HIDDEN_LABEL if n == HIDDEN else n
+
+
+def nat_items(counts):
+    return [(area_name(n), v, None if n == HIDDEN else href(nat_file(n))) for n, v in sorted(counts.items(), key=lambda x: -x[1])]
+
+
+def visa_items(counts):
+    return [(area_name(v), c, None) for v, c in sorted(counts.items(), key=lambda x: -x[1])]
+
+
+# ---------------------------------------------------------------- ページ
+def top_page(d):
+    s = dict(sorted(d.japan.items()))
+    now = s[LATEST]
+    counts = {n: ser[LATEST] for n, ser in d.nat_series.items() if ser.get(LATEST)}
+    ni = nat_items(counts)
+    visas = d.japan_visa[LATEST]
+    vi = visa_items(visas)
+    ten = d.japan_visa[TEN_AGO]
+    pref_tot = {p: d.pref_series[p][LATEST] for p in PREFS}
+    options = [("在留外国人の数（全体）", pref_tot)]
+    for n, _, _ in ni[:20]:
+        options.append((f"国籍・地域：{n}", {p: d.pref_nat[(LATEST, p)].get(n, 0) for p in PREFS}))
+    for v, _, _ in vi[:12]:
+        options.append((f"在留資格：{v}", {p: d.pref_visa[(LATEST, p)].get(v, 0) for p in PREFS}))
+    rows = ""
+    for i, p in enumerate(sorted(PREFS, key=lambda x: -pref_tot[x]), 1):
+        v, b = pref_tot[p], d.pref_series[p].get(YEAR_AGO, 0)
+        first = max(d.pref_nat[(LATEST, p)].items(), key=lambda x: x[1])[0]
+        rows += (f"<tr><td class='n'>{i}</td><td><a href='{PREF_FILE[p]}'>{p}</a></td><td class='n'>{num(v)}</td><td class='n'>{signed(v - b)}</td>"
+                 f"<td><a href='{href(nat_file(first))}'>{esc(first)}</a></td></tr>")
+    vt = "".join(f"<tr><td>{esc(v)}</td><td class='n'>{num(c)}</td><td class='n'>{signed(c - ten[v]) if v in ten else '—'}</td></tr>"
+                 for v, c, _ in vi[:15])
+    nt = "".join(f"<tr><td><a href='{l}'>{esc(n)}</a></td><td class='n'>{num(c)}</td><td class='n'>"
+                 f"{signed(c - d.nat_series[n][TEN_AGO]) if d.nat_series[n].get(TEN_AGO) else '—'}</td></tr>" for n, c, l in ni[:15])
+    xd = {n: d.nat_visa[(LATEST, n)] for n, _, _ in ni[:10]}
+    sets = [visa_set(d, "全部の国籍・地域", lambda w: d.japan_visa.get(w))]
+    sets += [visa_set(d, n, lambda w, n=n: d.nat_visa.get((w, n))) for n, _, _ in ni[:20]]
+    body = f"""<h1>日本に住む外国人の数</h1>
+<p class="lead">出入国在留管理庁が発表している在留外国人の数を、国籍・在留資格・都道府県・市区町村ごとに見られるようにしたサイトです。</p>
+{kpis(now, s, "日本全体")}
+<section class="card"><h2>移り変わり（1959年〜{LATEST[:4]}年）</h2>{line_chart(s, "在留外国人の数の移り変わり")}</section>
+<div class="cols">
+<section class="card"><h2>国籍・地域（{when_label(LATEST)}）</h2>{breakdown("国籍・地域の内わけ", ni, now, "国籍・地域")}</section>
+<section class="card"><h2>在留資格（{when_label(LATEST)}）</h2>{breakdown("在留資格の内わけ", vi, now, "在留資格")}</section>
+</div>
+<section class="card"><h2>在留資格の移り変わり（国籍・地域を選べます）</h2>{visa_lines(sets)}</section>
+<section class="card"><h2>日本の地図で見る（{when_label(LATEST)}）</h2>{japan_map(options)}</section>
+<div class="cols">
+<section class="card"><h2>10年前からの増減：国籍・地域</h2><div class="scroll"><table class="t"><tr><th>国籍・地域</th><th class="n">人数</th><th class="n">10年前から</th></tr>{nt}</table></div>
+<p class="note"><a href="nat-index.html">すべての国籍・地域を見る</a></p></section>
+<section class="card"><h2>10年前からの増減：在留資格</h2><div class="scroll"><table class="t"><tr><th>在留資格</th><th class="n">人数</th><th class="n">10年前から</th></tr>{vt}</table></div>
+<p class="note">「—」は10年前にはなかった在留資格（特定技能は2019年から）。</p></section>
+</div>
+<section class="card"><h2>国籍・地域ごとの主な在留資格（{when_label(LATEST)}）</h2>{cross_table(ni, xd, 10)}</section>
+<section class="card" id="prefs"><h2>都道府県（多い順、{when_label(LATEST)}）</h2><div class="scroll"><table class="t"><tr><th class="n">順</th><th>都道府県</th><th class="n">人数</th><th class="n">1年前から</th><th>いちばん多い国籍・地域</th></tr>{rows}</table></div></section>
+{NOTES}"""
+    return page("日本全体", [("日本全体", None)], body, f"{when_label(LATEST)}の在留外国人は{num(now)}人。国籍・在留資格・都道府県・市区町村ごとの数と移り変わり。")
+
+
+def nat_index_page(d):
+    rows = ""
+    ranked = sorted(((n, s[LATEST]) for n, s in d.nat_series.items() if s.get(LATEST)), key=lambda x: -x[1])
+    for i, (n, v) in enumerate(ranked, 1):
+        b = d.nat_series[n].get(YEAR_AGO)
+        firsts = sorted(((p, d.pref_nat[(LATEST, p)].get(n, 0)) for p in PREFS), key=lambda x: -x[1])
+        fp = firsts[0][0] if firsts[0][1] else ""
+        rows += (f"<tr><td class='n'>{i}</td><td><a href='{href(nat_file(n))}'>{esc(n)}</a></td><td class='n'>{num(v)}</td>"
+                 f"<td class='n'>{signed(v - b) if b else '—'}</td><td>{esc(fp)}</td></tr>")
+    body = f"""<h1>国籍・地域の一覧</h1><p class="lead">{when_label(LATEST)}の人数の多い順。名前を押すと、その国籍・地域の人の在留資格や、住んでいる都道府県・市区町村が見られます。</p>
+<section class="card"><div class="scroll"><table class="t"><tr><th class="n">順</th><th>国籍・地域</th><th class="n">人数</th><th class="n">1年前から</th><th>いちばん多い都道府県</th></tr>{rows}</table></div></section>{NOTES}"""
+    return page("国籍・地域の一覧", [("日本全体", "index.html"), ("国籍・地域の一覧", None)], body, "在留外国人の国籍・地域の一覧と人数。")
+
+
+def nat_page(d, n, rank):
+    s = d.nat_series[n]
+    now = s[LATEST]
+    visas = d.nat_visa[(LATEST, n)]
+    vi = visa_items(visas)
+    pv = {p: d.pref_nat[(LATEST, p)].get(n, 0) for p in PREFS}
+    prow = ""
+    for i, p in enumerate(sorted(PREFS, key=lambda x: -pv[x]), 1):
+        if not pv[p]:
+            continue
+        pt = d.pref_series[p][LATEST]
+        prow += (f"<tr><td class='n'>{i}</td><td><a href='{PREF_FILE[p]}'>{p}</a></td><td class='n'>{num(pv[p])}</td><td class='n'>{pv[p] / now * 100:.1f}%</td>"
+                 f"<td class='n'>{pv[p] / pt * 100:.1f}%</td></tr>")
+    mrows = []  # 市区町村（政令市は区の合計で1つ。都道府県のページの一覧と同じ）
+    for p in PREFS:
+        for name, link, subt, ref in d.areas[p]:
+            c = counts_of(d, ref).get(n, 0)
+            if c:
+                mrows.append([name, href(link), p, c, total_of(d, ref)])
+    hidden_note = ("（外国人が10人以下の市町村は国籍が公表されていないので、市区町村の合計は全国の数より少なくなります）")
+    body = f"""<h1>{esc(n)}の人</h1><p class="lead">日本に住む、国籍・地域が「{esc(n)}」の人の数です。</p>
+{kpis(now, s, f"国籍・地域のうち {rank}番目に多い")}
+<section class="card"><h2>移り変わり（2006年〜）</h2>{line_chart(dict(sorted(s.items())), f"{n}の人の数の移り変わり")}
+{"<p class='note'>2015年6月末までは「韓国・朝鮮」として1つに数えられていたため、この国籍・地域だけの数はそれより前にはありません。</p>" if n in ("韓国", "朝鮮") else ""}</section>
+<section class="card"><h2>在留資格（{when_label(LATEST)}）</h2>{breakdown(f"{n}の人の在留資格", vi, now, "在留資格")}</section>
+<section class="card"><h2>在留資格の移り変わり</h2>{visa_lines([visa_set(d, n, lambda w: d.nat_visa.get((w, n)))])}</section>
+<section class="card"><h2>住んでいる都道府県（{when_label(LATEST)}）</h2>{japan_map([(f"{n}の人の数", pv)])}
+<details><summary>都道府県の表を見る</summary><div class="scroll"><table class="t"><tr><th class="n">順</th><th>都道府県</th><th class="n">人数</th><th class="n">全国の{esc(n)}の人のうち</th><th class="n">その都道府県の外国人のうち</th></tr>{prow}</table></div></details></section>
+<section class="card"><h2>住んでいる市区町村（{when_label(LATEST)}）</h2>{pick_by_pref(mrows)}<p class="note">{hidden_note}</p></section>
+{NOTES}"""
+    return page(n, [("日本全体", "index.html"), ("国籍・地域の一覧", "nat-index.html"), (n, None)], body,
+                f"日本に住む{n}の人は{when_label(LATEST)}に{num(now)}人。在留資格・都道府県・市区町村ごとの数。")
+
+
+def area_list(d, pref):
+    """都道府県の中の市区町村（政令市は区の合計で1つ）。[(名前, リンク, 補足, コード or 政令市の鍵)]"""
+    out = []
+    seen = set()
+    for code, m in d.munis.items():
+        if m["pref"] != pref:
+            continue
+        if m["kind"] == "区":
+            mt = re.match(r"(.+?市)(.+区)$", m["name"])
+            key = (pref, mt.group(1)) if mt else None
+            if key and key not in seen:
+                seen.add(key)
+                out.append((key[1], f"city-{key[1]}.html", "政令市", key))
+            continue
+        out.append((m["name"], f"muni-{code}.html", m["gun"], code))
+    return out
+
+
+def counts_of(d, ref, when=LATEST):
+    if isinstance(ref, tuple):
+        return ward_sum(d, d.cities[ref], lambda c: d.muni_nat[(when, c)])
+    return d.muni_nat[(when, ref)]
+
+
+def total_of(d, ref, when=LATEST):
+    if isinstance(ref, tuple):
+        return city_series(d, ref).get(when, 0)
+    return d.muni_series[ref].get(when, 0)
+
+
+def area_visa(d, ref):
+    if isinstance(ref, tuple):
+        return ward_sum(d, d.cities[ref], lambda c: d.muni_visa.get(c, {}))
+    return d.muni_visa.get(ref, {})
+
+
+MAP_WARN = []
+
+
+def map_absent(d, pref, roma, mkeys):
+    """地図の区画とサイトの市区町村が合っているか（合併などで変わったときに気づけるように）。
+    地図にあって今の表にない市町村（外国人のいない町村は2017年12月末から表にのらない）は {鍵: (名前, 書くこと)} で返す"""
+    with open(os.path.join(BASE, "site_assets", "map", f"pref-{roma}.json"), encoding="utf-8") as f:
+        shape = set(k for k in json.load(f)["areas"] if not k.startswith("none:"))
+    for k in sorted(set(mkeys) - shape):
+        if pref == "東京都" and k >= "13360":  # 伊豆諸島・小笠原（地図に入れていない）
+            continue
+        MAP_WARN.append(f"{pref}：地図に形がない {mkeys[k][0]}（{k}）")
+    out = {}
+    for k in sorted(shape - set(mkeys)):
+        if k not in d.code_name:
+            MAP_WARN.append(f"{pref}：数のない地図の区画 {k}")
+            continue
+        s = sorted(d.muni_series.get(k, {}).items())
+        out[k] = (d.code_name[k], "国の表にのっていません" + (f"（{when_label(s[-1][0])}は{num(s[-1][1])}人）" if s else ""))
+    return out, shape
+
+
+def pref_page(d, pref):
+    s = d.pref_series[pref]
+    now = s[LATEST]
+    rank = sorted(PREFS, key=lambda p: -d.pref_series[p][LATEST]).index(pref) + 1
+    ni = nat_items(d.pref_nat[(LATEST, pref)])
+    vi = visa_items(d.pref_visa[(LATEST, pref)])
+    areas = area_list(d, pref)
+    rows = ""
+    for name, link, subt, ref in sorted(areas, key=lambda a: -total_of(d, a[3])):
+        v, b = total_of(d, ref), total_of(d, ref, YEAR_AGO)
+        cs = counts_of(d, ref)
+        first = max(cs.items(), key=lambda x: x[1])[0] if cs else ""
+        fn = f"<a href='{href(nat_file(first))}'>{esc(first)}</a>" if first and first != HIDDEN else esc(area_name(first)) if first else ""
+        rows += (f"<tr><td><a href='{href(link)}'>{esc(name)}</a> <span class='sub'>{esc(subt)}</span></td><td class='n'>{num(v)}</td>"
+                 f"<td class='n'>{signed(v - b) if b else '—'}</td><td>{fn}</td></tr>")
+    top_nats = [n for n, _, _ in ni if n != HIDDEN_LABEL][:15]
+    prow = []
+    for name, link, subt, ref in areas:
+        cs = counts_of(d, ref)
+        prow.append((name, href(link), subt, [total_of(d, ref)] + [cs.get(n, 0) for n in top_nats]))
+    # 市区町村の地図：区画の鍵は市区町村のコード、政令市は "city:名前"（make_map.py と同じ）
+    mkeys = {("city:" + ref[1] if isinstance(ref, tuple) else ref): (name, link, ref) for name, link, subt, ref in areas}
+    roma = ROMA[PREFS.index(pref)]
+    absent, on_map = map_absent(d, pref, roma, mkeys)
+    unknown = [k for k, (_, _, ref) in mkeys.items() if k in on_map and (HIDDEN in counts_of(d, ref) or HIDDEN in area_visa(d, ref))]
+    mopts = [("在留外国人の数（全体）", {k: total_of(d, ref) for k, (_, _, ref) in mkeys.items()}, None)]
+    for n in top_nats[:10]:
+        mopts.append((f"国籍・地域：{n}", {k: counts_of(d, ref).get(n, 0) for k, (_, _, ref) in mkeys.items()}, unknown))
+    for v in [v for v, _, _ in vi if v != HIDDEN_LABEL][:8]:
+        mopts.append((f"在留資格：{v}", {k: area_visa(d, ref).get(v, 0) for k, (_, _, ref) in mkeys.items()}, unknown))
+    mmap = shape_map(mopts, {k: href(link) for k, (_, link, _) in mkeys.items()}, f"assets/map/pref-{roma}.json",
+                     names={**{k: name for k, (name, _, _) in mkeys.items()}, **{k: a[0] for k, a in absent.items()}},
+                     notes={k: a[1] for k, a in absent.items()},
+                     note="色が濃いほど多い。市区町村を押すと、そのページへ。政令市は市全体で1つの色です。"
+                          + ("点線の所は、外国人が10人以下で国籍・在留資格が公表されていない町村です（国籍・在留資格を選んだとき）。" if unknown else ""))
+    body = f"""<h1>{pref}に住む外国人の数</h1>
+{kpis(now, s, f"47都道府県のうち {rank}番目に多い")}
+<section class="card"><h2>移り変わり</h2>{line_chart(s, f"{pref}の在留外国人の数の移り変わり")}</section>
+<div class="cols">
+<section class="card"><h2>国籍・地域（{when_label(LATEST)}）</h2>{breakdown(f"{pref}の国籍・地域の内わけ", ni, now, "国籍・地域")}</section>
+<section class="card"><h2>在留資格（{when_label(LATEST)}）</h2>{breakdown(f"{pref}の在留資格の内わけ", vi, now, "在留資格")}</section>
+</div>
+<section class="card"><h2>市区町村の地図（{when_label(LATEST)}）</h2>{mmap}</section>
+<section class="card"><h2>国籍・地域ごとの主な在留資格（{when_label(LATEST)}）</h2>{cross_table(ni, d.pref_x[pref])}</section>
+<section class="card"><h2>国籍・地域から見た市区町村（{when_label(LATEST)}）</h2>{pick_by_nat(["総数"] + top_nats, prow)}</section>
+<section class="card"><h2>市区町村（多い順、{when_label(LATEST)}）</h2><div class="scroll"><table class="t"><tr><th>市区町村</th><th class="n">人数</th><th class="n">1年前から</th><th>いちばん多い国籍・地域</th></tr>{rows}</table></div></section>
+{NOTES}"""
+    return page(pref, [("日本全体", "index.html"), (pref, None)], body, f"{pref}の在留外国人は{when_label(LATEST)}に{num(now)}人。国籍・在留資格・市区町村ごとの数。")
+
+
+def muni_body(d, title, pref, s, ni, vi, xd, rank_text, extra=""):
+    now = s.get(LATEST, 0)
+    hidden = any(n == HIDDEN_LABEL for n, _, _ in ni)
+    return f"""<h1>{esc(title)}に住む外国人の数</h1>
+{kpis(now, s, rank_text)}
+<section class="card"><h2>移り変わり</h2>{line_chart(s, f"{title}の在留外国人の数の移り変わり")}
+<p class="note">町村の数は2012年12月末からです（それより前の統計は市と区だけ）。市町村の合併や名前の変更があると、前の数はつながりません。</p></section>
+{"<section class='card note'><p>外国人が10人以下の市町村は、国籍・在留資格が公表されていません（数は国の表のとおり「公表されていない」としています）。</p></section>" if hidden else ""}
+<div class="cols">
+<section class="card"><h2>国籍・地域（{when_label(LATEST)}）</h2>{breakdown(f"{title}の国籍・地域の内わけ", ni, now, "国籍・地域")}</section>
+<section class="card"><h2>在留資格（{when_label(LATEST)}）</h2>{breakdown(f"{title}の在留資格の内わけ", vi, now, "在留資格")}</section>
+</div>
+{"" if hidden else f"<section class='card'><h2>国籍・地域ごとの主な在留資格（{when_label(LATEST)}）</h2>{cross_table(ni, xd, 6)}</section>"}
+{extra}{NOTES}"""
+
+
+def muni_page(d, code, rank_in):
+    m = d.munis[code]
+    pref, name = m["pref"], m["name"]
+    s = dict(sorted(d.muni_series[code].items()))
+    ni = nat_items(d.muni_nat[(LATEST, code)])
+    vi = visa_items(d.muni_visa.get(code, {}))
+    crumbs = [("日本全体", "index.html"), (pref, PREF_FILE[pref])]
+    if m["kind"] == "区":
+        mt = re.match(r"(.+?市)(.+区)$", name)
+        crumbs.append((mt.group(1), href(f"city-{mt.group(1)}.html")))
+    crumbs.append((name, None))
+    title = f"{pref}{name}"
+    body = muni_body(d, title, pref, s, ni, vi, d.muni_x.get(code, {}), rank_in)
+    return page(title, crumbs, body, f"{title}の在留外国人は{when_label(LATEST)}に{num(s.get(LATEST, 0))}人。国籍・在留資格ごとの数。")
+
+
+def city_page(d, key, rank_in):
+    pref, city = key
+    s = city_series(d, key)
+    codes = d.cities[key]
+    ni = nat_items(ward_sum(d, codes, lambda c: d.muni_nat[(LATEST, c)]))
+    vi = visa_items(ward_sum(d, codes, lambda c: d.muni_visa.get(c, {})))
+    xd = defaultdict(lambda: defaultdict(int))
+    for c in codes:
+        for n, vs in d.muni_x.get(c, {}).items():
+            for v, k in vs.items():
+                xd[n][v] += k
+    rows = ""
+    for c in sorted(codes, key=lambda c: -d.muni_series[c].get(LATEST, 0)):
+        v, b = d.muni_series[c].get(LATEST, 0), d.muni_series[c].get(YEAR_AGO, 0)
+        rows += (f"<tr><td><a href='muni-{c}.html'>{esc(d.munis[c]['name'][len(city):])}</a></td><td class='n'>{num(v)}</td>"
+                 f"<td class='n'>{signed(v - b) if b else '—'}</td></tr>")
+    extra = f"<section class='card'><h2>区（多い順、{when_label(LATEST)}）</h2><table class='t'><tr><th>区</th><th class='n'>人数</th><th class='n'>1年前から</th></tr>{rows}</table></section>"
+    body = muni_body(d, f"{pref}{city}", pref, s, ni, vi, xd, rank_in, extra)
+    return page(f"{pref}{city}", [("日本全体", "index.html"), (pref, PREF_FILE[pref]), (city, None)], body,
+                f"{pref}{city}の在留外国人は{when_label(LATEST)}に{num(s.get(LATEST, 0))}人。国籍・在留資格・区ごとの数。")
+
+
+def about_page():
+    body = f"""<h1>このサイトについて</h1>
+<section class="card"><h2>目的</h2><p>日本に住む外国人について考えるときの材料として、国（出入国在留管理庁）が発表している数を、国籍・在留資格・都道府県・市区町村ごとに見やすくしたサイトです。
+数はそのまま示し、良い・悪いの判断や、ある考えに導くような言い方はしていません。</p></section>
+<section class="card"><h2>使っているデータ</h2><ul>
+<li>出入国在留管理庁「在留外国人統計」（2012年12月末〜{when_label(LATEST)}）。2013年からは6月末と12月末の年2回</li>
+<li>同「登録外国人統計」（1959〜2011年末。2011年までの数え方）。1959〜2005年は紙の統計書のスキャンしかないため、画像から数字を読み取り、
+合計がすべて合うことを確かめて使っています。元の統計書の数そのものが合っていない所（印刷のずれ）は、数を直さずに記録しています</li>
+<li>どちらも政府統計の総合窓口（e-Stat）で公開されているものです</li></ul></section>
+<section class="card note"><h2>数を見るときの注意</h2><ul>
+<li><b>2011年までと2012年からで数え方が違います。</b>2011年までは「外国人登録をした人」（短い期間の滞在の人なども入る）、2012年12月末からは「中長期在留者と特別永住者」です。つなげて増え方を見るときは注意してください。</li>
+<li>市区町村ごとの数は、2023年6月末までは主な国籍だけ、2023年12月末からは全部の国籍が公表されています。</li>
+<li>外国人が10人以下の市町村は、2024年12月末から国籍・在留資格が公表されていません（このサイトでは「公表されていない」と示します）。</li>
+<li>在留資格の「技能実習」「特定技能」「高度専門職」は、号ごとの細かい区分をまとめて示しています。</li>
+<li>国籍・地域の名前は国の表のとおりです。「韓国・朝鮮」は2015年6月末まで1つにまとめて数えられています。</li>
+<li>地図の形は、国土地理院「地球地図日本」（2015年1月1日時点の市区町村の境界）を加工して作ったものです。その後に町や村から市になってコードが変わった所は、今のコードに合わせています。日本全体の地図では、沖縄県を左上の枠の中に移して1.3倍の大きさにし、小笠原諸島は入れていません。東京都の地図には伊豆諸島・小笠原諸島を入れていません。</li>
+<li>日本全体の地図の「四角で並べる」は、都道府県を同じ大きさの四角で、おおよその位置に並べたものです（面積や形は表していません）。</li>
+<li>在留資格の移り変わりの線では、名前が変わった在留資格を今の名前にそろえています（2015年4月より前の「投資・経営」は「経営・管理」、「技術」と「人文知識・国際業務」は「技術・人文知識・国際業務」、2010年7月より前の「就学」は「留学」）。</li></ul></section>
+<section class="card"><h2>表と作り方</h2><p>このサイトのページ、元にした表（1行に1つの数が入った CSV）、作り方のプログラムは、GitHub で公開しています：
+<a href="{REPO_URL}">{REPO_URL}</a>。表は自由に取り出して使えます（使うときは下の出典を書いてください）。</p></section>
+<section class="card"><h2>出典の書き方</h2><p>出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成</p><p>地図：国土地理院「地球地図日本」（<a href="https://www.gsi.go.jp/kankyochiri/gm_jpn.html">https://www.gsi.go.jp/kankyochiri/gm_jpn.html</a>）を加工して作成（国土地理院コンテンツ利用規約による）</p></section>"""
+    return page("このサイトについて", [("日本全体", "index.html"), ("このサイトについて", None)], body, "このサイトの目的・使っているデータ・数を見るときの注意。")
+
+
+def main():
+    d = load()
+    d.areas = {p: area_list(d, p) for p in PREFS}
+    if os.path.isdir(OUT):
+        for f in os.listdir(OUT):
+            if f.endswith(".html"):
+                os.remove(os.path.join(OUT, f))
+    os.makedirs(os.path.join(OUT, "assets"), exist_ok=True)
+    for f in ("app.js", "style.css"):
+        shutil.copyfile(os.path.join(BASE, "site_assets", f), os.path.join(OUT, "assets", f))
+    src, dst = os.path.join(BASE, "site_assets", "map"), os.path.join(OUT, "assets", "map")  # 地図の形
+    os.makedirs(dst, exist_ok=True)
+    for f in set(os.listdir(dst)) - set(os.listdir(src)):
+        os.remove(os.path.join(dst, f))
+    for f in os.listdir(src):
+        shutil.copyfile(os.path.join(src, f), os.path.join(dst, f))
+    pages = {"index.html": top_page(d), "nat-index.html": nat_index_page(d), "about.html": about_page()}
+    for p in PREFS:
+        pages[PREF_FILE[p]] = pref_page(d, p)
+    for p in PREFS:  # 市区町村：都道府県の中の順位（政令市は区の合計で1つ）
+        areas = sorted(area_list(d, p), key=lambda a: -total_of(d, a[3]))
+        n = len(areas)
+        for i, (name, link, subt, ref) in enumerate(areas, 1):
+            text = f"{p}の{n}の市区町村のうち {i}番目に多い"
+            if isinstance(ref, tuple):
+                pages[link] = city_page(d, ref, text)
+                wards = sorted(d.cities[ref], key=lambda c: -d.muni_series[c].get(LATEST, 0))
+                for j, c in enumerate(wards, 1):
+                    pages[f"muni-{c}.html"] = muni_page(d, c, f"{ref[1]}の{len(wards)}の区のうち {j}番目に多い")
+            else:
+                pages[link] = muni_page(d, ref, text)
+    ranked = sorted((n for n, s in d.nat_series.items() if s.get(LATEST)), key=lambda n: -d.nat_series[n][LATEST])
+    for i, n in enumerate(ranked, 1):
+        pages[nat_file(n)] = nat_page(d, n, i)
+    size = 0
+    for name, text in pages.items():
+        with open(os.path.join(OUT, name), "w", encoding="utf-8") as f:
+            f.write(text)
+        size += len(text.encode("utf-8"))
+    print(f"ページ {len(pages)}（合わせて {size / 2**20:.1f}MB）")
+    print("地図と市区町村：" + ("すべて合っています" if not MAP_WARN else f"合わない所 {len(MAP_WARN)}"))
+    for w in MAP_WARN:
+        print("  " + w)
+
+
+if __name__ == "__main__":
+    main()
