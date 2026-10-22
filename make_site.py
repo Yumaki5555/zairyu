@@ -552,6 +552,7 @@ def load():
         name2code[(m["pref"], m["name"])] = code
     for code, key in MAP_ONLY.items():
         name2code.setdefault(key, code)
+    d.name2code = name2code  # (都道府県, 名前) → コード（コードのない古い時点の表を、名前でコードに結ぶ）
     d.code_name = {c: n for (p, n), c in name2code.items()}  # コード → 名前（古い時点の名前も）
     tots = mn[mn["国籍・地域"] == "総数"].copy()
     tots["key"] = [c if isinstance(c, str) else name2code.get((p, n)) for c, p, n in zip(tots["市区町村コード"], tots["都道府県"], tots["市区町村"])]
@@ -582,6 +583,16 @@ def load():
             mt = re.match(r"(.+?市)(.+区)$", m["name"])
             if mt:
                 d.cities[(m["pref"], mt.group(1))].append(code)
+    # 政令市を足し合わせるときのコード：今の区・前にあった区（浜松市は2024年1月に7区 → 3区）・政令市になる前の市。
+    # どの時点でも、そのときにあったものだけに数があるので、全部足せばその時点の市の数になる
+    d.city_parts = {}
+    for key, codes in d.cities.items():
+        parts = set(codes)
+        for (p, n), c in name2code.items():
+            mt = re.match(r"(.+?市)(.+区)$", n)
+            if (p == key[0] and mt and mt.group(1) == key[1]) or (p, n) == key:
+                parts.add(c)
+        d.city_parts[key] = sorted(parts)
     return d
 
 
@@ -593,11 +604,21 @@ def ward_sum(d, codes, getter):
     return dict(out)
 
 
+CITY_ZERO = []  # 国の表の政令市の合計が0人で、区には人がいる時点（区の合計を使う）→ [(政令市, 時点, 区の合計)]
+
+
 def city_series(d, key):
+    """政令市の数。国の表の「合計の行」があればその数（区の合計と少し違っても表のまま）、なければその時点の区の合計。
+    合計の行が0人なのに区に人がいる時点（2016年6月末の熊本市）は、表の書きもらしとみて区の合計を使い、CITY_ZERO に残す"""
     s = dict(d.city_total_rows.get(key, {}))
-    wards = ward_sum(d, d.cities[key], lambda c: d.muni_series.get(c, {}))
-    for w, v in wards.items():
-        s.setdefault(w, v)
+    parts = ward_sum(d, d.city_parts[key], lambda c: d.muni_series.get(c, {}))
+    for w, v in parts.items():
+        if w not in s:
+            s[w] = v
+        elif s[w] == 0 and v:
+            s[w] = v
+            if (key[1], w, v) not in CITY_ZERO:
+                CITY_ZERO.append((key[1], w, v))
     return dict(sorted(s.items()))
 
 

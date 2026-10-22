@@ -33,8 +33,10 @@ button.dmitem[aria-selected="true"]::before { content: "✓"; color: var(--btn);
 .dmreg { margin-bottom: 6px; }
 .dmreg select { width: 100%; }
 .dmbar { display: flex; flex-wrap: wrap; gap: 6px; }
-.dacts { flex-direction: row; flex-wrap: wrap; gap: 6px; margin-left: auto; }
-.dnow { flex: 1 1 100%; font-size: 15px; margin: 2px 0 0; padding-top: 8px; border-top: 1px dashed var(--line); }
+.dacts { flex-direction: row; flex-wrap: nowrap; gap: 6px; margin-left: auto; }
+.dacts .dbtn { padding: 6px 12px; white-space: nowrap; }
+@media (min-width: 921px) { .dfilter .dmbtn { min-width: 8em; max-width: 10em; } } /* パソコン：1行に収める（長い名前は「…」。全部は下の「表示中」の行に出る） */
+.dnow { font-size: 15px; margin: 6px 4px 0; }
 .dnow b { font-weight: 700; }
 .dnow .upd { color: var(--btn); font-weight: 700; margin-left: 8px; }
 #dash-loading { position: fixed; top: calc(var(--hdr, 56px) + 8px); right: 10px; z-index: 30; background: var(--btn); color: var(--btn-ink); padding: 6px 14px; border-radius: 18px; font-weight: 600; }

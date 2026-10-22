@@ -49,12 +49,14 @@
     sel.value = S.w; sel.addEventListener('change', function () { set({ w: sel.value }); });
     var t2 = el('label', 'dctl'); t2.appendChild(el('span', 'dlab', '時点（発表）')); t2.appendChild(sel); f.appendChild(t2);
     var latest = D.W[D.W.length - 1], plain = Object.keys(DEF).every(function (k) { return k === 'w' ? S.w === latest : JSON.stringify(S[k]) === JSON.stringify(DEF[k]); });
-    var acts = el('div', 'dctl dacts'), reset = el('button', 'dbtn dbtn-sub', '条件をリセット'); reset.type = 'button'; reset.disabled = plain;
+    var acts = el('div', 'dctl dacts'), reset = el('button', 'dbtn dbtn-sub', 'リセット'); reset.type = 'button'; reset.disabled = plain;
+    reset.title = plain ? '選んでいる条件はありません' : '表・時点・比べるものなどを、はじめの状態に戻します';
     reset.addEventListener('click', function () { S = JSON.parse(JSON.stringify(DEF)); S.w = latest; render(); });
     acts.appendChild(reset); f.appendChild(acts);
-    f.appendChild(el('p', 'dnow', '表示中：表 <b>' + esc(S.dim) + '</b>　時点 <b>' + esc(wl(S.w)) + '</b>（' + esc(pubText(rel(S.w))) + '公表の速報）'));
     return f;
   }
+  // 「表示中：…」の行は、止めておく欄の外（すぐ下）に出す（欄を低くして、下のグラフが隠れないように）
+  function nowLine() { return el('p', 'dnow', '表示中：表 <b>' + esc(S.dim) + '</b>　時点 <b>' + esc(wl(S.w)) + '</b>（' + esc(pubText(rel(S.w))) + '公表の速報）'); }
 
   // ① ランキング
   function rankCard() {
@@ -213,11 +215,13 @@
   }
 
   var box = document.getElementById('sokuho-view'), ctl = document.getElementById('sokuho-ctl');
+  var nowBox = el('div'); nowBox.id = 'sokuho-now'; ctl.insertAdjacentElement('afterend', nowBox);
   function render() {
     if (D.W.indexOf(S.w) < 0) { S.w = D.W[D.W.length - 1]; }
     if (DIMS.indexOf(S.dim) < 0) { S.dim = DIMS[0]; }
     writeHash();
     ctl.replaceChildren(controls());
+    nowBox.replaceChildren(nowLine());
     var out = el('div');
     [rankCard, lineCard, growCard, pieCard, checkCard].forEach(function (f) { try { out.appendChild(f()); } catch (e) { console.error(e); out.appendChild(Z.nodata('この部分を表示できませんでした')); } });
     box.replaceChildren(out);

@@ -128,7 +128,16 @@
   function visaSeries(table, v, n) { var raws = rawVisas(v).map(function (r) { return table[r]; }).filter(Boolean); return raws.length ? sumAny(raws, n) : nullsOf(n); }
   function natSeries(table, x, n) { return table[x] ? table[x].slice() : nullsOf(n); }
   function muniEntry(roma, key) { return load('muni/' + roma + '.json').then(function (f) { return f[key] || { n: {}, v: {} }; }); }
-  function crossAt(a, file, nats, visas) { // 国籍×在留資格の表の1時点分から、選んだ国籍×選んだ在留資格の合計
+  // その時点の全国の表（japan.json：j）に、その国籍・在留資格の区分があるか。ない時点（区分がなかった・「韓国・朝鮮」のようにまとめて数えていた）は
+  // 地域の数もデータなし。ある時点で地域の表にないときは0人
+  function natAt(j, x, w) { var i = M.P.indexOf(w), s = j.n[x]; return i >= 0 && !!s && s[i] != null; }
+  function visaAt(j, v, w) { var i = M.P.indexOf(w); return i >= 0 && rawVisas(v).some(function (r) { return !!j.v[r] && j.v[r][i] != null; }); }
+  function allAt(j, nats, visas, w) { return nats.every(function (x) { return natAt(j, x, w); }) && visas.every(function (v) { return visaAt(j, v, w); }); }
+  function missingAt(j, dim, names, w) { return names.filter(function (x) { return dim === 'nat' ? !visaAt(j, x, w) : !natAt(j, x, w); }); } // 絞り込み（dim の反対側）のうち、その時点の表にない名前
+  function missingWhy(miss) { return 'この時点の国の表には「' + miss.join('」「') + '」の区分がありません（区分がなかったか、ほかとまとめて数えていました）'; }
+  function anyAt(table, i) { return Object.keys(table || {}).some(function (k) { return table[k][i] != null; }); } // その時点の数が1つでもあるか
+  function crossAt(a, file, nats, visas, j, w) { // 国籍×在留資格の表の1時点分から、選んだ国籍×選んだ在留資格の合計
+    if (!allAt(j, nats, visas, w)) { return null; }
     var rec = a.type === 'japan' ? file : a.type === 'pref' ? file[a.pref] : file[a.key];
     if (!rec) { return 0; }
     var vs = []; visas.forEach(function (v) { vs = vs.concat(rawVisas(v)); });
@@ -145,10 +154,11 @@
       if (!nats.length && !visas.length) { return load('japan.json').then(function (j) { return res(j.t.slice()); }); }
       if (!visas.length) { return load('japan.json').then(function (j) { return res(sumAll(nats.map(function (x) { return natSeries(j.n, x, n); }), n)); }); }
       if (!nats.length) { return load('japan.json').then(function (j) { return res(sumAll(visas.map(function (v) { return visaSeries(j.v, v, n); }), n)); }); }
-      return load('japan-x.json').then(function (x) {
+      return Promise.all([load('japan-x.json'), load('japan.json')]).then(function (r) {
+        var x = r[0];
         return res(per.map(function (w) {
           var mi = M.MP.indexOf(w);
-          if (mi < 0) { return null; }
+          if (mi < 0 || !allAt(r[1], nats, visas, w)) { return null; }
           var s = 0;
           nats.forEach(function (nn) { var r = x[nn]; if (r) { visas.forEach(function (v) { rawVisas(v).forEach(function (rv) { if (r[rv] && r[rv][mi] != null) { s += r[rv][mi]; } }); }); } });
           return s;
@@ -167,26 +177,28 @@
           var t = r[0][a.pref] || {}; return res(sumAll(visas.map(function (v) { return fillBy(visaSeries(t, v, n), visaSeries(r[1].v, v, n)); }), n));
         });
       }
-      return Promise.all(M.pxPeriods.map(function (w) { return load('px/' + w + '.json'); })).then(function (files) {
-        return res(per.map(function (w) { var k = M.pxPeriods.indexOf(w); return k < 0 ? null : crossAt(a, files[k], nats, visas); }));
+      return Promise.all([load('japan.json')].concat(M.pxPeriods.map(function (w) { return load('px/' + w + '.json'); }))).then(function (files) {
+        var j = files.shift();
+        return res(per.map(function (w) { var k = M.pxPeriods.indexOf(w); return k < 0 ? null : crossAt(a, files[k], nats, visas, j, w); }));
       });
     }
     // 市区町村
     var roma = PREF_ROMA[a.pref];
-    return Promise.all([load('muni-total.json'), muniEntry(roma, a.key)]).then(function (r) {
-      var tot = r[0][a.key] ? r[0][a.key][1] : per.map(function () { return null; }), e = r[1];
+    return Promise.all([load('muni-total.json'), muniEntry(roma, a.key), load('japan.json')]).then(function (r) {
+      var tot = r[0][a.key] ? r[0][a.key][1] : per.map(function () { return null; }), e = r[1], j = r[2];
       (e.h || []).forEach(function (i) { hid[i] = 1; });
       if (!nats.length && !visas.length) { return res(tot.slice()); }
       if (nats.length && visas.length) {
         return Promise.all(M.mxPeriods.map(function (w) { return load('mx/' + roma + '-' + w + '.json'); })).then(function (files) {
-          return res(per.map(function (w, i) { var k = M.mxPeriods.indexOf(w); return k < 0 || tot[i] == null || hid[i] ? null : crossAt(a, files[k], nats, visas); }));
+          return res(per.map(function (w, i) { var k = M.mxPeriods.indexOf(w); return k < 0 || tot[i] == null || hid[i] ? null : crossAt(a, files[k], nats, visas, j, w); }));
         });
       }
+      // 国籍別・在留資格別の数が1つもない時点（その表にこの市区町村がのっていない）はデータなし。0人にしない
       if (nats.length) {
         return res(sumAll(nats.map(function (x) {
           var s = e.n[x];
           return per.map(function (w, i) {
-            if (tot[i] == null || hid[i]) { return null; }
+            if (tot[i] == null || hid[i] || !natAt(j, x, w) || !anyAt(e.n, i)) { return null; }
             if (w < M.fullNatFrom && (M.listed[w] || []).indexOf(x) < 0) { return null; } // その時点の表にない国籍
             return s && s[i] != null ? s[i] : 0;
           });
@@ -195,7 +207,7 @@
       return res(sumAll(visas.map(function (v) {
         var raws = rawVisas(v).map(function (rv) { return e.v[rv]; });
         return per.map(function (w, i) {
-          if (tot[i] == null || hid[i] || w < M.muniVisaFrom) { return null; }
+          if (tot[i] == null || hid[i] || w < M.muniVisaFrom || !visaAt(j, v, w) || !anyAt(e.v, i)) { return null; }
           var s = 0; raws.forEach(function (x) { if (x && x[i] != null) { s += x[i]; } });
           return s;
         });
@@ -439,25 +451,28 @@
     var per = periodsOf(a).slice().reverse();
     f.appendChild(selectEl(per.map(function (w) { return [w, wl(w)]; }), whenOf(a), function (v) { setS({ when: v }); }, '時点'));
     var acts = el('div', 'dctl dacts');
-    var reset = el('button', 'dbtn dbtn-sub', '条件をリセット'); reset.type = 'button';
+    var reset = el('button', 'dbtn dbtn-sub', 'リセット'); reset.type = 'button';
     reset.disabled = isDefault(); reset.title = reset.disabled ? '選んでいる条件はありません' : '地域・国籍・在留資格・時点などを、はじめの状態に戻します';
     reset.addEventListener('click', function () { var v = S.v; readHashFrom(''); S.v = v; pushNext = true; justChanged = true; render(); });
-    var share = el('button', 'dbtn dbtn-sub', 'アドレスをコピー'); share.type = 'button';
+    var share = el('button', 'dbtn dbtn-sub', 'URLコピー'); share.type = 'button';
+    share.title = 'いまの条件の入ったこのページの URL（アドレス）をコピーします。送ると同じ画面を見てもらえます';
     share.addEventListener('click', function () {
       writeHash();
-      var done = function () { share.textContent = 'コピーしました'; setTimeout(function () { share.textContent = 'アドレスをコピー'; }, 1600); };
-      if (navigator.clipboard) { navigator.clipboard.writeText(location.href).then(done, function () { prompt('このアドレスをコピーしてください', location.href); }); } else { prompt('このアドレスをコピーしてください', location.href); }
+      var done = function () { share.textContent = 'コピーしました'; setTimeout(function () { share.textContent = 'URLコピー'; }, 1600); };
+      if (navigator.clipboard) { navigator.clipboard.writeText(location.href).then(done, function () { prompt('この URL をコピーしてください', location.href); }); } else { prompt('この URL をコピーしてください', location.href); }
     });
     acts.appendChild(reset); acts.appendChild(share);
     f.appendChild(acts);
-    // いま表示している条件（選んだ結果が画面に出たことがわかるように）
-    var now = el('p', 'dnow');
+    return f;
+  }
+  // いま表示している条件（選んだ結果が画面に出たことがわかるように）。止めておく絞り込みの欄の外（すぐ下）に出して、欄を低くする
+  function nowLine() {
+    var a = area(), now = el('p', 'dnow');
     now.innerHTML = '表示中：地域 <b>' + esc(a.type === 'muni' ? MUNI[a.key].pref + ' ' + MUNI[a.key].name : a.name) + '</b>　国籍・地域 <b>' + esc(S.nat.length ? S.nat.join('・') : 'すべて') +
       '</b>　在留資格 <b>' + esc(S.visa.length ? S.visa.join('・') : 'すべて') + '</b>　時点 <b>' + esc(wl(whenOf(a))) + '</b>' +
       (justChanged ? '<span class="upd" role="status">✓ 表示を変えました</span>' : '');
-    f.appendChild(now);
     if (justChanged) { setTimeout(function () { var u = now.querySelector('.upd'); if (u) { u.remove(); } }, 2500); justChanged = false; }
-    return f;
+    return now;
   }
   function readHashFrom(h) { var keep = location.hash; history.replaceState(null, '', h ? '#' + h : location.pathname); readHash(); if (h) { history.replaceState(null, '', keep); } }
   function whenOf(a) { var per = periodsOf(a); return per.indexOf(S.when) >= 0 ? S.when : per[per.length - 1]; }
@@ -690,23 +705,7 @@
       r.addEventListener('click', function () { if (opt.onClick) { opt.onClick(shape.inset_key); } });
       g.insertBefore(r, g.firstChild);
     }
-    holder.appendChild(g);
-    // 大きい区画には名前と数を書く（小さい所は横の一覧で見る）
-    setTimeout(function () {
-      var gr = g.getBoundingClientRect(); if (!gr.width) { return; }
-      var k = shape.w / gr.width;
-      Object.keys(paths).forEach(function (key) {
-        if (key.indexOf('none:') === 0) { return; }
-        var bb = paths[key].getBBox();
-        if (bb.width / k < 54 || bb.height / k < 34) { return; }
-        var v = values[key], cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
-        var t = svg('text', { x: cx, y: cy, class: 'mlabel', 'text-anchor': 'middle' });
-        var t1 = svg('tspan', { x: cx, dy: '-0.2em' }); t1.textContent = ((opt.names && opt.names[key]) || key).replace(/[都府県]$/, '');
-        var t2 = svg('tspan', { x: cx, dy: '1.15em', class: 'mval' }); t2.textContent = v == null ? '—' : opt.short(v);
-        t.appendChild(t1); t.appendChild(t2); t.style.fontSize = (12 * k).toFixed(1) + 'px';
-        g.appendChild(t);
-      });
-    }, 0);
+    holder.appendChild(g); // 地図には名前・数を書かない（数は横の一覧と、押したときの吹き出しで見る）
     if (shape.note) { holder.appendChild(el('p', 'note', esc(shape.note))); }
     var lg = legendOf(sc, opt.f, Object.keys(values).some(function (k) { return values[k] == null; }));
     lg.insertBefore(el('span', 'lgh', '色の見方：'), lg.firstChild);
@@ -787,7 +786,7 @@
         var k = level === 'pref' ? x.key : (MUNI[x.key].kind === '政令市' ? x.key : x.key);
         mapVals[k] = x.v; names[k] = x.name; if (x.why) { why[k] = x.why; }
       });
-      var map = drawMap(shape, mapVals, { f: f, short: shortOf(m), names: names, why: why, label: METRICS[m].label, title: title,
+      var map = drawMap(shape, mapVals, { f: f, names: names, why: why, label: METRICS[m].label, title: title,
         hint: level === 'pref' ? '▶ 都道府県を押すと、その中の市区町村の地図になります。右の一覧（スマホでは下）の名前を押しても同じです。'
           : '▶ 市区町村を押すと、その市区町村のくわしい数（地域を詳しく）が出ます。',
         onClick: function (key) { stopPlay(); if (level === 'pref') { setS({ pref: key, muni: '' }); } else { setS({ muni: key, v: 'area' }); } } });
@@ -1161,6 +1160,7 @@
   // ---------- 全体の流れ
   var VIEWS = { map: viewMap, trend: viewTrend, visa: viewBreak('visa'), nat: viewBreak('nat'), rank: viewRank, cmp: viewCmp, area: viewArea };
   var token = 0, filterBox = document.getElementById('dash-filter'), viewBox = document.getElementById('dash-view');
+  var nowBox = el('div'); nowBox.id = 'dash-now'; filterBox.insertAdjacentElement('afterend', nowBox); // 「表示中：…」の行（止めない）
   function render() {
     var my = ++token;
     if (!VIEWS[S.v]) { S.v = 'map'; }
@@ -1168,6 +1168,7 @@
     writeHash();
     document.querySelectorAll('.dmenu [data-v]').forEach(function (b) { b.setAttribute('aria-current', b.dataset.v === S.v ? 'page' : 'false'); });
     filterBox.replaceChildren(filterBar());
+    nowBox.replaceChildren(nowLine());
     var p;
     try { p = VIEWS[S.v](viewBox, function () { return my === token; }); } catch (e) { p = Promise.reject(e); }
     Promise.resolve(p).then(function () { // 出典と統計時点の行は、それぞれのカードのいちばん下（保存ボタンの上）へ

@@ -198,15 +198,13 @@ def main():
         px_periods.append(w)
 
     # ---- 市区町村
+    def keyed(df):  # 合計の行を除き、コードのない時点（2021年6月末まで）は名前でコードに結ぶ
+        df = df[df["種別"] != "合計の行"].copy()
+        df["key"] = [c if isinstance(c, str) else d.name2code.get((p, n)) for c, p, n in zip(df["市区町村コード"], df["都道府県"], df["市区町村"])]
+        return df
+
     folder = os.path.join(DATA, "市区町村_国籍")
-    mn = pd.concat([pd.read_csv(os.path.join(folder, f), dtype={"市区町村コード": str}) for f in sorted(os.listdir(folder))], ignore_index=True)
-    name2code = {}
-    for _, r in mn[mn["市区町村コード"].notna()][["都道府県", "市区町村", "市区町村コード"]].drop_duplicates().iterrows():
-        name2code.setdefault((r["都道府県"], r["市区町村"]), r["市区町村コード"])
-    for code, m in d.munis.items():
-        name2code[(m["pref"], m["name"])] = code
-    mn = mn[mn["種別"] != "合計の行"]
-    mn["key"] = [c if isinstance(c, str) else name2code.get((p, n)) for c, p, n in zip(mn["市区町村コード"], mn["都道府県"], mn["市区町村"])]
+    mn = keyed(pd.concat([pd.read_csv(os.path.join(folder, f), dtype={"市区町村コード": str}) for f in sorted(os.listdir(folder))], ignore_index=True))
     listed = {}
     for w, g in mn.groupby("時点"):
         if w < FULL_NAT_FROM:
@@ -221,8 +219,8 @@ def main():
     folder = os.path.join(DATA, "市区町村_在留資格")
     muni_visa = defaultdict(lambda: defaultdict(dict))
     for f in sorted(os.listdir(folder)):
-        x = group_visas(pd.read_csv(os.path.join(folder, f), dtype={"市区町村コード": str}).drop(columns=["出どころ"]))
-        for (k, v, w), c in x[x["在留資格"] != "総数"].groupby(["市区町村コード", "在留資格", "時点"])["人数"].sum().items():
+        x = keyed(group_visas(pd.read_csv(os.path.join(folder, f), dtype={"市区町村コード": str}).drop(columns=["出どころ"])))
+        for (k, v, w), c in x[x["在留資格"] != "総数"].groupby(["key", "在留資格", "時点"])["人数"].sum().items():
             if v == ms.HIDDEN:
                 hidden[k].add(w)
             else:
@@ -231,7 +229,7 @@ def main():
     def series_of(ref, table):
         if isinstance(ref, tuple):
             out = defaultdict(lambda: defaultdict(int))
-            for c in d.cities[ref]:
+            for c in d.city_parts[ref]:
                 for n, s in table.get(c, {}).items():
                     for w, v in s.items():
                         out[n][w] += v
@@ -253,7 +251,7 @@ def main():
                 totals[key] = [roma, arr(t, MP), arr(pop_code.get(pcode, {}), MP)]
                 nat = series_of(r, muni_nat)
                 vis = series_of(r, muni_visa)
-                hid = sorted({w for c in (d.cities[r] if isinstance(r, tuple) else [r]) for w in hidden.get(c, ())})
+                hid = sorted({w for c in (d.city_parts[r] if isinstance(r, tuple) else [r]) for w in hidden.get(c, ())})
                 entry = {"n": {n: arr(s, MP) for n, s in nat.items() if nonempty(arr(s, MP))},
                          "v": {v: arr(s, MP) for v, s in vis.items() if nonempty(arr(s, MP))}}
                 if hid:
@@ -266,6 +264,7 @@ def main():
     folder = os.path.join(DATA, "市区町村_国籍_在留資格")
     mx_periods = []
     code_pref = {k: v["pref"] for k, v in d.munis.items()}
+    code_pref.update({c: key[0] for key, codes in d.city_parts.items() for c in codes})  # 前にあった区（2023年12月末の浜松市の7区）
     for f in sorted(os.listdir(folder)):
         w = f[:7]
         x = group_visas(pd.read_csv(os.path.join(folder, f), dtype={"市区町村コード": str}))
@@ -274,7 +273,7 @@ def main():
         for (k, n, v), c in x.groupby(["市区町村コード", "国籍・地域", "在留資格"])["人数"].sum().items():
             if c and n != ms.HIDDEN and v != ms.HIDDEN:
                 by[code_pref[k]][k][n][v] = int(c)
-        for key, codes in d.cities.items():  # 政令市＝区の合計
+        for key, codes in d.city_parts.items():  # 政令市＝その時点にある区の合計
             ck = "city:" + key[1]
             for c in codes:
                 for n, vs in by[key[0]].get(c, {}).items():
