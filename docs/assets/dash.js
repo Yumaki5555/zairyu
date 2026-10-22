@@ -690,23 +690,7 @@
       r.addEventListener('click', function () { if (opt.onClick) { opt.onClick(shape.inset_key); } });
       g.insertBefore(r, g.firstChild);
     }
-    holder.appendChild(g);
-    // 大きい区画には名前と数を書く（小さい所は横の一覧で見る）
-    setTimeout(function () {
-      var gr = g.getBoundingClientRect(); if (!gr.width) { return; }
-      var k = shape.w / gr.width;
-      Object.keys(paths).forEach(function (key) {
-        if (key.indexOf('none:') === 0) { return; }
-        var bb = paths[key].getBBox();
-        if (bb.width / k < 54 || bb.height / k < 34) { return; }
-        var v = values[key], cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
-        var t = svg('text', { x: cx, y: cy, class: 'mlabel', 'text-anchor': 'middle' });
-        var t1 = svg('tspan', { x: cx, dy: '-0.2em' }); t1.textContent = ((opt.names && opt.names[key]) || key).replace(/[都府県]$/, '');
-        var t2 = svg('tspan', { x: cx, dy: '1.15em', class: 'mval' }); t2.textContent = v == null ? '—' : opt.short(v);
-        t.appendChild(t1); t.appendChild(t2); t.style.fontSize = (12 * k).toFixed(1) + 'px';
-        g.appendChild(t);
-      });
-    }, 0);
+    holder.appendChild(g); // 地図には名前・数を書かない（数は横の一覧と、押したときの吹き出しで見る）
     if (shape.note) { holder.appendChild(el('p', 'note', esc(shape.note))); }
     var lg = legendOf(sc, opt.f, Object.keys(values).some(function (k) { return values[k] == null; }));
     lg.insertBefore(el('span', 'lgh', '色の見方：'), lg.firstChild);
@@ -787,7 +771,7 @@
         var k = level === 'pref' ? x.key : (MUNI[x.key].kind === '政令市' ? x.key : x.key);
         mapVals[k] = x.v; names[k] = x.name; if (x.why) { why[k] = x.why; }
       });
-      var map = drawMap(shape, mapVals, { f: f, short: shortOf(m), names: names, why: why, label: METRICS[m].label, title: title,
+      var map = drawMap(shape, mapVals, { f: f, names: names, why: why, label: METRICS[m].label, title: title,
         hint: level === 'pref' ? '▶ 都道府県を押すと、その中の市区町村の地図になります。右の一覧（スマホでは下）の名前を押しても同じです。'
           : '▶ 市区町村を押すと、その市区町村のくわしい数（地域を詳しく）が出ます。',
         onClick: function (key) { stopPlay(); if (level === 'pref') { setS({ pref: key, muni: '' }); } else { setS({ muni: key, v: 'area' }); } } });

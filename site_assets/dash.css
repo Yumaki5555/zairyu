@@ -64,8 +64,6 @@ button.dmitem[aria-selected="true"]::before { content: "✓"; color: var(--btn);
 .dmap svg.jmap { width: 100%; height: auto; }
 .dmap svg.jmap path.area { cursor: pointer; }
 .dmap .b-n { fill: var(--bg); }
-svg.jmap .mlabel { fill: var(--text); font-weight: 700; pointer-events: none; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
-svg.jmap .mval { font-weight: 600; }
 .dside { max-height: 640px; overflow: auto; }
 .dside h3 { position: sticky; top: 0; background: var(--card); padding: 2px 0; z-index: 1; }
 @media (max-width: 800px) { .dmapgrid { grid-template-columns: minmax(0, 1fr); } .dside { max-height: none; } }
@@ -105,7 +103,6 @@ svg.stack .area-st { stroke: var(--card); stroke-width: 1; }
   ul.dbars li.ranked .track { display: none; }
   ul.dbars li.ranked { grid-template-columns: 2em minmax(0, 1fr) auto; }
   ul.dbars li.ranked.withp { grid-template-columns: 2em minmax(0, 1fr) auto 46px; }
-  svg.jmap .mlabel { display: none; }
 }
 
 /* 半期速報のページ */
