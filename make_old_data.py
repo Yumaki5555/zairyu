@@ -564,20 +564,29 @@ def checks(rows, cols, table, spec):
     return errs
 
 
-def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
+def err_key(e):
+    """合わない確かめの鍵（印刷のまま.csv の 種類・行または列・合計の列または行・差）"""
+    return (e[0], e[1], e[2] if e[0] == "行" else e[4], e[4] if e[0] == "行" else e[3])
+
+
+def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=(), printed=()):
     """1つのマスを直して、合わない確かめが減るものを選んで直す（減らなくなるまで）。locked（人が画像で確かめたマス）は変えない。
     はっきり読めた数も変えない（元の表そのものの合計がずれていることがあり、合計に合わせて変えると印刷と違う数になる。
     2026年10月の点検で、こうして変えた101マスのうち36マスは印刷どおりの数のほうが正しかった）。
-    自動で変えるのは、読めなかったマス・確からしさの低い「1」・左の列とつながって読まれた数だけ"""
-    locked = set(locked)
+    自動で変えるのは、読めなかったマス・確からしさの低い「1」・左の列とつながって読まれた数だけ。
+    printed（画像で確かめた元の表のずれ。印刷のまま.csv）は、合わない確かめに数えない（ほかのマスを埋める計算にまぜない）"""
+    locked, printed = set(locked), set(printed)
+
+    def open_errs():
+        return [e for e in checks(rows, cols, table, spec) if err_key(e) not in printed]
     read = {k for k in src if k not in filled}  # はっきり読めた数（つながった数を分けるときのほかは変えない）
     # 先に：確からしさの低い「1」（「-」を「1」と読んだことが多い。1988年の国籍の表）を全部0にしてみて、合わない確かめが減るならそのまま
     weak = [k for k, v in src.items() if k in table and table[k] == 1 and v[2] == "1" and v[3] < 0.75 and k not in locked]
     if weak:
-        n0 = len(checks(rows, cols, table, spec))
+        n0 = len(open_errs())
         for k in weak:
             table[k] = 0
-        if len(checks(rows, cols, table, spec)) < n0:
+        if len(open_errs()) < n0:
             for k in weak:
                 log.append([rel, k[0], k[1], 1, 0, f"読み取り「1」p{src[k][0]}{src[k][1]}（確からしさ {src[k][3]:.2f}）",
                             "確からしさの低い「1」を「-」として、合計から自動で求めた（画像では確かめていない）"])
@@ -585,9 +594,9 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
             for k in weak:
                 table[k] = 1
     for _ in range(200):
-        errs = checks(rows, cols, table, spec)
+        errs = open_errs()
         if not errs:
-            return []
+            return checks(rows, cols, table, spec)
         cands = {}
         for e in errs:
             if e[0] == "行":
@@ -607,7 +616,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
                 continue
             old = table[k]
             table[k] = nv
-            n = len(checks(rows, cols, table, spec))
+            n = len(open_errs())
             table[k] = old
             # 行と列の両方が直る（2つ以上減る）ものだけ。同じなら、読めなかったマス・確からしさの低いマスを先に
             if n <= n0 - 2:
@@ -658,7 +667,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
                 olds = {k: table[k] for k, _ in pair}
                 for k, nv in pair:
                     table[k] = nv
-                if len(checks(rows, cols, table, spec)) > n0 - need:
+                if len(open_errs()) > n0 - need:
                     for k, v in olds.items():
                         table[k] = v
                     continue
@@ -668,7 +677,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
                 done = True
                 break
             if not done:
-                return errs
+                return checks(rows, cols, table, spec)
             continue
         _, k, nv = best
         how = "読めなかったマス" if k in filled else f"読み取り「{src[k][2]}」p{src[k][0]}{src[k][1]}"
@@ -712,12 +721,10 @@ def main():
             log.append([rel, k[0], k[1], table.get(k), v, "人が画像で確かめた", ""])
         apply_manual(rows, cols, table, spec, manual[rel])
         n_first = len(checks(rows, cols, table, spec))
-        left = auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=manual[rel])
+        left = auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=manual[rel], printed=as_printed[rel])
 
-        def key(e):
-            return (e[0], e[1], e[2] if e[0] == "行" else e[4], e[4] if e[0] == "行" else e[3])
-        printed = [e for e in left if key(e) in as_printed[rel]]
-        left = [e for e in left if key(e) not in as_printed[rel]]
+        printed = [e for e in left if err_key(e) in as_printed[rel]]
+        left = [e for e in left if err_key(e) not in as_printed[rel]]
         state = ("合う" if not printed else "合う（元の表のずれは印刷のまま）") if not left else "合わない所あり"
         report.append([rel, kind, group, state, f"はじめ{n_first}→残り{len(left)}" + (f"（印刷のまま{len(printed)}）" if printed else ""),
                        " / ".join(problems)])

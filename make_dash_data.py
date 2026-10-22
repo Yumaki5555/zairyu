@@ -121,7 +121,10 @@ def sokuho(d, MP):
         elif n in d.nat_series:
             conf["国籍・地域"][n] = [d.nat_series[n].get(w) for w in CP]
     for v in out.get("在留資格", {}):
-        if v in ("総数", "中長期在留者", "特別永住者"):
+        if v == "中長期在留者":  # 確定統計の表にこの区分の行はない（足し引きで作らない）
+            continue
+        if v == "総数":
+            conf["在留資格"][v] = [d.japan.get(w) for w in CP]
             continue
         conf["在留資格"][v] = [sum(c for k, c in d.japan_visa[w].items() if ms.VISA_RENAME.get(k, k) == v) or None for w in CP]
     for p in out.get("都道府県", {}):

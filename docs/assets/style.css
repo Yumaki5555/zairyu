@@ -118,6 +118,8 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 .entries .ei svg { width: 28px; height: 28px; }
 .entries b { font-size: 19px; line-height: 1.35; }
 .entries .ed { font-size: 15px; color: var(--sub); line-height: 1.5; }
+.entries a.wide { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 14px; min-height: 0; } /* 地図で見る移り変わり：4つの下に横長で */
+.entries .et { display: flex; flex-direction: column; gap: 2px; }
 @media (max-width: 860px) { .entries { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 400px) { .entries { gap: 10px; } .entries a { padding: 12px; min-height: 128px; } .entries b { font-size: 17px; } .entries .ed { font-size: 14px; } }
 

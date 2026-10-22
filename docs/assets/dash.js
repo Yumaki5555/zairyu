@@ -248,7 +248,9 @@
       }
       var mi = M.MP.indexOf(when);
       if (mi < 0) { return Promise.resolve({ items: [], total: null, why: '国籍×在留資格の数は2006年末からです' }); }
-      return load('japan-x.json').then(function (x) {
+      return Promise.all([load('japan-x.json'), load('japan.json')]).then(function (r) {
+        var x = r[0], miss = missingAt(r[1], dim, filter, when);
+        if (miss.length) { return { items: [], total: null, why: missingWhy(miss) }; }
         var rec = {}; Object.keys(x).forEach(function (n) { rec[n] = {}; Object.keys(x[n]).forEach(function (v) { if (x[n][v][mi]) { rec[n][v] = x[n][v][mi]; } }); });
         return out(cross(rec));
       });
@@ -261,21 +263,29 @@
         });
       }
       if (M.pxPeriods.indexOf(when) < 0) { return Promise.resolve({ items: [], total: null, why: '都道府県の国籍×在留資格の数は2016年12月末からです（2020年までは12月末だけ）' }); }
-      return load('px/' + when + '.json').then(function (f) { return out(cross(f[a.pref])); });
+      return Promise.all([load('px/' + when + '.json'), load('japan.json')]).then(function (r) {
+        var miss = missingAt(r[1], dim, filter, when);
+        return miss.length ? { items: [], total: null, why: missingWhy(miss) } : out(cross(r[0][a.pref]));
+      });
     }
     var roma = PREF_ROMA[a.pref];
-    return Promise.all([load('muni-total.json'), muniEntry(roma, a.key)]).then(function (r) {
+    return Promise.all([load('muni-total.json'), muniEntry(roma, a.key), load('japan.json')]).then(function (r) {
       var tot = r[0][a.key] ? r[0][a.key][1][i] : null, e = r[1];
       if (tot == null) { return { items: [], total: null, why: 'この市区町村のこの時点の数は国の表にありません' }; }
       if ((e.h || []).indexOf(i) >= 0) { return { items: [], total: tot, why: '外国人が10人以下のため、国籍・在留資格は公表されていません' }; }
       if (!filter.length) {
         if (dim === 'visa' && when < M.muniVisaFrom) { return { items: [], total: tot, why: '市区町村の在留資格別の数は2019年12月末からです' }; }
         var o = pick(dim === 'nat' ? e.n : e.v, '0000');
+        if (!Object.keys(o).length) { // 総数はあるが、国籍別・在留資格別の表にこの市区町村がのっていない（0人ではない）
+          return { items: [], total: tot, why: 'この時点の' + (dim === 'nat' ? '国籍' : '在留資格') + '別の表に、この市区町村はのっていません（外国人の少ない市町村は、国が表にのせていない時点があります）' };
+        }
         var res = out(o, tot);
         if (dim === 'nat' && when < M.fullNatFrom) { res.partial = '2023年6月末までの市区町村の表は、主な国籍・地域と「その他」だけです'; }
         return res;
       }
       if (M.mxPeriods.indexOf(when) < 0) { return { items: [], total: null, why: '市区町村の国籍×在留資格の数は2023年12月末からです' }; }
+      var miss = missingAt(r[2], dim, filter, when);
+      if (miss.length) { return { items: [], total: null, why: missingWhy(miss) }; }
       return load('mx/' + roma + '-' + when + '.json').then(function (f) { return out(cross(f[a.key])); });
     });
   }
@@ -382,7 +392,7 @@
       var l = el('label', 'dmitem'), c = el('input'); c.type = 'checkbox'; c.checked = chosen.indexOf(n) >= 0;
       c.addEventListener('change', function () { if (c.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } });
       l.appendChild(c); l.appendChild(document.createTextNode(' ' + n));
-      if (reg && reg.old && reg.old[n]) { l.appendChild(el('span', 'sub', '（古い表の書き方。2005年まで）')); }
+      if (reg && reg.old && reg.old[n]) { l.appendChild(el('span', 'sub', '（' + esc(reg.old[n]) + '）')); }
       list.appendChild(l);
     }
     function draw() {
@@ -485,7 +495,7 @@
     var f = el('div', 'dfilter');
     var a = area();
     f.appendChild(areaPick());
-    var old = {}; (M.natOld || []).forEach(function (n) { old[n] = 1; });
+    var old = Array.isArray(M.natOld) ? {} : (M.natOld || {});  // 国籍・地域 → 印（「今はない国。1990年の表まで」など）
     f.appendChild(multiPick('国籍・地域', natList(), S.nat, function (v) { setS({ nat: v }); }, M.natRegion ? { map: M.natRegion, tree: M.regions, old: old } : null));
     f.appendChild(multiPick('在留資格', visaList(), S.visa, function (v) { setS({ visa: v }); }));
     var per = periodsOf(a).slice().reverse();
@@ -788,6 +798,7 @@
 
   // ---------- 画面：全国マップ
   var playing = null;
+  var autoPlay = /(^#|&)play=1(&|$)/.test(location.hash); // 入口の「地図で見る移り変わり」から来たときは、地図を出してすぐ再生する
   function metricSelect(keys, value, onChange) {
     var l = selectEl(keys.map(function (k) { return [k, METRICS[k].label]; }), value, onChange, '地図の色で示すもの');
     var help = el('p', 'dhelp', esc(HELP[value] || ''));
@@ -867,6 +878,11 @@
       current.chart = { kind: 'map', shape: shape, values: mapVals, names: names, f: f, short: shortOf(m), sorted: sorted.slice(0, 10).map(function (x) { return [x.name, x.v]; }), metric: METRICS[m].label, when: when, area: level === 'pref' ? '全国' : S.pref, pop: m === 'ratio', cls: map._cls, legend: map._legend, level: level };
       out.appendChild(c);
       box.replaceChildren(out);
+      if (autoPlay) { // 地図のカードが見える所まで下げてから再生
+        autoPlay = false; play.click();
+        var hh = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hdr'), 10) || 56) + (getComputedStyle(filterBox).position === 'sticky' ? filterBox.offsetHeight + 4 : 0); // 上に止まるヘッダーと絞り込みの欄の下
+        window.scrollTo({ top: c.getBoundingClientRect().top + window.scrollY - hh - 8 });
+      }
     });
   }
   function stopPlay() { if (playing) { clearInterval(playing); playing = null; } }
