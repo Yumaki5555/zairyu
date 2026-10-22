@@ -104,6 +104,11 @@
     ctx.font = font(minPx, bold);
     return { text: clip(ctx, text, mw), size: minPx };
   }
+  // 1行に収める。いちばん小さくしても入らないときだけ2行にする（「…」で切らない。タイトルを長く書き直したときなど）
+  function fitOne(ctx, text, mw, px, bold, minPx) {
+    var f = fit1(ctx, text, mw, px, bold, minPx);
+    return f.text === text ? { lines: [text], size: f.size } : fitLines(ctx, text, mw, minPx, bold, 2, minPx * 0.8);
+  }
   function niceStep(v) { var k = Math.pow(10, Math.floor(Math.log10(v || 1))); return [1, 2, 2.5, 5, 10].map(function (m) { return m * k; }).filter(function (x) { return x >= v; })[0]; }
   function wx(w) { var p = w.split('-'); return +p[0] + (p[1] === '06' ? 0 : 0.5); }
   function short(v) { return Math.abs(v) >= 10000 ? (v / 10000).toFixed(Math.abs(v) >= 100000 ? 0 : 1).replace(/\.0$/, '') + '万' : fmt(Math.round(v)); }
@@ -111,11 +116,17 @@
     var f = fit1(ctx, 'この図のデータがありません', w, 1.8 * u, false, 1 * u);
     ctx.fillStyle = C.sub; ctx.font = font(f.size); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(f.text, x + w / 2, y + h / 2);
   }
-  // 凡例を下に並べる（1列か2列）。items：[{cls, text}]。高さを返し、draw(x, y) で描く
-  function legendBelow(ctx, items, w, maxH, u) {
-    var cols = w >= 34 * u && items.length > 1 ? 2 : 1, rows = Math.ceil(items.length / cols);
-    var rowH = Math.max(1.2 * u, Math.min(2.5 * u, maxH / rows)), fs = Math.min(1.5 * u, rowH * 0.62), colW = (w - (cols - 1) * 1.6 * u) / cols;
-    return { h: rows * rowH, draw: function (x, y) {
+  // 凡例を下に並べる（1列か2列）。items：[{cls, text}]、head：上に書く見出し（時点と単位）。高さを返し、draw(x, y) で描く
+  function legendBelow(ctx, items, w, maxH, u, head) {
+    var hh = head ? 1.9 * u : 0, n = items.length;
+    // 広ければ2列。狭くても、1列では高さに入らないときは2列にする（図をつぶさないように）
+    var cols = n > 1 && (w >= 34 * u || (w >= 20 * u && n * 1.2 * u > maxH - hh)) ? 2 : 1, rows = Math.ceil(n / cols);
+    var rowH = Math.max(1.2 * u, Math.min(2.5 * u, (maxH - hh) / rows)), fs = Math.min(1.5 * u, rowH * 0.62), colW = (w - (cols - 1) * 1.6 * u) / cols;
+    return { h: hh + rows * rowH, draw: function (x, y) {
+      if (head) {
+        var f0 = fit1(ctx, head, w, Math.min(1.35 * u, fs), false, 0.9 * u);
+        ctx.fillStyle = C.sub; ctx.font = font(f0.size); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(f0.text, x, y); y += hh;
+      }
       items.forEach(function (it, i) {
         var cx = x + (i % cols) * (colW + 1.6 * u), cy = y + Math.floor(i / cols) * rowH + rowH / 2, s = Math.min(1.1 * u, rowH * 0.55);
         ctx.fillStyle = color(it.cls); ctx.fillRect(cx, cy - s / 2, s, s);
@@ -129,19 +140,31 @@
   function drawLine(ctx, ch, x, y, w, h, u) {
     var series = ch.series.filter(function (s) { return s.vals.some(function (v) { return v != null; }); }).slice(0, 8); // 画面と同じ線（多い7つと「その他」）
     if (!series.length) { noData(ctx, x, y, w, h, u); return; }
-    var multi = series.length > 1, fa = 1.6 * u;
+    var multi = series.length > 1, fa = 1.6 * u, last = ch.per.length - 1;
     var xs = ch.per.map(wx), x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     var cxm = wx('2012-12') - 0.25, mark = x0 < cxm && cxm <= x1;
-    function lastOf(s) { for (var i = s.vals.length - 1; i >= 0; i--) { if (s.vals[i] != null) { return s.vals[i]; } } return null; }
-    function valText(s) { var l = lastOf(s); return l == null ? '' : ch.index ? l.toFixed(1) : (ch.f ? ch.f(l) : fmt(Math.round(l)) + '人'); }
-    // 凡例（線が2本以上）：広ければ右（名前と数が入る幅にする。図の幅の36％まで）、狭ければ下
-    var legRight = multi && w >= 42 * u, legW = 0, leg = null;
-    if (legRight) {
-      ctx.font = font(1.6 * u, true); var nmW = maxW(ctx, series.map(function (s) { return s.name; }));
-      ctx.font = font(1.6 * u); var vlW = maxW(ctx, series.map(valText));
-      legW = Math.max(12 * u, Math.min(w * 0.36, 2.4 * u + nmW + 1 * u + vlW));
+    // 凡例の数：いちばん新しい時点の数。時点と単位は凡例の見出しにまとめて書く（その時点の数がない線だけ、数のある最後の時点を添える）
+    function valText(s) {
+      var i = last; while (i >= 0 && s.vals[i] == null) { i--; }
+      if (i < 0) { return ''; }
+      var v = s.vals[i], t = ch.index ? v.toFixed(1) : ch.f ? ch.f(v) : fmt(Math.round(v));
+      return i === last ? t : t + '（' + wl(ch.per[i]) + '）';
     }
-    if (multi && !legRight) { leg = legendBelow(ctx, series.map(function (s) { return { cls: s.cls, text: s.name + '　' + valText(s) }; }), w, h * 0.34, u); }
+    var head = wl(ch.per[last]) + (ch.index ? 'の指数　はじめの時点＝100' : 'の数' + (ch.f ? '' : '　単位：人')); // 「　」の所で2行に分けられる
+    // 凡例（線が2本以上）：広ければ右、狭ければ下。右のときは、名前と数がちょうど入る幅にする（すき間を空けない。図の幅の4割まで）
+    var legRight = multi && w >= 42 * u, legW = 0, leg = null, lg = null;
+    if (legRight) {
+      var hf = 1.35 * u, n = series.length, vals = series.map(valText);
+      var lh = Math.min(3 * u, (h - 2 * hf * 1.3 - 0.8 * u) / n), nf = Math.min(1.7 * u, lh * 0.62), sw = Math.min(1.2 * u, nf);
+      ctx.font = font(nf, true); var nmW = maxW(ctx, series.map(function (s) { return s.name; }));
+      ctx.font = font(nf); var vlW = maxW(ctx, vals);
+      var rowW = sw + 0.6 * u + nmW + 1.2 * u + vlW;
+      ctx.font = font(hf); var hl = measure(ctx, head) <= rowW ? [head] : head.split('　');
+      legW = Math.min(w * 0.4, Math.max(rowW, maxW(ctx, hl))); rowW = Math.min(rowW, legW);
+      var headH = hl.length * hf * 1.3 + 0.8 * u;
+      lg = { hl: hl, hf: hf, headH: headH, lh: lh, nf: nf, sw: sw, rowW: rowW, vals: vals, vlW: vlW, top: y + Math.max(0, (h - headH - n * lh) / 2) };
+    }
+    if (multi && !legRight) { leg = legendBelow(ctx, series.map(function (s) { return { cls: s.cls, text: s.name + '　' + valText(s) }; }), w, h * 0.34, u, head.replace('　', '（') + (head.indexOf('　') >= 0 ? '）' : '')); }
     var T = y + (mark ? 2.4 * u : 0.9 * u), B = y + h - 2.5 * u - (leg ? leg.h + 0.6 * u : 0);
     var all = []; series.forEach(function (s) { s.vals.forEach(function (v) { if (v != null) { all.push(v); } }); });
     var nt = Math.max(2, Math.min(5, Math.floor((B - T) / (3 * u))));
@@ -185,23 +208,17 @@
         if (alone || last) { ctx.fillStyle = color(s.cls); ctx.beginPath(); ctx.arc(X(xs[i]), Y(v2), 0.55 * u, 0, 7); ctx.fill(); }
       });
     });
-    if (legRight) { // 凡例：名前と最後の数。縦に余裕があれば2段（名前の下に数）、なければ1行（名前　数）
-      var lx = R + 1.6 * u, lh = Math.min(3.8 * u, (B - T) / series.length), two = lh >= 3 * u;
-      var nf = two ? Math.min(1.8 * u, lh * 0.44) : Math.min(1.6 * u, lh * 0.62), vf = two ? Math.min(1.5 * u, lh * 0.36) : nf;
+    if (lg) { // 凡例：見出し（時点と単位）の下に「色・名前・数」を1行ずつ。数は右をそろえる
+      var lx = R + 1.6 * u, ly = lg.top;
+      ctx.fillStyle = C.sub; ctx.font = font(lg.hf); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      lg.hl.forEach(function (l, j) { ctx.fillText(clip(ctx, l, legW), lx, ly + j * lg.hf * 1.3); });
+      ly += lg.headH;
       series.forEach(function (s, i) {
-        var ly = T + i * lh, sw = Math.min(1.2 * u, nf), tx = lx + sw + 0.6 * u, room = legW - sw - 0.6 * u;
-        ctx.fillStyle = color(s.cls); ctx.fillRect(lx, ly + (nf - sw) / 2, sw, sw);
-        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        if (two) {
-          var a = fit1(ctx, s.name, room, nf, true, nf * 0.75);
-          ctx.fillStyle = C.text; ctx.font = font(a.size, true); ctx.fillText(a.text, tx, ly);
-          var b = fit1(ctx, valText(s), room, vf, false, vf * 0.75);
-          ctx.fillStyle = C.sub; ctx.font = font(b.size); ctx.fillText(b.text, tx, ly + nf * 1.2);
-        } else {
-          ctx.font = font(vf); var vt = valText(s), vw = measure(ctx, vt);
-          ctx.fillStyle = C.sub; ctx.textAlign = 'right'; ctx.fillText(vt, lx + legW, ly);
-          ctx.font = font(nf, true); ctx.fillStyle = C.text; ctx.textAlign = 'left'; ctx.fillText(clip(ctx, s.name, room - vw - 0.6 * u), tx, ly);
-        }
+        var cy = ly + i * lg.lh + lg.lh / 2, tx = lx + lg.sw + 0.6 * u;
+        ctx.fillStyle = color(s.cls); ctx.fillRect(lx, cy - lg.sw / 2, lg.sw, lg.sw);
+        ctx.textBaseline = 'middle';
+        ctx.font = font(lg.nf); ctx.fillStyle = C.text; ctx.textAlign = 'right'; ctx.fillText(lg.vals[i], lx + lg.rowW, cy);
+        ctx.font = font(lg.nf, true); ctx.textAlign = 'left'; ctx.fillText(clip(ctx, s.name, lg.rowW - lg.sw - 0.6 * u - lg.vlW - 1.2 * u), tx, cy);
       });
     }
     if (leg) { leg.draw(x, B + 2.5 * u + 0.6 * u); }
@@ -395,6 +412,9 @@
           return ch.area + 'の' + w + 'は' + yrs + '年間で何人' + (fl.l >= fl.f ? '増えた' : '減った') + '？';
         }
       }
+      // 線が何本か：選んだもの（地域・国籍・在留資格）を先に書き、何ごとに分けた線かを続ける。選んだものどうしを比べるときは「〜別」を付けない
+      var by = { nat: m.nat.length ? '' : '国籍・地域別の', visa: m.visa.length ? '' : '在留資格別の', area: '地域別の' }[ch.dim];
+      if (ch.series.length > 1 && by != null) { return (ch.dim === 'area' ? '' : ch.area + '　') + w + 'の' + by + '移り変わり'; }
       return ch.area + '　' + (ch.series.length > 1 ? ch.series.map(function (s) { return s.name; }).slice(0, 3).join('・') + (ch.series.length > 3 ? 'など' : '') + 'の' : w + 'の') + '移り変わり';
     }
     if (ch.kind === 'pie') { return ch.area + '　' + (ch.dim === 'visa' ? (who(m) || '在留外国人') + 'の在留資格' : '在留外国人の国籍構成' + (m.visa.length ? '（' + m.visa.join('・') + '）' : '')); }
@@ -438,14 +458,14 @@
     ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = C.accent; ctx.fillRect(0, 0, W, 0.5 * u);
     var cur = items[0], m = meta(cur), ch = cur.chart, y = pad + 0.4 * u;
-    // タイトル（2行まで）
-    var t = fitLines(ctx, title || autoTitle(cur), W - 2 * pad, (W > H ? 2.9 : 3.3) * u, true, 2, 2 * u);
+    // タイトル（1行。グラフを大きくするため）
+    var t = fitOne(ctx, title || autoTitle(cur), W - 2 * pad, (W > H ? 2.9 : 3.3) * u, true, 1.7 * u);
     ctx.fillStyle = C.text; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     t.lines.forEach(function (l) { ctx.font = font(t.size, true); ctx.fillText(l, pad, y); y += t.size * 1.28; });
     // 地域・国籍・在留資格・統計時点
     var sub = '地域：' + (items.length > 1 ? items.map(function (x) { return x.chart.area; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join('・') : ch.area) +
       '　国籍・地域：' + (m.nat.length ? m.nat.join('・') : 'すべて') + '　在留資格：' + (m.visa.length ? m.visa.join('・') : 'すべて') + '　統計時点：' + period(ch) + (m.status ? '（' + m.status + '）' : '');
-    var s2 = fitLines(ctx, sub, W - 2 * pad, (W > H ? 1.55 : 1.75) * u, false, 2, 1.2 * u);
+    var s2 = fitOne(ctx, sub, W - 2 * pad, (W > H ? 1.35 : 1.5) * u, false, (W > H ? 1.15 : 1.25) * u); // タイトルより控えめの字で、なるべく1行に（縦に余裕のある形は、小さくしすぎず2行に）
     ctx.fillStyle = C.sub; s2.lines.forEach(function (l) { ctx.font = font(s2.size); ctx.fillText(l, pad, y); y += s2.size * 1.35; });
     y += 0.8 * u;
     // 出典（とサイトの名前）：下から高さを決める
