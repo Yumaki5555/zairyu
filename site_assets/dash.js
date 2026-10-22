@@ -342,7 +342,7 @@
       var l = el('label', 'dmitem'), c = el('input'); c.type = 'checkbox'; c.checked = chosen.indexOf(n) >= 0;
       c.addEventListener('change', function () { if (c.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } });
       l.appendChild(c); l.appendChild(document.createTextNode(' ' + n));
-      if (reg && reg.old && reg.old[n]) { l.appendChild(el('span', 'sub', '（古い表の書き方。2005年まで）')); }
+      if (reg && reg.old && reg.old[n]) { l.appendChild(el('span', 'sub', '（' + esc(reg.old[n]) + '）')); }
       list.appendChild(l);
     }
     function draw() {
@@ -445,7 +445,7 @@
     var f = el('div', 'dfilter');
     var a = area();
     f.appendChild(areaPick());
-    var old = {}; (M.natOld || []).forEach(function (n) { old[n] = 1; });
+    var old = Array.isArray(M.natOld) ? {} : (M.natOld || {});  // 国籍・地域 → 印（「今はない国。1990年の表まで」など）
     f.appendChild(multiPick('国籍・地域', natList(), S.nat, function (v) { setS({ nat: v }); }, M.natRegion ? { map: M.natRegion, tree: M.regions, old: old } : null));
     f.appendChild(multiPick('在留資格', visaList(), S.visa, function (v) { setS({ visa: v }); }));
     var per = periodsOf(a).slice().reverse();
@@ -680,8 +680,8 @@
   function details(summary, body) { var d = el('details'); d.appendChild(el('summary', null, esc(summary))); d.appendChild(body); return d; }
 
   // ---------- 地図
-  function drawMap(shape, values, opt) { // values：{鍵: 値}、opt：{f, names, onClick, links}
-    var holder = el('div', 'dmap'), sc = scaleOf(Object.keys(values).map(function (k) { return values[k]; }));
+  function drawMap(shape, values, opt) { // values：{鍵: 値}、opt：{f, names, onClick, links, scale（色の段を決める値。ないときは values）}
+    var holder = el('div', 'dmap'), sc = scaleOf(opt.scale || Object.keys(values).map(function (k) { return values[k]; }));
     var g = svg('svg', { viewBox: '0 0 ' + shape.w + ' ' + shape.h, class: 'jmap', role: 'img', 'aria-label': opt.title || '地図' });
     (shape.frames || []).forEach(function (f) {
       var b = f.box;
@@ -708,7 +708,7 @@
     holder.appendChild(g); // 地図には名前・数を書かない（数は横の一覧と、押したときの吹き出しで見る）
     if (shape.note) { holder.appendChild(el('p', 'note', esc(shape.note))); }
     var lg = legendOf(sc, opt.f, Object.keys(values).some(function (k) { return values[k] == null; }));
-    lg.insertBefore(el('span', 'lgh', '色の見方：'), lg.firstChild);
+    lg.insertBefore(el('span', 'lgh', opt.scale ? '色の見方（どの時点も同じ）：' : '色の見方：'), lg.firstChild);
     holder.appendChild(lg);
     if (opt.hint) { holder.appendChild(el('p', 'hint', esc(opt.hint))); }
     holder._cls = clsOf; holder._legend = lg._items; holder._paths = paths;
@@ -731,10 +731,11 @@
       return Promise.all([getSeries(r.a, S.nat, S.visa), m === 'ratio' ? getPop(r.a) : null, m === 'share' && filtered ? getSeries(r.a, [], []) : null, m === 'share' && !filtered ? jpP : null]);
     })).then(function (res) {
       return regs.map(function (r, k) {
-        var s = res[k][0], i = s.per.indexOf(when);
-        var v = i < 0 ? null : metricAt(m, s, i, { pop: res[k][1], tot: res[k][2], jp: res[k][3], filtered: filtered });
+        var s = res[k][0], i = s.per.indexOf(when), ctx = { pop: res[k][1], tot: res[k][2], jp: res[k][3], filtered: filtered };
+        var v = i < 0 ? null : metricAt(m, s, i, ctx);
+        var all = s.per.map(function (_, j) { return metricAt(m, s, j, ctx); }); // すべての時点の値（地図の色の段をそろえるため）
         var why = i < 0 ? 'この時点のデータはありません' : s.hid[i] ? '公表されていない（外国人が10人以下）' : null;
-        return { key: r.key, name: r.name, a: r.a, s: s, v: v, why: why, link: r.link };
+        return { key: r.key, name: r.name, a: r.a, s: s, v: v, all: all, why: why, link: r.link };
       });
     });
   }
@@ -781,12 +782,13 @@
       });
       sl.appendChild(el('span', 'dlab', '時点')); sl.appendChild(rng); sl.appendChild(lab); sl.appendChild(play);
       ctrl.appendChild(sl);
-      var mapVals = {}, why = {}, names = {};
+      var mapVals = {}, why = {}, names = {}, scaleVals = [];
       vals.forEach(function (x) {
         var k = level === 'pref' ? x.key : (MUNI[x.key].kind === '政令市' ? x.key : x.key);
         mapVals[k] = x.v; names[k] = x.name; if (x.why) { why[k] = x.why; }
+        scaleVals = scaleVals.concat(x.all); // 色の段はすべての時点の値で決める（再生しても色の基準が変わらず、増え方が見える）
       });
-      var map = drawMap(shape, mapVals, { f: f, names: names, why: why, label: METRICS[m].label, title: title,
+      var map = drawMap(shape, mapVals, { f: f, names: names, why: why, label: METRICS[m].label, title: title, scale: scaleVals,
         hint: level === 'pref' ? '▶ 都道府県を押すと、その中の市区町村の地図になります。右の一覧（スマホでは下）の名前を押しても同じです。'
           : '▶ 市区町村を押すと、その市区町村のくわしい数（地域を詳しく）が出ます。',
         onClick: function (key) { stopPlay(); if (level === 'pref') { setS({ pref: key, muni: '' }); } else { setS({ muni: key, v: 'area' }); } } });

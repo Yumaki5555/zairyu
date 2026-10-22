@@ -565,8 +565,12 @@ def checks(rows, cols, table, spec):
 
 
 def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
-    """1つのマスを直して、合わない確かめが減るものを選んで直す（減らなくなるまで）。locked（人が画像で確かめたマス）は変えない"""
+    """1つのマスを直して、合わない確かめが減るものを選んで直す（減らなくなるまで）。locked（人が画像で確かめたマス）は変えない。
+    はっきり読めた数も変えない（元の表そのものの合計がずれていることがあり、合計に合わせて変えると印刷と違う数になる。
+    2026年10月の点検で、こうして変えた101マスのうち36マスは印刷どおりの数のほうが正しかった）。
+    自動で変えるのは、読めなかったマス・確からしさの低い「1」・左の列とつながって読まれた数だけ"""
     locked = set(locked)
+    read = {k for k in src if k not in filled}  # はっきり読めた数（つながった数を分けるときのほかは変えない）
     # 先に：確からしさの低い「1」（「-」を「1」と読んだことが多い。1988年の国籍の表）を全部0にしてみて、合わない確かめが減るならそのまま
     weak = [k for k, v in src.items() if k in table and table[k] == 1 and v[2] == "1" and v[3] < 0.75 and k not in locked]
     if weak:
@@ -576,7 +580,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
         if len(checks(rows, cols, table, spec)) < n0:
             for k in weak:
                 log.append([rel, k[0], k[1], 1, 0, f"読み取り「1」p{src[k][0]}{src[k][1]}（確からしさ {src[k][3]:.2f}）",
-                            "確からしさの低い「1」を「-」として、合計から自動で直した"])
+                            "確からしさの低い「1」を「-」として、合計から自動で求めた（画像では確かめていない）"])
         else:
             for k in weak:
                 table[k] = 1
@@ -599,7 +603,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
         best = None
         n0 = len(errs)
         for k, nv in cands.items():
-            if nv < 0 or k in locked:
+            if nv < 0 or k in locked or k in read:
                 continue
             old = table[k]
             table[k] = nv
@@ -649,7 +653,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
                     moves.append(([((r, c), table[(r, c)] + dc) for c, dc in hit], len(hit) + 1, f"{len(hit)}つのマス"))
             done = False
             for pair, need, what in moves:
-                if any(nv < 0 or k in locked for k, nv in pair):
+                if any(nv < 0 or k in locked or (k in read and what != "つながった数を分けた") for k, nv in pair):
                     continue
                 olds = {k: table[k] for k, _ in pair}
                 for k, nv in pair:
@@ -660,7 +664,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
                     continue
                 for k, nv in pair:
                     how = "読めなかったマス" if k in filled else f"読み取り「{src[k][2]}」p{src[k][0]}{src[k][1]}"
-                    log.append([rel, k[0], k[1], olds[k], nv, how, f"合計から自動で直した（{what}）"])
+                    log.append([rel, k[0], k[1], olds[k], nv, how, f"合計から自動で求めた（{what}。画像では確かめていない）"])
                 done = True
                 break
             if not done:
@@ -668,7 +672,7 @@ def auto_fix(rows, cols, table, spec, src, filled, log, rel, locked=()):
             continue
         _, k, nv = best
         how = "読めなかったマス" if k in filled else f"読み取り「{src[k][2]}」p{src[k][0]}{src[k][1]}"
-        log.append([rel, k[0], k[1], table[k], nv, how, "合計から自動で直した"])
+        log.append([rel, k[0], k[1], table[k], nv, how, "合計から自動で求めた（画像では確かめていない）"])
         table[k] = nv
     return checks(rows, cols, table, spec)
 

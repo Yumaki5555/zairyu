@@ -31,6 +31,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_site as ms  # noqa: E402
+from make_data import RENAME, WHY  # noqa: E402
 from make_map import CITY, NEW_CODE  # noqa: E402
 from read_tables import group_visas  # noqa: E402
 
@@ -41,6 +42,35 @@ OUT = os.path.join(ms.OUT, "data")
 OLD_NAT_FROM, OLD_VISA_FROM = "1984-12", "1992-12"  # 古い表の国籍別・在留資格別を使う最初の年（在留資格は1990年の法改正のあとの区分から）
 FULL_NAT_FROM = "2023-12"  # 市区町村の表に全部の国がのる最初の時点
 MUNI_VISA_FROM = "2019-12"
+# 古い表（2005年まで）の国籍・地域の名前は印刷どおり。ダッシュボードでは今の表の名前にそろえて1本のグラフにする
+# （2006年からの表と同じ直し（make_data.py の RENAME）も使う）。どの名前も、そろえる先の名前と同じ年に両方のることはない（main で確かめる）。
+# 今の1つの国に置きかえられない国（GONE）はそろえず、選ぶ欄で「今はない国」と印をつける。そろえ方の一覧は データ/古い表/国籍・地域の名前のそろえ方.csv
+OLD_RENAME_WHY = {
+    "国の名前が変わった（今の名前にそろえる）": {
+        "ビルマ": "ミャンマー", "ザイール": "コンゴ民主共和国", "西サモア": "サモア"},
+    "同じ国の書き方の違い（今の表の書き方にそろえる）": {
+        "アメリカ": "米国", "イギリス": "英国", "アルゼンティン": "アルゼンチン", "アンチグア・バーブーダ": "アンティグア・バーブーダ",
+        "アンティグァ・バーブーダ": "アンティグア・バーブーダ", "アンドラ公国": "アンドラ", "ウルグァイ": "ウルグアイ", "エティオピア": "エチオピア",
+        "エル・サルヴァドル": "エルサルバドル", "カンボディア": "カンボジア", "カーボ・ヴェルデ": "カーボベルデ", "ギニアビサオ": "ギニアビサウ",
+        "ギニア・ビサオ": "ギニアビサウ", "ギリシア": "ギリシャ", "クウェイト": "クウェート", "グァテマラ": "グアテマラ", "コスタ・リカ": "コスタリカ",
+        "コンゴ": "コンゴ共和国", "コンゴー": "コンゴ共和国", "コンゴー民主共和国": "コンゴ民主共和国", "コートジボアール": "コートジボワール",
+        "象牙海岸": "コートジボワール", "象牙海岸共和国": "コートジボワール", "サイプラス": "キプロス", "サウディ・アラビア": "サウジアラビア",
+        "サン・マリノ": "サンマリノ", "シエラ・レオーネ": "シエラレオネ", "ジブティ": "ジブチ", "ジョルダン": "ヨルダン", "スリ・ランカ": "スリランカ",
+        "スロヴァキア": "スロバキア", "スロヴェニア": "スロベニア", "セイシェル": "セーシェル", "セントクリストファー": "セントクリストファー・ネービス",
+        "セント・クリストファー・ネイヴィス": "セントクリストファー・ネービス", "セント・クリストファー・ネイヴィース": "セントクリストファー・ネービス",
+        "セント・ビンセント": "セントビンセント", "セント・ヴィンセント": "セントビンセント", "セント・ルシア": "セントルシア", "チェッコ": "チェコ",
+        "チャード": "チャド", "テュニジア": "チュニジア", "トゥヴァル": "ツバル", "トリニダッド・トバゴ": "トリニダード・トバゴ", "トーゴー": "トーゴ",
+        "ニカラグァ": "ニカラグア", "ニュー・ジーランド": "ニュージーランド", "ハイティ": "ハイチ", "バハレーン": "バーレーン",
+        "パプア・ニューギニア": "パプアニューギニア", "パラウ": "パラオ", "パラグァイ": "パラグアイ", "ミャンマー連邦": "ミャンマー",
+        "ブルキナ・ファソ": "ブルキナファソ", "ブルンディ": "ブルンジ", "ホンデュラス": "ホンジュラス", "ボスニア・ヘルツェゴヴィナ": "ボスニア・ヘルツェゴビナ",
+        "ボリヴィア": "ボリビア", "マレイシア": "マレーシア", "マーシャル諸島": "マーシャル", "ミクロネシア連邦": "ミクロネシア", "モルジブ": "モルディブ",
+        "モルディヴ": "モルディブ", "モルドヴァ": "モルドバ", "ラトヴィア": "ラトビア", "ルクセンブルグ": "ルクセンブルク", "ロシア連邦": "ロシア",
+        "ヴァヌアツ": "バヌアツ", "ヴィエトナム": "ベトナム", "ヴェトナム": "ベトナム", "ヴェネズエラ": "ベネズエラ", "南アフリカ": "南アフリカ共和国",
+        "ユーゴースラヴィア連邦共和国": "ユーゴスラビア連邦共和国"},
+}
+OLD_RENAME = {**RENAME, **{a: b for m in OLD_RENAME_WHY.values() for a, b in m.items()}}
+OLD_WHY = {**WHY, **{a: why for why, m in OLD_RENAME_WHY.items() for a in m}}
+GONE = {"ソ連", "東ドイツ", "西ドイツ", "チェコスロバキア", "イエメン・アラブ", "ユーゴスラビア連邦共和国"}  # 今はない国（今の1つの国に置きかえられない）
 
 
 def dump(name, obj):
@@ -112,12 +142,21 @@ def main():
     # ---- 古い表（1984〜2005年の国籍、1992〜2005年の在留資格）
     O = os.path.join(DATA, "古い表")
     on = pd.read_csv(os.path.join(O, "全国_国籍_在留資格.csv"), dtype={"人数": "Int64"})
-    on = on[(on["在留資格"] == "総数") & (on["時点"] >= OLD_NAT_FROM) & ~on["国籍・地域"].str.endswith("州") & (on["国籍・地域"] != "総数")]
+    on = on[(on["在留資格"] == "総数") & (on["時点"] >= OLD_NAT_FROM) & ~on["国籍・地域"].str.endswith("州") & (on["国籍・地域"] != "総数")].copy()
+    on["元の名前"] = on["国籍・地域"]
+    on["国籍・地域"] = on["国籍・地域"].replace(OLD_RENAME)
+    both = on[on["人数"] > 0].groupby(["国籍・地域", "時点"])["元の名前"].nunique()
+    if (both > 1).any():
+        print("※ 古い表で、同じ年に2つの名前が同じ国にそろう（足すと二重になるかもしれない）：" + "、".join(f"{n} {w}" for n, w in both[both > 1].index))
+    fixed = on[on["元の名前"] != on["国籍・地域"]].groupby(["元の名前", "国籍・地域"])["時点"].agg(lambda s: "・".join(sorted(s)))
+    pd.DataFrame([{"古い表の書き方": a, "ダッシュボードの名前": b, "わけ": OLD_WHY[a], "時点": w} for (a, b), w in fixed.items()]).to_csv(
+        os.path.join(DATA, "古い表", "国籍・地域の名前のそろえ方.csv"), index=False, encoding="utf-8-sig")
     old_nat = defaultdict(dict)
     for (n, w), v in on.groupby(["国籍・地域", "時点"])["人数"].sum().items():
         old_nat[n][w] = int(v)
     op = pd.read_csv(os.path.join(O, "都道府県_国籍.csv"), dtype={"人数": "Int64"})
-    op = op[(op["時点"] >= OLD_NAT_FROM) & ~op["国籍・地域"].str.endswith("州") & (op["国籍・地域"] != "総数") & op["都道府県"].isin(ms.PREFS)]
+    op = op[(op["時点"] >= OLD_NAT_FROM) & ~op["国籍・地域"].str.endswith("州") & (op["国籍・地域"] != "総数") & op["都道府県"].isin(ms.PREFS)].copy()
+    op["国籍・地域"] = op["国籍・地域"].replace(OLD_RENAME)
     old_pref_nat = defaultdict(lambda: defaultdict(dict))
     for (p, n, w), v in op.groupby(["都道府県", "国籍・地域", "時点"])["人数"].sum().items():
         old_pref_nat[p][n][w] = int(v)
@@ -293,7 +332,12 @@ def main():
             "oldNatFrom": OLD_NAT_FROM, "oldVisaFrom": OLD_VISA_FROM, "built": date.today().isoformat()}
     # 国籍・地域の州と地域区分（国籍・地域を選ぶ欄を、地域区分で絞れるように）
     meta["natRegion"] = {n: list(ms.region_of(n)) for n in meta["nats"]}
-    meta["natOld"] = [n for n in meta["nats"] if n not in d.nat_series]  # 2005年までの古い表だけにある名前・書き方（選ぶ欄で印をつける）
+    meta["natOld"] = {}  # 2005年までの古い表だけにある国籍・地域 → 選ぶ欄で名前のあとに書く印
+    for n in meta["nats"]:
+        if n not in d.nat_series:
+            ys = [w[:4] for w, v in zip(P, nat_t[n]) if v]
+            meta["natOld"][n] = f"今はない国。{ys[-1]}年の表まで" if n in GONE else (f"{ys[0]}年の表だけ" if ys[0] == ys[-1] else f"{ys[0]}〜{ys[-1]}年の表だけ")
+    print("古い表だけの国籍・地域：" + "、".join(f"{n}（{t}）" for n, t in meta["natOld"].items()))
     meta["regions"] = ms.REGION_TREE
     size["meta.json"] = dump("meta.json", meta)
     sk = sokuho(d, MP)
