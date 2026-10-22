@@ -185,6 +185,7 @@ table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 7px 8px;
 table.t th { font-size: 14px; color: var(--sub); font-weight: 700; background: var(--card); white-space: nowrap; }
 table.t td:not(.n) { min-width: 6em; } /* 狭い画面で、名前の列が1字ずつに折れないように（入らなければ表を横にずらす） */
 .tbl table.t td:not(.n) { white-space: nowrap; }
+.tbl table.t td .wr { white-space: normal; word-break: keep-all; } /* 長い名前は、入らないときだけ「・」の所で折り返す（make_site.py の wbr と組にする） */
 table.t thead th { border-bottom: 2px solid var(--line); }
 table.t td.n, table.t th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 table.t tr.hl td { background: var(--btn-soft); }
@@ -202,6 +203,26 @@ details > summary { cursor: pointer; padding: 10px 0; color: var(--accent); font
 table.regtab tr.rst td { font-weight: 700; background: var(--bg); border-top: 2px solid var(--line); }
 table.regtab tr.rsub td:first-child { padding-left: 28px; }
 table.regtab tr.rsub td:first-child::before { content: "└ "; color: var(--sub); }
+/* 色のマス目（ヒートマップ。国籍から探す）：色は地図と同じオレンジの濃さ（.b0〜.b6）。マスの中に短い数・割合を書く（色だけに頼らない）。
+   名前の列と州の見出しは、横にずらしても左に残る。2012年の列の左の点線は、数え方が変わった所 */
+.heatsw .hsw { margin: 0 0 12px; }
+.heatsw .hsw .modes { align-self: flex-start; }
+.heatpane .map-shape { max-width: none; } /* 世界地図は横に長いので、枠の幅いっぱいに */
+.heatpane h3 { font-size: 17px; margin: 4px 0 8px; }
+table.heat { border-collapse: separate; border-spacing: 2px; font-size: 12px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+table.heat th { font-weight: 600; color: var(--sub); font-size: 12px; padding: 2px 1px; vertical-align: bottom; white-space: nowrap; text-align: center; }
+table.heat thead th.vh span { writing-mode: vertical-rl; display: inline-block; letter-spacing: 1px; line-height: 1.1; }
+table.heat th.rl { position: sticky; left: 0; z-index: 1; background: var(--card); text-align: left; vertical-align: middle; font-size: 14px; font-weight: 400;
+                   color: var(--text); padding: 2px 8px 2px 0; white-space: normal; word-break: keep-all; min-width: 7.5em; max-width: 10em; }
+table.heat thead th.rl { color: var(--sub); font-size: 12px; font-weight: 600; vertical-align: bottom; }
+table.heat tr.top th.rl { font-weight: 700; }
+table.heat tr.hst th { text-align: left; font-size: 13px; font-weight: 700; color: var(--sub); padding: 10px 0 0; }
+table.heat tr.hst th span { position: sticky; left: 0; }
+table.heat tr.hgap td { height: 8px; padding: 0; }
+table.heat td { min-width: 38px; height: 30px; padding: 0 3px; text-align: center; border-radius: 3px; white-space: nowrap; font-weight: 600; }
+table.heat td.ex { font-weight: 400; color: var(--text); text-align: right; font-size: 13px; padding: 0 8px 0 0; min-width: 0; border-radius: 0; }
+table.heat td[class^="b"]:hover { outline: 2px solid var(--text); outline-offset: -2px; }
+table.heat .brk { border-left: 2px dashed var(--text); }
 
 /* 長い一覧の操作（名前で探す・並べ方・もっと見る） */
 .ttools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin: 0 0 10px; }
@@ -346,13 +367,24 @@ footer nav a { display: inline-block; padding: 6px 0; }
 .fresults a { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 10px 14px; min-height: 48px; text-decoration: none; color: var(--text); }
 .fresults a:hover, .fresults a:focus-visible { background: var(--btn-soft); }
 .fresults .fn { font-weight: 700; color: var(--accent); }
-.regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
-.regions section { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-.regions h3 { font-size: 17px; margin: 0 0 6px; }
-.regions ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
-.regions a { display: flex; justify-content: space-between; gap: 6px; padding: 6px 4px; min-height: 40px; align-items: center; }
-.regions .n { color: var(--sub); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-@media (max-width: 380px) { .regions ul { grid-template-columns: 1fr; } }
+/* 地方から選ぶ：地方ごとに1行（左に地方の名前と合計、右に都道府県の四角）。政令市も同じ四角 */
+.regions section { display: grid; grid-template-columns: 8em minmax(0, 1fr); gap: 8px 16px; padding: 14px 0; border-top: 1px solid var(--line); }
+.regions section:first-child { border-top: 0; padding-top: 2px; }
+.regions h3 { font-size: 17px; margin: 0; padding-top: 6px; line-height: 1.4; display: flex; flex-direction: column; gap: 2px; }
+.regions h3 .n { font-size: 14px; font-weight: 400; color: var(--sub); font-variant-numeric: tabular-nums; }
+.picks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(5.6em, 1fr)); gap: 8px; }
+.picks.wide { grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); }
+.picks.wide b { white-space: normal; }
+.picks a { display: flex; flex-direction: column; justify-content: center; min-height: 56px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px;
+           background: var(--card); color: var(--text); text-decoration: none; line-height: 1.45; }
+.picks a:hover, .picks a:focus-visible { background: var(--btn-soft); border-color: var(--btn-line); }
+.picks b { color: var(--accent); white-space: nowrap; }
+.picks small { display: inline-block; font-size: 13px; font-weight: 400; color: var(--sub); margin-left: 6px; white-space: nowrap; }
+.picks .n { color: var(--sub); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 600px) {
+  .regions section { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .regions h3 { flex-direction: row; justify-content: space-between; align-items: baseline; padding-top: 0; }
+}
 
 /* 画像を保存の画面 */
 .xov { position: fixed; inset: 0; z-index: 70; background: rgba(10, 14, 20, .55); display: flex; align-items: flex-start; justify-content: center; overflow: auto;
@@ -370,3 +402,123 @@ footer nav a { display: inline-block; padding: 6px 0; }
 .xtext { width: 100%; resize: vertical; }
 .dtools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 @media (max-width: 600px) { .xbox { padding: 12px; } .dtools .dbtn { flex: 1 1 auto; } }
+
+/* 10年前からの増減（トップページ）：増えた＝緑で0より右、減った＝赤で0より左。棒の長さは増減の人数（どの並べ方でも同じ目もり）。
+   色だけに頼らず、＋−の付いた数を必ず書く。緑と赤は、色の見分けにくい人にも明るさの違いで分かる組み合わせ。
+   カードの幅が広いときは1件2行（名前と人数／棒と増減）、狭いとき（スマホ）は1件3行（名前と増減／棒／人数と増減率） */
+:root { --up: #29a97f; --down: #c23a33; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --up: #36a684; --down: #c23a33; } }
+:root[data-theme="dark"] { --up: #36a684; --down: #c23a33; }
+.ten-cols { align-items: start; } /* 「もっと見る」で片方だけ長くしても、もう片方に空きを作らない */
+.ten-card { container-type: inline-size; }
+.ten-card .cardmeta span { display: inline-block; margin-right: 1em; } /* 「対象」と「期間」を分けて並べる */
+.ten-card .cardmeta span, .ten-key > span { word-break: keep-all; overflow-wrap: anywhere; } /* 折り返すのは「→」の前後などだけ（日付の途中で切らない） */
+.ten-sort { min-width: 0; }
+.modes.tsort { display: grid; grid-template-columns: repeat(4, auto); gap: 1px; background: var(--btn-line); }
+.modes.tsort button + button { border-left: 0; }
+.modes.tsort button { padding: 6px 12px; }
+.ten-key { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; font-size: 14px; color: var(--sub); margin: 0 0 4px; }
+.ten-key .k { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+.ten-key b { color: var(--text); }
+.ten-sw { display: inline-block; width: 16px; height: 10px; border-radius: 2px; }
+.ten-sw.up { background: var(--up); } .ten-sw.down { background: var(--down); }
+ol.ten-list { list-style: none; margin: 0; padding: 0; }
+.ten-row { display: grid; grid-template-columns: 1.6em minmax(0, 1fr) 6.8em 4.9em; column-gap: 8px; row-gap: 3px; align-items: center; font-size: 15px;
+           grid-template-areas: "rk nm ct ct" ". bar dv rt"; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+.ten-row:not(.ten-head):hover { background: var(--bg); }
+.ten-rk { grid-area: rk; align-self: start; padding-top: 2px; text-align: right; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.ten-nm { grid-area: nm; font-weight: 600; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; } /* 長い名前は「・」の所で折り返し、途中で切らない */
+.ten-mk { color: var(--mark); font-size: 13px; font-weight: 700; margin-left: 3px; }
+.ten-ct { grid-area: ct; justify-self: end; font-size: 14px; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ten-ct b { color: var(--text); }
+.ten-bar { grid-area: bar; position: relative; height: 14px; }
+.ten-zero { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--text); opacity: .75; }
+.ten-fill { position: absolute; top: 1px; height: 12px; min-width: 2px; }
+.ten-fill.up { background: var(--up); border-radius: 0 4px 4px 0; }
+.ten-fill.down { background: var(--down); border-radius: 4px 0 0 4px; }
+.ten-na { position: absolute; inset: -2px 0; display: flex; align-items: center; padding: 0 8px; border: 1px dashed var(--field); border-radius: 4px;
+          font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; }
+.ten-dv { grid-area: dv; text-align: right; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ten-row.none .ten-dv { font-weight: 600; font-size: 14px; color: var(--sub); }
+.ten-rt { grid-area: rt; text-align: right; font-size: 14px; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ten-rl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* 広いときは列の見出しがあるので、読み上げだけ */
+.ten-head { padding-top: 2px; padding-bottom: 4px; border-bottom-width: 2px; font-size: 13px; color: var(--sub); }
+.ten-head .ten-nm, .ten-head .ten-dv { font-weight: 700; font-size: 13px; color: var(--sub); }
+.ten-head .ten-ct, .ten-head .ten-rt { font-size: 13px; }
+.ten-head .ten-bar { height: 18px; }
+.ten-zl { position: absolute; top: 0; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.ten-dir { position: absolute; top: 0; white-space: nowrap; }
+.ten-ex { display: block; font-size: 14px; color: var(--sub); }
+.ten-cap { font-size: 13px; color: var(--sub); margin: 8px 0 0; }
+.ten-notes { padding-left: 1.2em; margin: 10px 0 4px; }
+@container (max-width: 520px) { .modes.tsort { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 400px) {
+  .ten-sort { flex: 1 1 100%; }
+  .ten-row { grid-template-columns: 1.6em minmax(0, 1fr) auto; grid-template-areas: "rk nm dv" ". bar bar" ". ct rt"; row-gap: 4px; padding: 9px 2px; }
+  .ten-ct { justify-self: start; font-size: 13px; }
+  .ten-rt { font-size: 13px; }
+  .ten-rl { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+  .ten-head { grid-template-areas: ". bar bar"; }
+  .ten-head .ten-nm, .ten-head .ten-ct, .ten-head .ten-dv, .ten-head .ten-rt, .ten-head .ten-rk { display: none; }
+}
+
+/* 国籍・地域ごとの主な在留資格（積み上げ横棒）：棒の全体＝その国籍・地域の人数（100%）。上位3つの在留資格に色、それ以外は色なしの「上位3つ以外」。
+   在留資格の色は決まった色（どのページ・どの国籍・地域でも同じ。make_site.py の VISA_COLOR）。よく隣り合う組み合わせ（技能実習と特定技能など）は、
+   色の見分けにくい人にも区別できるよう明るさを変えてある。区分の中の字は、白か黒の読みやすいほう。区分の中に入らない名前・割合は出さず、棒の下の内わけで読む */
+.vc-ei { background: #2f6fc4; color: #fff; }   /* 永住者 */
+.vc-gj { background: #23407e; color: #fff; }   /* 技術・人文知識・国際業務 */
+.vc-ry { background: #2e9e57; color: #1d2330; } /* 留学 */
+.vc-jk { background: #f29a3d; color: #1d2330; } /* 技能実習 */
+.vc-tg { background: #b8234a; color: #fff; }   /* 特定技能 */
+.vc-tb { background: #6c3596; color: #fff; }   /* 特別永住者 */
+.vc-kz { background: #5cc2dc; color: #1d2330; } /* 家族滞在 */
+.vc-tj { background: #8f741c; color: #fff; }   /* 定住者 */
+.vc-nh { background: #ee9cc0; color: #1d2330; } /* 日本人の配偶者等 */
+.vc-tk { background: #6b7480; color: #fff; }   /* 特定活動 */
+.vc-x { background: repeating-linear-gradient(135deg, #e3e6eb 0 6px, #c4cad3 6px 9px); color: #1d2330; } /* そのほかの在留資格（しま模様） */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vc-x { background: repeating-linear-gradient(135deg, #3a404a 0 6px, #5a626e 6px 9px); color: #e7eaf0; } }
+:root[data-theme="dark"] .vc-x { background: repeating-linear-gradient(135deg, #3a404a 0 6px, #5a626e 6px 9px); color: #e7eaf0; }
+.xwrap { container-type: inline-size; }
+.xintro { font-size: 15px; margin: 0 0 8px; }
+ul.xlegend { list-style: none; margin: 0 0 6px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; background: var(--bg); border-radius: 8px; }
+ul.xlegend li { display: inline-flex; align-items: center; gap: 6px; }
+ul.xlegend li > span:last-child, .xdet .xv, #cross .cardmeta { word-break: keep-all; overflow-wrap: anywhere; } /* 「・」や空きの所で折り返し、ことばの途中で切らない */
+.xsw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: 0 0 auto; }
+.xsw.xr { background: var(--sz); border: 1px solid var(--field); }
+ol.xlist { list-style: none; margin: 0; padding: 0; }
+.xrow { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); grid-template-areas: "hd bar" ". det"; column-gap: 16px; row-gap: 6px;
+        padding: 12px 0; border-bottom: 1px solid var(--line); }
+.xhd { grid-area: hd; display: flex; flex-direction: column; justify-content: center; min-width: 0; line-height: 1.35; }
+.xnm { font-weight: 700; font-size: 16px; word-break: keep-all; overflow-wrap: anywhere; } /* 国籍・地域の名前は途中で折り返さない（入らないときだけ） */
+.xnm a { display: inline-block; padding: 2px 0; }
+.xtot { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.xbar { grid-area: bar; display: flex; height: 32px; border-radius: 6px; overflow: hidden; background: var(--sz); align-self: center; }
+.xs { container-type: inline-size; height: 100%; display: flex; align-items: center; min-width: 0; overflow: hidden; cursor: default; }
+.xs + .xs { border-left: 2px solid var(--card); } /* 区分のあいだに細いすき間 */
+.xs.xr { background: transparent; color: var(--sub); }
+.xs:hover { filter: brightness(1.08); }
+.xl { padding: 0 6px; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.xs.xr .xl { font-weight: 600; }
+/* 区分の幅が足りないときは、名前を省いて割合だけ → それも入らなければ何も書かない（名前の長さごとに、入る幅を決めてある） */
+@container (max-width: 68px) { .xs.nl2 .xn { display: none; } }
+@container (max-width: 81px) { .xs.nl3 .xn { display: none; } }
+@container (max-width: 94px) { .xs.nl4 .xn { display: none; } }
+@container (max-width: 107px) { .xs.nl5 .xn { display: none; } }
+@container (max-width: 122px) { .xs.nl6 .xn, .xs.xr .xl { display: none; } }
+@container (max-width: 133px) { .xs.nl7 .xn { display: none; } }
+@container (max-width: 148px) { .xs.nl8 .xn { display: none; } }
+@container (max-width: 36px) { .xl { display: none; } }
+ul.xdet { grid-area: det; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 18px; font-size: 14px; }
+ul.xdet li { display: inline-flex; align-items: center; gap: 6px; }
+.xdet .xv { font-weight: 600; }
+.xdet .xc { color: var(--sub); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* スマホ（狭いとき）：国籍・地域の名前と人数 → 棒 → 内わけ（1行に1つ）の順に縦に並べる */
+@container (max-width: 560px) {
+  .xrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hd" "bar" "det"; row-gap: 8px; padding: 14px 0; }
+  .xhd { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+  .xnm { font-size: 17px; }
+  .xtot { font-size: 16px; }
+  .xbar { height: 34px; }
+  ul.xdet { flex-direction: column; gap: 4px; font-size: 15px; }
+  ul.xdet li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; }
+}

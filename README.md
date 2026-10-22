@@ -30,7 +30,8 @@ Python 3 と pandas・openpyxl・xlrd・pbixray を使います（古い表の�
 1. `python download_estat.py` … e-Stat から元のファイルを落とす（`元データ/` に入る）
 2. `python make_data.py` … `データ/` の表を作り、表どうしの合計が国の発表の数と合うか確かめる（結果は `データ/検算.csv`）
 3. 古い表（1959〜2005年）は `ocr_pdfs.py` → `make_old_data.py`（くわしくは古い表の説明）
-4. `python make_map.py` … 地図の形を作る（先に国土地理院「地球地図日本」第2.1版の行政界を `元データ/地図/gm-jpn-bnd_u_2_1/` に置く）
+4. `python make_map.py` … 地図の形を作る（先に国土地理院「地球地図日本」第2.1版の行政界を `元データ/地図/gm-jpn-bnd_u_2_1/` に置く）。
+   `python make_world_map.py` … 「国籍から探す」の世界地図の形を作る（先に Natural Earth v5.1.2 の `ne_10m_admin_0_countries_jpn.geojson` を `元データ/地図/natural-earth/` に置く）
 5. `python download_population.py` → `python make_population.py` … 外国人の割合の分母にする人口（総務省「住民基本台帳に基づく人口」）
 6. `python download_press.py` → `python make_press.py` … 法務省の半期速報（報道発表の資料）。内わけの合計と、同じ時点の確定統計と同じかを確かめる
 7. `python make_site.py` … `site/` にサイトのページを作る
@@ -43,5 +44,6 @@ Python 3 と pandas・openpyxl・xlrd・pbixray を使います（古い表の�
 - 人口：総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」（e-Stat）を加工して作成（外国人の割合の分母）
 - 半期速報：出入国在留管理庁「〇年〇月末現在における在留外国人数について」（報道発表、https://www.moj.go.jp/isa/ ）
 - 地図：国土地理院「地球地図日本」（https://www.gsi.go.jp/kankyochiri/gm_jpn.html ）を加工して作成（国土地理院コンテンツ利用規約による）
+- 世界地図：Natural Earth（https://www.naturalearthdata.com/ 、日本の見方の国境の版）を加工して作成（パブリックドメイン）
 
 数を見るときの注意（2011年までと2012年からで数え方が違うことなど）は、サイトの「[このサイトについて](https://yumaki5555.github.io/zairyu/about.html)」にまとめています。

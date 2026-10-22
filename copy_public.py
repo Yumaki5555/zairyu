@@ -4,13 +4,13 @@
 #   公開するもの
 #     作り方のプログラム（このフォルダの *.py・*.ps1）と README.md（GitHub の最初のページの説明）
 #     データ/ の表と説明（*.csv・*.md。時点ごとに分けた表のフォルダ、古い表/ も）。「試し_」で始まる試しのファイルは除く
-#     site_assets/ のグラフの部品と見た目（app.js・style.css）と地図の形（map/*.json。make_map.py で国土地理院「地球地図日本」から作ったもの）
+#     site_assets/ のグラフの部品と見た目（app.js・style.css）と地図の形（map/*.json。make_map.py で国土地理院「地球地図日本」から、world.json は make_world_map.py で Natural Earth から作ったもの）、サイトのしるし（favicon.*・apple-touch-icon.png。make_favicon.py で作ったもの）
 #     site/ のサイトのページ → 写す先では docs/（GitHub Pages で docs/ を公開する）。docs/.nojekyll も作る（GitHub に手を加えさせず、そのまま出す印）
 #     元データ/ のうち、人が手で作った一覧と出どころ一覧だけ
 #       出どころ一覧.csv（e-Stat の番号・URL・公開日。元のファイルはここから取り直せる）
 #       人口_出どころ一覧.csv・半期速報_出どころ一覧.csv（住民基本台帳人口と法務省の半期速報の資料の URL・公表日）
 #       OCR直し.csv・印刷のまま.csv・名前の直し.csv（画像で確かめて直した所・印刷のまま残した所・市区の名前の直し）
-#   公開しないもの：元データ/ の e-Stat から落としたファイル（Excel・PDF）と、画像の読み取り結果、国土地理院から落とした地図のデータ（大きく、取り直せるため）
+#   公開しないもの：元データ/ の e-Stat から落としたファイル（Excel・PDF）と、画像の読み取り結果、国土地理院・Natural Earth から落とした地図のデータ（大きく、取り直せるため）
 #
 #   写す先にあって、公開するものに入っていないファイルは消す（写す先は公開用の写しとして、このプログラムだけで作る）。
 #   ただし写す先の .git（GitHub の記録）と、ここで作らないファイル（KEEP）は残す
@@ -39,8 +39,8 @@ def public_files():
     if os.path.exists(os.path.join(BASE, "README.md")):
         out.append(("README.md", "README.md"))
     out += [(r, r) for r in walk("データ", (".csv", ".md"))]
-    out += [(r, r) for r in walk("site_assets", (".js", ".css", ".json"))]
-    out += [(r, os.path.join("docs", os.path.relpath(r, "site"))) for r in walk("site", (".html", ".js", ".css", ".json"))]
+    out += [(r, r) for r in walk("site_assets", (".js", ".css", ".json", ".svg", ".ico", ".png"))]
+    out += [(r, os.path.join("docs", os.path.relpath(r, "site"))) for r in walk("site", (".html", ".js", ".css", ".json", ".svg", ".ico", ".png"))]
     out.append((EMPTY, os.path.join("docs", ".nojekyll")))
     out += [(os.path.join("元データ", n),) * 2 for n in HAND_MADE if os.path.exists(os.path.join(BASE, "元データ", n))]
     return out

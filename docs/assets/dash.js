@@ -421,6 +421,18 @@
     if (label) { var l = el('label', 'dctl'); l.appendChild(el('span', 'dlab', esc(label))); l.appendChild(s); return l; }
     return s;
   }
+  // 選ぶものが少ないときは、選ぶ欄に隠さずボタンで並べる（選んでいるものは色と「✓」）
+  function pickBtns(options, value, onChange, label) {
+    var w = el('div', 'dctl dctl-pick'), g = el('div', 'dpick');
+    g.setAttribute('role', 'group'); g.setAttribute('aria-label', label);
+    options.forEach(function (o) {
+      var b = el('button', null, esc(o[1])); b.type = 'button'; b.setAttribute('aria-pressed', o[0] === value ? 'true' : 'false');
+      b.addEventListener('click', function () { if (o[0] !== value) { onChange(o[0]); } });
+      g.appendChild(b);
+    });
+    w.appendChild(el('span', 'dlab', esc(label))); w.appendChild(g);
+    return w;
+  }
   var openPanel = null;
   function fitPanel(p) { // 開いた欄が画面の右からはみ出すときは、そのぶん左へずらす（スマホで右の列の欄を開いたとき）
     p.style.left = '';
@@ -1068,6 +1080,9 @@
         var bars = (dim === 'visa' ? b.items : b.items.slice(0, 20)).map(function (x) { return [x[0], x[1], '', dim === 'nat' && x[0] !== 'その他' ? 'nat-' + encodeURIComponent(x[0]) + '.html' : null]; });
         bc.appendChild(barList(bars, total, { rank: true, f: fmt })); // 単位（人）は見出しにあるので、数だけにする
         grid.appendChild(pc); grid.appendChild(bc); c.appendChild(grid);
+        var nx = el('button', 'dlink', '国籍・地域と在留資格の組み合わせ（例：ベトナム（技能実習））で並べたランキングを見る'); nx.type = 'button';
+        nx.addEventListener('click', function () { setS({ v: 'rank', rt: 'nx' }); });
+        var nxp = el('p', 'dnav'); nxp.appendChild(nx); c.appendChild(nxp);
         if (dim === 'nat') { // 在留資格は上の棒グラフで全部見えるので、表は国籍だけ（棒グラフは多い20まで）
           var rows = b.items.map(function (x, i) { return [i + 1, x[0], fmt(x[1]), (x[1] / total * 100).toFixed(1) + '%']; });
           c.appendChild(details('すべての国籍・地域を見る（' + b.items.length + '）', tableEl(['順位', '国籍・地域', '人数', '構成比'], rows, 2)));
@@ -1141,13 +1156,14 @@
     var ctl = el('div', 'dctlrow');
     // 上で選んだ地域が、並べた中の何位か（都道府県・市区町村を並べるとき）。区を選んだときは、その市
     var mine = a.type === 'japan' ? '' : rt === 'pref' ? a.pref : rt === 'muni' && a.type === 'muni' ? (MUNI[a.key].kind === '区' && MUNI[MUNI[a.key].parent] ? MUNI[MUNI[a.key].parent].name : MUNI[a.key].name) : '';
+    // ボタンの名前は短く（どの地域の中かは見出しに出る。上で選んだ地域が何位かは、一覧の上に書く）
     var rtOpts = {
-      pref: a.type === 'japan' ? '都道府県' : '47都道府県（' + a.pref + 'は何位か）',
-      muni: a.type === 'japan' ? '市区町村（全国）' : a.pref + 'の市区町村' + (a.type === 'muni' ? '（' + mine + 'は何位か）' : ''),
-      nat: a.name + 'の国籍・地域', visa: a.name + 'の在留資格', nx: a.name + 'の国籍・地域×在留資格（組み合わせ）'
+      pref: a.type === 'japan' ? '都道府県' : '47都道府県',
+      muni: a.type === 'japan' ? '市区町村' : a.pref + 'の市区町村',
+      nat: '国籍・地域', visa: '在留資格', nx: '国籍×在留資格'
     };
     var rtOrder = a.type === 'japan' ? ['pref', 'muni', 'nat', 'visa', 'nx'] : a.type === 'pref' ? ['muni', 'nat', 'visa', 'nx', 'pref'] : ['nat', 'visa', 'nx', 'muni', 'pref'];
-    ctl.appendChild(selectEl(rtOrder.map(function (k) { return [k, rtOpts[k]]; }), rt, function (v) { setS({ rt: v === autoRt(area()) ? '' : v }); }, '何を並べる'));
+    ctl.appendChild(pickBtns(rtOrder.map(function (k) { return [k, rtOpts[k]]; }), rt, function (v) { setS({ rt: v === autoRt(area()) ? '' : v }); }, '何を並べる'));
     var mopts = rt === 'pref' || rt === 'muni' ? ['count', 'ratio', 'share', 'diff1', 'rate1', 'diff5', 'rate5', 'diff10', 'rate10'] : ['count', 'share', 'diff1', 'rate1', 'diff5', 'rate5', 'diff10', 'rate10'];
     if (mopts.indexOf(m) < 0) { m = 'count'; }
     ctl.appendChild(selectEl(mopts.map(function (k) { return [k, METRICS[k].label]; }), m, function (v) { setS({ rm: v }); }, '何で並べる'));

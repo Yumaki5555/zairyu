@@ -73,7 +73,7 @@
   }
   function hideTip() { tip.hidden = true; }
   window.addEventListener('scroll', hideTip, { passive: true });
-  document.addEventListener('click', function (ev) { if (!ev.target.closest || !ev.target.closest('svg, .hbars, .tiles')) { hideTip(); } });
+  document.addEventListener('click', function (ev) { if (!ev.target.closest || !ev.target.closest('svg, .hbars, .tiles, .xbar, .heat')) { hideTip(); } });
 
   // ---- 画像を保存（share.js は、ボタンを押したときに読み込む）
   function loadShare() {
@@ -280,9 +280,10 @@
   }
   function areaName(d, key) { return key.indexOf('none:') === 0 ? (key.slice(5) || '（統計のない所）') : ((d.names && d.names[key]) || key); }
   function rankOf(opt, key) { var v = opt.values[key] || 0; if (!v) { return 0; } var r = 1; Object.keys(opt.values).forEach(function (k) { if (opt.values[k] > v) { r++; } }); return r; }
+  function levelName(d) { return d.level === 'muni' ? '市区町村' : d.level === 'world' ? '国・地域' : '都道府県'; }
   function helpText(d) {
     if (!d.links) { return ''; }
-    return '<span>▶ ' + (d.level === 'muni' ? '市区町村' : '都道府県') + 'を押すと、くわしいページへ進みます（スマホでは、1回目のタップで数を出し、もう1回で進みます）。</span>';
+    return '<span>▶ ' + levelName(d) + 'を押すと、くわしいページへ進みます（スマホでは、1回目のタップで数を出し、もう1回で進みます）。</span>';
   }
   // 選んだ所：太い線で囲み、地図の下に名前・数・ページへのリンクを出す
   function selectArea(box, key, front) {
@@ -429,19 +430,23 @@
           var sorted = Object.keys(opt.values).filter(function (k) { return opt.values[k] > 0; }).sort(function (a, b) { return opt.values[b] - opt.values[a]; })
             .slice(0, 10).map(function (k) { return [areaName(d, k), opt.values[k]]; });
           res({ chart: { kind: 'map', shape: shape, cls: cls, legend: box._legend, sorted: sorted, f: function (v) { return fmt(v) + '人'; }, metric: '人数',
-            when: d.when, area: d.area, level: d.level }, meta: { nat: w.nat, visa: w.visa }, src: SRC_STAT,
-            autoTitle: (d.level === 'muni' ? d.area + 'の市区町村別　' : '都道府県別　') + w.who + 'の数（' + wl(d.when) + '）' });
+            when: d.when, area: d.area, level: d.level }, meta: { nat: w.nat, visa: w.visa }, src: SRC_STAT + (d.level === 'world' ? '、Natural Earth（地図の形）' : ''),
+            autoTitle: (d.level === 'muni' ? d.area + 'の市区町村別　' : d.level === 'world' ? '国籍・地域別　' : '都道府県別　') + w.who + 'の数（' + wl(d.when) + '）' });
         });
       });
     }));
     var now = mk('p', 'map-now'); ctl.insertAdjacentElement('afterend', now);
     var info = mk('div', 'map-info'); info.setAttribute('aria-live', 'polite');
     box.querySelector('.map-legend').insertAdjacentElement('afterend', info);
-    if (d.links) { // 小さくて押しにくい所は、一覧から選べるように
-      var keys = Object.keys(d.links), js = mk('select');
+    if (d.links) { // 小さくて押しにくい所は、一覧から選べるように（d.groups があれば、まとまりごとに分ける：世界地図は地域区分ごと）
+      var keys = Object.keys(d.links), js = mk('select'), og = {};
       js.appendChild(new Option('選んでください', ''));
-      keys.forEach(function (k) { js.appendChild(new Option(areaName(d, k), k)); });
-      var jl = mk('label', 'dctl'); jl.appendChild(mk('span', 'dlab', '地図で押しにくいときは、ここから' + (d.level === 'muni' ? '市区町村' : '都道府県') + 'を選べます')); jl.appendChild(js);
+      keys.forEach(function (k) {
+        var g = d.groups && d.groups[k], host = js;
+        if (g) { if (!og[g]) { og[g] = document.createElement('optgroup'); og[g].label = g; js.appendChild(og[g]); } host = og[g]; }
+        host.appendChild(new Option(areaName(d, k), k));
+      });
+      var jl = mk('label', 'dctl'); jl.appendChild(mk('span', 'dlab', '地図で押しにくいときは、ここから' + levelName(d) + 'を選べます')); jl.appendChild(js);
       var jw = mk('div', 'map-jump'); jw.appendChild(jl); info.insertAdjacentElement('afterend', jw);
       js.addEventListener('change', function () { if (js.value) { selectArea(box, js.value, true); } else { clearSel(box); } });
     }
@@ -583,6 +588,150 @@
         meta: { nat: d.nat ? [d.nat] : [], visa: [] }, src: SRC_STAT };
     }));
     g.insertAdjacentElement('afterend', mk('p', 'hint', '線の上を押すと（マウスを合わせると）、その時点の数が出ます。'));
+  });
+
+  // ---- 10年前からの増減（国籍・地域／在留資格。トップページ）：増減の横棒・並べ替え・もっと見る・画像を保存
+  //   棒の長さは増減の人数（どの並べ方でも同じ目もり）。増えた＝緑で0より右、減った＝赤で0より左。色だけに頼らず、＋−の付いた数を必ず書く。
+  //   10年前の数がないもの（null）は「比較対象なし」：0人とはせず、棒も出さず、増減の並べ方ではいつもいちばん下。10年前が0人なら増減率は出さない（計算できない）
+  var TEN_SORTS = [['now', '現在の人数順'], ['up', '増加人数順'], ['down', '減少人数順'], ['rate', '増加率順']];
+  function signedNum(v) { return (v > 0 ? '+' : v < 0 ? '−' : '±') + fmt(Math.abs(v)); }
+  function rateText(r) {
+    return r == null ? '—' : (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  }
+  function tenRows(d) {
+    return d.rows.map(function (r, i) {
+      var b = r[3], diff = b == null ? null : r[2] - b;
+      return { i: i, name: r[0], link: r[1], now: r[2], before: b, diff: diff, rate: b ? diff / b * 100 : null, note: d.notes.indexOf(r[0]) >= 0 };
+    });
+  }
+  function tenSort(rows, k) {
+    var key = { now: function (r) { return r.now; }, up: function (r) { return r.diff; }, down: function (r) { return r.diff == null ? null : -r.diff; },
+      rate: function (r) { return r.rate; } }[k];
+    return rows.slice().sort(function (a, b) {
+      var x = key(a), y = key(b);
+      if (x === null || y === null) { return x === y ? a.i - b.i : (x === null ? 1 : -1); } // 比べられないものは、いつもいちばん下
+      return y - x || a.i - b.i;
+    });
+  }
+  document.querySelectorAll('.viz[data-viz="ten"]').forEach(function (box) {
+    var d = data(box);
+    if (!d) { return; }
+    var rows = tenRows(d), sk = 'now', shown = d.limit;
+    var maxUp = Math.max.apply(null, rows.map(function (r) { return r.diff > 0 ? r.diff : 0; })),
+      maxDown = Math.max.apply(null, rows.map(function (r) { return r.diff < 0 ? -r.diff : 0; })), span = maxUp + maxDown || 1;
+    var zero = maxDown / span * 100; // 0の線の位置（棒の欄の左から何％）。減った所の棒が入るぶんだけ右に寄せる
+    var t = vtools(box), sl = mk('div', 'dctl ten-sort'), grp = mk('div', 'modes tsort');
+    var lid = 'tensort-' + d.dim;
+    sl.appendChild(mk('span', 'dlab', '並べ方')); sl.lastChild.id = lid;
+    grp.setAttribute('role', 'group'); grp.setAttribute('aria-labelledby', lid);
+    TEN_SORTS.forEach(function (s) {
+      var b = mk('button', null, s[1]); b.type = 'button'; b.dataset.k = s[0];
+      b.addEventListener('click', function () { sk = s[0]; shown = d.limit; draw(); });
+      grp.appendChild(b);
+    });
+    sl.appendChild(grp); t.appendChild(sl);
+    t.appendChild(saveButton(function () {
+      var s = TEN_SORTS.filter(function (x) { return x[0] === sk; })[0];
+      return { chart: { kind: 'diff', dim: d.dim, what: d.what, area: d.area, from: d.from, when: d.when, sort: sk, sortName: s[1], count: rows.length,
+        rows: tenSort(rows, sk).slice(0, 10).map(function (r) { return [r.name, r.diff, r.now, r.before, r.rate]; }) }, meta: { nat: [], visa: [] }, src: SRC_STAT };
+    }));
+    var now = mk('p', 'vnow'); now.setAttribute('role', 'status');
+    var key = mk('p', 'ten-key', '<span class="k"><span class="ten-sw up"></span>増加（0より右）</span><span class="k"><span class="ten-sw down"></span>減少（0より左）</span>' +
+      '<span>棒の長さ＝10年間に増えた・減った人数</span><span>数の見方：' + esc(wl(d.from)) + 'の人数 → <b>' + esc(wl(d.when)) + 'の人数</b></span>');
+    var list = mk('ol', 'ten-list');
+    var foot = mk('div', 'tmore'), bMore = mk('button', 'dbtn dbtn-sub'), bAll = mk('button', 'dbtn dbtn-sub'), bLess = mk('button', 'dbtn dbtn-sub');
+    [bMore, bAll, bLess].forEach(function (b) { b.type = 'button'; foot.appendChild(b); });
+    bMore.addEventListener('click', function () { shown += d.limit; draw(); });
+    bAll.addEventListener('click', function () { shown = rows.length; draw(); });
+    bLess.addEventListener('click', function () { shown = d.limit; draw(); box.scrollIntoView({ block: 'start' }); });
+    var cap = mk('p', 'ten-cap', '対象期間：' + esc(wl(d.from)) + ' → ' + esc(wl(d.when)) + '（10年間）　出典：' + esc(SRC_STAT));
+    [now, key, list, foot, cap].reverse().forEach(function (e) { t.insertAdjacentElement('afterend', e); });
+    function nameHtml(n) { return esc(n).replace(/・/g, '・<wbr>'); } // 長い名前は「・」の所で折り返す
+    function head() {
+      var lb = zero < 4 ? 'left:0' : 'left:' + zero.toFixed(2) + '%;transform:translateX(-50%)';
+      return '<li class="ten-row ten-head" aria-hidden="true"><span class="ten-rk"></span><span class="ten-nm">' + esc(d.what) + '</span>' +
+        '<span class="ten-ct">' + esc(d.from.slice(0, 4)) + '年 → ' + esc(d.when.slice(0, 4)) + '年（人）</span>' +
+        '<span class="ten-bar"><span class="ten-zl" style="' + lb + '">0</span><span class="ten-dir" style="left:calc(' + zero.toFixed(2) + '% + 1.4em)">増加 →</span>' +
+        (zero >= 30 ? '<span class="ten-dir dn" style="right:calc(' + (100 - zero).toFixed(2) + '% + 1.4em)">← 減少</span>' : '') + '</span>' +
+        '<span class="ten-dv">増減（人）</span><span class="ten-rt">増減率</span></li>';
+    }
+    function row(r, rank) {
+      var cls = r.diff == null ? 'none' : r.diff > 0 ? 'up' : r.diff < 0 ? 'down' : 'flat', bar;
+      if (r.diff == null) {
+        bar = '<span class="ten-na">10年前の数なし</span>';
+      } else {
+        var w = Math.abs(r.diff) / span * 100, left = r.diff >= 0 ? zero : zero - w;
+        bar = '<span class="ten-zero" style="left:' + zero.toFixed(2) + '%"></span>' +
+          (r.diff ? '<span class="ten-fill ' + cls + '" style="left:' + left.toFixed(2) + '%;width:' + w.toFixed(2) + '%"></span>' : '');
+      }
+      var nm = (r.link ? '<a href="' + esc(r.link) + '">' + nameHtml(r.name) + '</a>' : nameHtml(r.name)) + (r.note ? '<span class="ten-mk" title="下に注意があります">⁠※</span>' : '');
+      return '<li class="ten-row ' + cls + '"><span class="ten-rk">' + rank + '</span><span class="ten-nm">' + nm + '</span>' +
+        '<span class="ten-ct">' + (r.before == null ? '—' : fmt(r.before)) + ' → <b>' + fmt(r.now) + '</b>人</span>' +
+        '<span class="ten-bar" aria-hidden="true">' + bar + '</span>' +
+        '<span class="ten-dv">' + (r.diff == null ? '比較対象なし' : signedNum(r.diff) + '人') + '</span>' +
+        '<span class="ten-rt"><span class="ten-rl">増減率 </span>' + rateText(r.rate) + '</span></li>';
+    }
+    function draw() {
+      var s = TEN_SORTS.filter(function (x) { return x[0] === sk; })[0], list2 = tenSort(rows, sk), n = list2.length, lim = Math.min(shown, n);
+      grp.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.k === sk ? 'true' : 'false'); });
+      var cnt = function (f) { return rows.filter(f).length; }, extra = '';
+      if (sk === 'up') { extra = '増えたのは' + cnt(function (r) { return r.diff > 0; }) + '件。'; }
+      if (sk === 'down') { var dn = cnt(function (r) { return r.diff < 0; }); extra = dn ? '減ったのは' + dn + '件。' : '減ったものはありません。'; }
+      if (sk === 'rate') { extra = '増減率は、10年前の人数が少ないと大きく出ます。'; }
+      var none = cnt(function (r) { return r.diff == null; });
+      if (none && sk !== 'now') { extra += '比較対象なしの' + none + '件は、いちばん下に並べています。'; }
+      now.innerHTML = '表示中：<b>' + esc(s[1]) + '</b>（全' + n + '件のうち ' + lim + '件）' + (extra ? '<span class="ten-ex">' + esc(extra) + '</span>' : '');
+      var h = head();
+      for (var i = 0; i < lim; i++) {
+        var r = list2[i], skip = sk === 'rate' ? r.rate == null : sk !== 'now' && r.diff == null;
+        h += row(r, skip ? '—' : i + 1);
+      }
+      list.innerHTML = h;
+      bMore.hidden = lim >= n; bMore.textContent = 'もっと見る（あと' + Math.min(d.limit, n - lim) + '件）';
+      bAll.hidden = lim >= n || n - lim <= d.limit; bAll.textContent = 'すべて表示する（全' + n + '件）';
+      bLess.hidden = lim <= d.limit; bLess.textContent = '最初の' + d.limit + '件だけにする';
+      foot.hidden = bMore.hidden && bLess.hidden;
+    }
+    draw();
+  });
+
+  // ---- 色のマス目（ヒートマップ。マスはページに書いてある）：画像を保存のボタンを足す
+  document.querySelectorAll('.viz[data-viz="heat"]').forEach(function (box) {
+    var d = data(box);
+    if (!d) { return; }
+    vtools(box).appendChild(saveButton(function () { return { chart: d.chart, meta: { nat: [], visa: [] }, src: SRC_STAT, autoTitle: d.title }; }));
+  });
+  // 年ごとの人数・在留資格の割合・世界地図をボタンで切り替える（国籍から探す）。選んだものは次に開いたときのために残す
+  var HEATKEY = 'kazu-zairyu-heat';
+  document.querySelectorAll('.heatsw').forEach(function (sw) {
+    var panes = Array.prototype.slice.call(sw.querySelectorAll(':scope > .heatpane'));
+    if (panes.length < 2) { return; }
+    var grp = mk('div', 'modes'); grp.setAttribute('role', 'group'); grp.setAttribute('aria-label', '見るもの');
+    function show(k) {
+      if (!panes.some(function (p) { return p.dataset.k === k; })) { k = panes[0].dataset.k; }
+      panes.forEach(function (p) { p.hidden = p.dataset.k !== k; });
+      grp.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.k === k ? 'true' : 'false'); });
+      try { localStorage.setItem(HEATKEY, k); } catch (e) { /* 残せなくても動く */ }
+      hideTip(); hints();
+    }
+    panes.forEach(function (p) {
+      var b = mk('button', null, esc(p.dataset.label)); b.type = 'button'; b.dataset.k = p.dataset.k;
+      b.addEventListener('click', function () { show(p.dataset.k); });
+      grp.appendChild(b);
+    });
+    var lab = mk('div', 'dctl hsw'); lab.appendChild(mk('span', 'dlab', '見るもの')); lab.appendChild(grp);
+    sw.insertBefore(lab, sw.firstChild);
+    var k0 = null; try { k0 = localStorage.getItem(HEATKEY); } catch (e) { /* 読めなくても動く */ }
+    show(k0 || panes[0].dataset.k);
+  });
+
+  // ---- 国籍・地域ごとの主な在留資格（積み上げ横棒。棒はページに書いてある）・色のマス目：区分・マスを押すと（マウスを合わせると）、元の名前・人数・割合が出る
+  document.querySelectorAll('.xbar .xs[title], .heat td[title]').forEach(function (s) {
+    var p = s.title.split('：'), html = '<b>' + esc(p[0]) + '</b><br>' + esc(p.slice(1).join('：'));
+    s.removeAttribute('title'); // ブラウザの小さな説明と二重にならないように
+    s.addEventListener('mousemove', function (ev) { showTip(ev, html); });
+    s.addEventListener('click', function (ev) { showTip(ev, html); });
+    s.addEventListener('mouseleave', hideTip);
   });
 
   // ---- 選んで見る表（国籍を選んで市区町村の多い順／都道府県を選んで市区町村の多い順）
