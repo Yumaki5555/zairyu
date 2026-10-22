@@ -57,7 +57,7 @@
   };
 
   // ---------- 選んだ条件（アドレスの # のあとに残す）
-  var DEF = { v: 'map', pref: '', muni: '', nat: [], visa: [], when: '', metric: 'count', cmp: 'nat', areas: [], from: '', to: '', idx: '0', rt: 'pref', rm: 'count', all: '0', mn: '0' };
+  var DEF = { v: 'map', pref: '', muni: '', nat: [], visa: [], when: '', metric: 'count', cmp: 'nat', areas: [], from: '', to: '', idx: '0', rt: '', rm: 'count', all: '0', mn: '0' };
   var LISTS = { nat: 1, visa: 1, areas: 1 };
   var S = {};
   function readHash() {
@@ -277,6 +277,46 @@
       }
       if (M.mxPeriods.indexOf(when) < 0) { return { items: [], total: null, why: '市区町村の国籍×在留資格の数は2023年12月末からです' }; }
       return load('mx/' + roma + '-' + when + '.json').then(function (f) { return out(cross(f[a.key])); });
+    });
+  }
+  // ある時点の国籍×在留資格の組み合わせごとの数 → { items: [[国籍, 在留資格, 人数]], total, why }
+  // 名前が変わった在留資格は今の名前にまとめる。nats・visas を選んだときは、その国籍・在留資格の組み合わせだけ
+  function getCombos(a, when, nats, visas) {
+    var per = periodsOf(a), i = per.indexOf(when);
+    function out(rec, total) { // rec：国籍 → {在留資格: 人数}
+      var o = {};
+      Object.keys(rec || {}).forEach(function (n) {
+        if (nats.length && nats.indexOf(n) < 0) { return; }
+        Object.keys(rec[n]).forEach(function (rv) {
+          var v = M.renames[rv] || rv;
+          if ((visas.length && visas.indexOf(v) < 0) || !rec[n][rv]) { return; }
+          var k = n + '\t' + v; o[k] = (o[k] || 0) + rec[n][rv];
+        });
+      });
+      var items = Object.keys(o).map(function (k) { var p = k.split('\t'); return [p[0], p[1], o[k]]; }).sort(function (x, y) { return y[2] - x[2]; });
+      return { items: items, total: nats.length || visas.length || total == null ? items.reduce(function (s, x) { return s + x[2]; }, 0) : total };
+    }
+    if (i < 0) { return Promise.resolve({ items: [], why: 'この地域にはこの時点の統計データがありません' }); }
+    if (a.type === 'japan') {
+      var mi = M.MP.indexOf(when);
+      if (mi < 0) { return Promise.resolve({ items: [], why: '国籍×在留資格の数は2006年末からです' }); }
+      return Promise.all([load('japan-x.json'), load('japan.json')]).then(function (r) {
+        var x = r[0], rec = {};
+        Object.keys(x).forEach(function (n) { rec[n] = {}; Object.keys(x[n]).forEach(function (v) { if (x[n][v][mi]) { rec[n][v] = x[n][v][mi]; } }); });
+        return out(rec, r[1].t[i]);
+      });
+    }
+    if (a.type === 'pref') {
+      if (M.pxPeriods.indexOf(when) < 0) { return Promise.resolve({ items: [], why: '都道府県の国籍×在留資格の数は2016年12月末からです（2020年までは12月末だけ）' }); }
+      return Promise.all([load('px/' + when + '.json'), load('prefs.json')]).then(function (r) { return out(r[0][a.pref], r[1].t[a.pref][i]); });
+    }
+    var roma = PREF_ROMA[a.pref];
+    return Promise.all([load('muni-total.json'), muniEntry(roma, a.key)]).then(function (r) {
+      var tot = r[0][a.key] ? r[0][a.key][1][i] : null;
+      if (tot == null) { return { items: [], why: 'この市区町村のこの時点の数は国の表にありません' }; }
+      if ((r[1].h || []).indexOf(i) >= 0) { return { items: [], why: '外国人が10人以下のため、国籍・在留資格は公表されていません' }; }
+      if (M.mxPeriods.indexOf(when) < 0) { return { items: [], why: '市区町村の国籍×在留資格の数は2023年12月末からです' }; }
+      return load('mx/' + roma + '-' + when + '.json').then(function (f) { return out(f[a.key], tot); });
     });
   }
   function backIndex(per, i, years) { var w = per[i]; return per.indexOf((+w.slice(0, 4) - years) + w.slice(4)); }
@@ -664,6 +704,7 @@
         (total ? '<span class="p">' + ((x[1] || 0) / total * 100).toFixed(1) + '%</span>' : '');
       if (opt.fit && x[2]) { li.title = x[2]; }
       if (opt.rank) { li.classList.add('ranked'); }
+      if (opt.mark && x[0] === opt.mark) { li.classList.add('me'); } // 上で選んだ地域
       if (total) { li.classList.add('withp'); }
       if (x[4]) { li.querySelector('.dlink').addEventListener('click', x[4]); }
       ul.appendChild(li);
@@ -1002,12 +1043,22 @@
   }
 
   // ---------- 画面：ランキング
+  // 何を並べるか。はじめは上で選んだ地域の中のもの（全国 → 都道府県、都道府県 → その市区町村、市区町村 → その国籍・地域）
+  function autoRt(a) { return a.type === 'japan' ? 'pref' : a.type === 'pref' ? 'muni' : 'nat'; }
   function viewRank(box, alive) {
-    var a = area(), rt = S.rt, m = METRICS[S.rm] ? S.rm : 'count';
+    var a = area(), rt = S.rt || autoRt(a), m = METRICS[S.rm] ? S.rm : 'count';
     var perA = rt === 'muni' || (rt !== 'pref' && a.type === 'muni') ? M.MP : M.P;
     var when = perA.indexOf(S.when) >= 0 ? S.when : perA[perA.length - 1];
     var ctl = el('div', 'dctlrow');
-    ctl.appendChild(selectEl([['pref', '都道府県'], ['muni', S.pref ? S.pref + 'の市区町村' : '市区町村（全国）'], ['nat', a.name + 'の国籍・地域'], ['visa', a.name + 'の在留資格']], rt, function (v) { setS({ rt: v }); }, '何を並べる'));
+    // 上で選んだ地域が、並べた中の何位か（都道府県・市区町村を並べるとき）。区を選んだときは、その市
+    var mine = a.type === 'japan' ? '' : rt === 'pref' ? a.pref : rt === 'muni' && a.type === 'muni' ? (MUNI[a.key].kind === '区' && MUNI[MUNI[a.key].parent] ? MUNI[MUNI[a.key].parent].name : MUNI[a.key].name) : '';
+    var rtOpts = {
+      pref: a.type === 'japan' ? '都道府県' : '47都道府県（' + a.pref + 'は何位か）',
+      muni: a.type === 'japan' ? '市区町村（全国）' : a.pref + 'の市区町村' + (a.type === 'muni' ? '（' + mine + 'は何位か）' : ''),
+      nat: a.name + 'の国籍・地域', visa: a.name + 'の在留資格', nx: a.name + 'の国籍・地域×在留資格（組み合わせ）'
+    };
+    var rtOrder = a.type === 'japan' ? ['pref', 'muni', 'nat', 'visa', 'nx'] : a.type === 'pref' ? ['muni', 'nat', 'visa', 'nx', 'pref'] : ['nat', 'visa', 'nx', 'muni', 'pref'];
+    ctl.appendChild(selectEl(rtOrder.map(function (k) { return [k, rtOpts[k]]; }), rt, function (v) { setS({ rt: v === autoRt(area()) ? '' : v }); }, '何を並べる'));
     var mopts = rt === 'pref' || rt === 'muni' ? ['count', 'ratio', 'share', 'diff1', 'rate1', 'diff5', 'rate5', 'diff10', 'rate10'] : ['count', 'share', 'diff1', 'rate1', 'diff5', 'rate5', 'diff10', 'rate10'];
     if (mopts.indexOf(m) < 0) { m = 'count'; }
     ctl.appendChild(selectEl(mopts.map(function (k) { return [k, METRICS[k].label]; }), m, function (v) { setS({ rm: v }); }, '何で並べる'));
@@ -1021,6 +1072,20 @@
             var i2 = x.s.per.indexOf(when), j2 = METRICS[m].back && i2 >= 0 ? backIndex(x.s.per, i2, METRICS[m].back) : -1;
             return { name: x.name, v: x.v, count: m === 'count' ? x.v : counts[k], base: j2 >= 0 ? x.s.val[j2] : null, why: x.why, click: function () { if (x.a.type === 'pref') { setS({ pref: x.a.pref, muni: '', v: 'area' }); } else { setS({ pref: x.a.pref, muni: x.a.key, v: 'area' }); } } };
           });
+        });
+      });
+    } else if (rt === 'nx') {
+      var mdx = METRICS[m], perx = periodsOf(a), ix = perx.indexOf(when), jx = mdx.back ? backIndex(perx, ix, mdx.back) : -1;
+      p = Promise.all([getCombos(a, when, S.nat, S.visa), jx >= 0 ? getCombos(a, perx[jx], S.nat, S.visa) : null, load('japan.json')]).then(function (r) {
+        var now = r[0], before = r[1], bw = jx >= 0 ? perx[jx] : null, bmap = null;
+        if (!now.items.length) { return { why: now.why }; }
+        if (before && !before.why) { bmap = {}; before.items.forEach(function (x) { bmap[x[0] + '\t' + x[1]] = x[2]; }); }
+        return now.items.filter(function (x) { return x[0] !== 'その他' && x[1] !== 'その他'; }).map(function (x) {
+          // 前の時点の表にない組み合わせは0人。ただし、その国籍・在留資格の区分が前の時点になかったときはデータなし
+          var b = bmap == null ? null : bmap[x[0] + '\t' + x[1]] != null ? bmap[x[0] + '\t' + x[1]] : natAt(r[2], x[0], bw) && visaAt(r[2], x[1], bw) ? 0 : null;
+          var v = m === 'share' ? x[2] / now.total * 100 : !mdx.back ? x[2] : b == null || (mdx.rate && !b) ? null : mdx.rate ? (x[2] - b) / b * 100 : x[2] - b;
+          return { name: x[0] + '（' + x[1] + '）', nat: x[0], visa: x[1], v: v, count: x[2], base: b,
+            click: function () { setS({ nat: [x[0]], visa: [x[1]], v: 'trend', cmp: 'none' }); } };
         });
       });
     } else {
@@ -1040,26 +1105,34 @@
     }
     return p.then(function (rows) {
       if (!alive()) { return; }
-      var what = rt === 'pref' ? '都道府県' : rt === 'muni' ? (S.pref ? S.pref + 'の市区町村' : '市区町村') : a.name + 'の' + (rt === 'nat' ? '国籍・地域' : '在留資格');
-      var title = what + 'のランキング（' + METRICS[m].label + (rt === 'pref' || rt === 'muni' ? '、' + whoText() : '') + '、' + wl(when) + '）';
+      var what = rt === 'pref' ? '都道府県' : rt === 'muni' ? (S.pref ? S.pref + 'の市区町村' : '市区町村') : a.name + 'の' + (rt === 'nat' ? '国籍・地域' : rt === 'visa' ? '在留資格' : '国籍・地域×在留資格');
+      var title = what + 'のランキング（' + METRICS[m].label + (rt === 'pref' || rt === 'muni' || (rt === 'nx' && (S.nat.length || S.visa.length)) ? '、' + whoText() : '') + '、' + wl(when) + '）';
       var c = card(title, null, srcNote(when, m === 'ratio'));
       c.appendChild(ctl);
-      c.appendChild(el('p', 'dhelp', esc(HELP[m] || '')));
+      var picked = rt === 'nat' ? S.visa.length : rt === 'visa' ? S.nat.length : S.nat.length || S.visa.length;
+      c.appendChild(el('p', 'dhelp', esc(m === 'share' && rt !== 'pref' && rt !== 'muni' ? a.name + 'の' + (picked ? '選んだ人' : '外国人') + 'のうち、それぞれが占める割合。' : HELP[m] || '')));
+      if (rt === 'nx') { c.appendChild(el('p', 'dhelp', '国籍・地域と在留資格の組み合わせごとに数えています（例：「インドネシア（技能実習）」と「インドネシア（家族滞在）」は別）。上で国籍・地域や在留資格を選ぶと、その組み合わせだけになります。名前を押すと、その組み合わせの移り変わりが出ます。')); }
       if (rows.why) { c.appendChild(nodata(rows.why)); box.replaceChildren(c); return; }
       var minBase = METRICS[m].rate ? +S.mn : 0;
       var ok = rows.filter(function (x) { return x.v != null && (!minBase || (x.base != null && x.base >= minBase)); }).sort(function (x, y) { return y.v - x.v; });
       if (minBase) { c.appendChild(el('p', 'dhelp', esc(METRICS[m].back + '年前に' + fmt(minBase) + '人以上いた所だけを並べています。'))); }
-      var miss = rows.filter(function (x) { return x.v == null; }); // 人数が足りずに外したものは数えない
+      var fromZero = METRICS[m].rate && !minBase ? rows.filter(function (x) { return x.v == null && x.base === 0; }) : []; // 前は0人で、増加率を出せないもの
+      var miss = rows.filter(function (x) { return x.v == null && x.base !== 0; }); // 人数が足りずに外したものは数えない
       if (!ok.length) { c.appendChild(nodata()); box.replaceChildren(c); return; }
+      var rank = ok.findIndex(function (x) { return x.name === mine; });
+      if (mine) { c.appendChild(el('p', 'dmine', rank >= 0 ? esc(mine) + 'は <b>' + (rank + 1) + '位</b>（' + ok.length + 'のうち）' + (rank >= 30 && S.all !== '1' ? '。下の「すべて表示する」で見られます' : '') : esc(mine) + 'はデータがないため並べていません')); }
       var show = S.all === '1' ? ok : ok.slice(0, 30);
       c.appendChild(barList(show.map(function (x) {
         var sub = m === 'count' || x.count == null ? '' : fmt(x.count) + '人' + (METRICS[m].back && x.base != null ? '（' + METRICS[m].back + '年前 ' + fmt(x.base) + '人）' : '');
         return [x.name, x.v, sub, x.link, x.click];
-      }), null, { f: METRICS[m].f, rank: true }));
+      }), null, { f: METRICS[m].f, rank: true, mark: mine }));
       if (ok.length > 30) { var more = el('button', 'dbtn dbtn-sub pick-more', S.all === '1' ? '上位30件だけにする' : 'すべて表示する（全' + ok.length + '件）'); more.type = 'button'; more.addEventListener('click', function () { setS({ all: S.all === '1' ? '0' : '1' }); }); c.appendChild(more); }
       if (miss.length) { c.appendChild(el('p', 'dhelp', esc('データがないため並べていないもの：' + miss.length + '（' + miss.slice(0, 8).map(function (x) { return x.name; }).join('、') + (miss.length > 8 ? '…' : '') + '）'))); }
+      if (fromZero.length) { c.appendChild(el('p', 'dhelp', esc(METRICS[m].back + '年前は0人だったため、増加率を出せないもの：' + fromZero.length + '（' + fromZero.slice(0, 8).map(function (x) { return x.name; }).join('、') + (fromZero.length > 8 ? '…' : '') + '）'))); }
       if (METRICS[m].rate) { c.appendChild(el('p', 'dhelp', '増加率は、もとの人数が少ないと大きく出ます。横の小さな数字はその時点の人数です。')); }
-      setTable(title, ['順位', what, METRICS[m].label, '人数', '時点'], ok.map(function (x, k) { return [k + 1, x.name, m === 'count' ? x.v : x.v.toFixed(2), x.count, wl(when)]; }));
+      var cell = function (x) { return m === 'count' ? x.v : x.v.toFixed(2); };
+      if (rt === 'nx') { setTable(title, ['順位', '国籍・地域', '在留資格', METRICS[m].label, '人数', '時点'], ok.map(function (x, k) { return [k + 1, x.nat, x.visa, cell(x), x.count, wl(when)]; })); }
+      else { setTable(title, ['順位', what, METRICS[m].label, '人数', '時点'], ok.map(function (x, k) { return [k + 1, x.name, cell(x), x.count, wl(when)]; })); }
       current.chart = { kind: 'rank', rows: ok.slice(0, 10).map(function (x) { return [x.name, x.v]; }), f: METRICS[m].f, metric: METRICS[m].label, when: when, area: rt === 'pref' ? '全国' : a.name, what: what, rt: rt, pop: m === 'ratio' };
       c.appendChild(toolBar());
       box.replaceChildren(c);

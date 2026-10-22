@@ -77,6 +77,8 @@ ul.dbars li.ranked.withp { grid-template-columns: 2.2em minmax(7em, 32%) 1fr aut
 ul.dbars.fit li.ranked { grid-template-columns: 2em var(--nmw) 1fr var(--vw); } /* 名前と数の幅は dash.js で、いちばん長いものに合わせる */
 ul.dbars.fit li.ranked .track { display: block; }
 ul.dbars li.hl { background: var(--btn-soft); }
+ul.dbars li.me { background: var(--btn-soft); box-shadow: inset 4px 0 0 var(--btn); font-weight: 700; } /* 上で選んだ地域 */
+.dmine { margin: 4px 0 8px; }
 svg.pie .dring { cursor: pointer; }
 ul.dbars .rk { color: var(--sub); text-align: right; font-variant-numeric: tabular-nums; }
 ul.dbars .nm { overflow: hidden; text-overflow: ellipsis; }
