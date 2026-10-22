@@ -677,7 +677,7 @@
     return out;
   }
   function pieChart(parts, total, label) {
-    var wrap = el('div', 'pie-wrap'), size = 220, r = 92, w = 42, C = 2 * Math.PI * r;
+    var wrap = el('div', 'pie-wrap'), size = 230, r = 92, w = 42, C = 2 * Math.PI * r; // 輪の外側（r + w/2 = 113）が枠（size/2）からはみ出さない大きさ
     var g = svg('svg', { viewBox: '0 0 ' + size + ' ' + size, class: 'pie', role: 'img', 'aria-label': label || '円グラフ' });
     var acc = 0, ul = el('ul', 'legend');
     parts.forEach(function (p) {
@@ -995,10 +995,12 @@
         var pc = el('section', 'dsub'); pc.appendChild(el('h3', null, '円グラフ（多い7つと「その他」）')); pc.appendChild(pieChart(parts, total, title));
         var bc = el('section', 'dsub'); bc.appendChild(el('h3', null, dim === 'visa' ? '在留資格ごとの人数' : '国籍・地域ごとの人数（多い20）'));
         var bars = (dim === 'visa' ? b.items : b.items.slice(0, 20)).map(function (x) { return [x[0], x[1], '', dim === 'nat' && x[0] !== 'その他' ? 'nat-' + encodeURIComponent(x[0]) + '.html' : null]; });
-        bc.appendChild(barList(bars, total, { rank: true }));
+        bc.appendChild(barList(bars, total, { rank: true, f: fmt })); // 単位（人）は見出しにあるので、数だけにする
         grid.appendChild(pc); grid.appendChild(bc); c.appendChild(grid);
-        var rows = b.items.map(function (x, i) { return [i + 1, x[0], fmt(x[1]), (x[1] / total * 100).toFixed(1) + '%']; });
-        c.appendChild(details('すべての' + (dim === 'visa' ? '在留資格' : '国籍・地域') + 'を見る（' + b.items.length + '）', tableEl(['順位', dim === 'visa' ? '在留資格' : '国籍・地域', '人数', '構成比'], rows, 2)));
+        if (dim === 'nat') { // 在留資格は上の棒グラフで全部見えるので、表は国籍だけ（棒グラフは多い20まで）
+          var rows = b.items.map(function (x, i) { return [i + 1, x[0], fmt(x[1]), (x[1] / total * 100).toFixed(1) + '%']; });
+          c.appendChild(details('すべての国籍・地域を見る（' + b.items.length + '）', tableEl(['順位', '国籍・地域', '人数', '構成比'], rows, 2)));
+        }
         setTable(title, ['順位', dim === 'visa' ? '在留資格' : '国籍・地域', '人数', '構成比（%）', '統計時点'], b.items.map(function (x, i) { return [i + 1, x[0], x[1], (x[1] / total * 100).toFixed(2), wl(when)]; }));
         current.chart = { kind: 'pie', parts: parts, total: total, area: a.name, when: when, dim: dim, items: b.items.slice(0, 10) };
         c.appendChild(toolBar());
