@@ -372,8 +372,8 @@
 
   function drawMap(box) {
     var d = box._d || (box._d = data(box));
-    var sel = box.querySelector('.map-ctl select');
-    var opt = box._opt = d.options[sel ? sel.selectedIndex : 0];
+    var sel = box.querySelector('.map-ctl select'); // 選択肢は地域区分ごとにまとめて並べているので、番号は value で持つ
+    var opt = box._opt = d.options[sel ? (+sel.value || 0) : 0];
     var vals = opt.values, cs = box._cs = cuts(Object.keys(vals).map(function (k) { return vals[k]; }));
     drawLegend(box, cs, opt.unknown && opt.unknown.length);
     var now = box.querySelector('.map-now');
@@ -445,7 +445,7 @@
     var r = [1, 2, 2.5, 5, 10].map(function (m) { return m * k; }).filter(function (x) { return x >= v; });
     return r[0];
   }
-  function lineSet(box) { var sel = box.querySelector('.lines-ctl select'); return box._d.sets[sel ? sel.selectedIndex : 0]; }
+  function lineSet(box) { var sel = box.querySelector('.lines-ctl select'); return box._d.sets[sel ? (+sel.value || 0) : 0]; }
   function drawLines(box) {
     var d = box._d, ds = lineSet(box);
     var mode = box._mode || 'line', hidden = box._hidden || (box._hidden = {});
@@ -622,9 +622,35 @@
     var id = wrap.id || 't' + ti, saved = tstate()[id] || {};
     var shown = Math.max(limit, saved.shown || limit), q = saved.q || '', si = saved.s || 0;
     if (si >= sorts.length) { si = 0; }
-    rows.forEach(function (r, i) { r._i = i; r._name = kana(r.dataset.name || r.cells[namecol].textContent); });
+    rows.forEach(function (r, i) { r._i = i; r._name = kana(r.dataset.name || r.cells[namecol].textContent); r._grp = (r.dataset.group || '').split('|'); });
     if (rows.length <= limit && !wrap.dataset.search && sorts.length < 2) { return; }
     var tools = mk('div', 'ttools'), qi = null, ss = null;
+    // 地域区分で絞る（州でも、その中の地域区分でも）。ほかのページから「#r=南アジア」で来たときは、その区分にする
+    var groups = wrap.dataset.groups ? JSON.parse(wrap.dataset.groups) : null, gs = null, fv = groups ? (saved.f || '') : '';
+    function hashGroup() { var m = /(?:^#|&)r=([^&]*)/.exec(location.hash); return m ? decodeURIComponent(m[1]) : null; }
+    if (groups) {
+      var gl = mk('label', 'dctl'); gl.appendChild(mk('span', 'dlab', '地域区分で絞る'));
+      gs = mk('select'); gs.appendChild(new Option('すべての地域', ''));
+      groups.forEach(function (g) {
+        var og = document.createElement('optgroup'); og.label = g[0];
+        og.appendChild(new Option(g[0] + '（すべて）', g[0]));
+        g[1].forEach(function (s) { if (s !== g[0]) { og.appendChild(new Option(s, s)); } });
+        gs.appendChild(og);
+      });
+      if (hashGroup() !== null) { fv = hashGroup(); }
+      gs.value = fv; if (gs.value !== fv) { fv = ''; gs.value = ''; }
+      gl.appendChild(gs); tools.appendChild(gl);
+      gs.addEventListener('change', function () { fv = gs.value; apply(); });
+      var pick = function (key) { fv = key; gs.value = key; if (gs.value !== key) { fv = ''; gs.value = ''; } apply(); };
+      document.addEventListener('click', function (ev) { // 地域区分ごとの人数の表の名前を押したとき
+        var a = ev.target.closest && ev.target.closest('a[data-filter]');
+        if (!a) { return; }
+        ev.preventDefault(); pick(a.dataset.filter);
+        history.replaceState(null, '', '#r=' + encodeURIComponent(a.dataset.filter));
+        wrap.scrollIntoView({ block: 'start' }); if (gs) { gs.focus({ preventScroll: true }); }
+      });
+      window.addEventListener('hashchange', function () { var h = hashGroup(); if (h !== null) { pick(h); } });
+    }
     if (wrap.dataset.search) {
       var ql = mk('label', 'dctl tq'); ql.appendChild(mk('span', 'dlab', esc(wrap.dataset.search)));
       qi = mk('input'); qi.type = 'search'; qi.value = q; qi.placeholder = wrap.dataset.example ? '例：' + wrap.dataset.example : '名前を入れる'; qi.setAttribute('enterkeyhint', 'search');
@@ -647,6 +673,7 @@
     bMore.addEventListener('click', function () { shown += step; apply(); });
     bAll.addEventListener('click', function () { shown = rows.length; apply(); });
     bLess.addEventListener('click', function () { shown = limit; apply(); wrap.scrollIntoView({ block: 'start' }); });
+    if (groups && hashGroup() !== null) { setTimeout(function () { wrap.scrollIntoView({ block: 'start' }); }, 0); } // 「#r=〇〇」で来たときは一覧へ
     function val(r, c) { var cell = r.cells[c], v = cell && cell.dataset.v; return v == null ? (cell ? cell.textContent.trim() : '') : (v === '' ? null : +v); }
     function apply() {
       var s = sorts[si], list = rows.slice();
@@ -658,17 +685,19 @@
           return c * s[2] || a._i - b._i;
         });
       }
-      var qq = kana(q), match = qq ? list.filter(function (r) { return r._name.indexOf(qq) >= 0; }) : list;
-      var lim = qq ? match.length : Math.min(shown, match.length);
+      var qq = kana(q), narrow = !!(qq || fv); // 名前か地域区分で絞っているときは、合うものを全部出す
+      var match = narrow ? list.filter(function (r) { return (!qq || r._name.indexOf(qq) >= 0) && (!fv || r._grp.indexOf(fv) >= 0); }) : list;
+      var lim = narrow ? match.length : Math.min(shown, match.length);
       var frag = document.createDocumentFragment(); list.forEach(function (r) { frag.appendChild(r); }); tbody.appendChild(frag);
       list.forEach(function (r) { r.hidden = true; }); match.slice(0, lim).forEach(function (r) { r.hidden = false; });
-      count.textContent = qq ? '「' + q.trim() + '」に合うもの ' + match.length + '件' : '全' + rows.length + '件のうち ' + lim + '件を表示中' + (s ? '（' + s[0] + '）' : '');
-      none.hidden = !(qq && !match.length);
-      none.textContent = '「' + q.trim() + '」に合う名前はありません。ひらがな・カタカナ・漢字を変えたり、短くしたりして試してください。';
-      bMore.hidden = !!qq || lim >= match.length; bMore.textContent = 'もっと見る（あと' + Math.min(step, match.length - lim) + '件）';
-      bAll.hidden = !!qq || lim >= match.length || match.length - lim <= step; bAll.textContent = 'すべて表示する（全' + match.length + '件）';
-      bLess.hidden = !!qq || lim <= limit; bLess.textContent = '最初の' + limit + '件だけにする';
-      tsave(id, { q: q, s: si, shown: shown });
+      count.textContent = narrow ? (fv ? '「' + fv + '」に入るもの' : '') + (qq ? (fv ? 'のうち' : '') + '「' + q.trim() + '」に合うもの' : '') + ' ' + match.length + '件' + (s ? '（' + s[0] + '）' : '')
+        : '全' + rows.length + '件のうち ' + lim + '件を表示中' + (s ? '（' + s[0] + '）' : '');
+      none.hidden = !(narrow && !match.length);
+      none.textContent = qq ? '「' + q.trim() + '」に合う名前はありません。ひらがな・カタカナ・漢字を変えたり、短くしたりして試してください。' : 'この区分に入るものはありません。';
+      bMore.hidden = narrow || lim >= match.length; bMore.textContent = 'もっと見る（あと' + Math.min(step, match.length - lim) + '件）';
+      bAll.hidden = narrow || lim >= match.length || match.length - lim <= step; bAll.textContent = 'すべて表示する（全' + match.length + '件）';
+      bLess.hidden = narrow || lim <= limit; bLess.textContent = '最初の' + limit + '件だけにする';
+      tsave(id, { q: q, s: si, shown: shown, f: fv });
       hints();
     }
     apply();

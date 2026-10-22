@@ -108,12 +108,27 @@
     btn.type = 'button'; btn.textContent = pick.length === 1 ? pick[0] : pick[0] + ' ほか' + (pick.length - 1);
     ms.appendChild(el('span', 'dlab', '比べるもの')); ms.appendChild(btn);
     var chosen = pick.slice();
-    all.forEach(function (n) { var l = el('label', 'dmitem'), cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.indexOf(n) >= 0; cb.addEventListener('change', function () { if (cb.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } }); l.appendChild(cb); l.appendChild(document.createTextNode(' ' + n)); l.dataset.n = n; list.appendChild(l); });
+    // 国籍・地域は地域区分ごとに見出しをつけて並べる（総数はいちばん上）
+    var grouped = dim === '国籍・地域' && D.natRegion, order = [];
+    if (grouped) { D.regions.forEach(function (g) { g[1].forEach(function (x) { order.push(x); }); }); }
+    var subOf = function (n) { return grouped && D.natRegion[n] ? D.natRegion[n][1] : ''; };
+    var seq = grouped ? all.slice().sort(function (a, b) { return (order.indexOf(subOf(a)) - order.indexOf(subOf(b))) || (all.indexOf(a) - all.indexOf(b)); }) : all, lastSub = '';
+    seq.forEach(function (n) {
+      if (subOf(n) && subOf(n) !== lastSub) { lastSub = subOf(n); list.appendChild(el('div', 'dmhead', esc(lastSub + (D.natRegion[n][0] !== lastSub ? '（' + D.natRegion[n][0] + '）' : '')))); }
+      var l = el('label', 'dmitem'), cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.indexOf(n) >= 0; cb.addEventListener('change', function () { if (cb.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } }); l.appendChild(cb); l.appendChild(document.createTextNode(' ' + n)); l.dataset.n = n; list.appendChild(l);
+    });
     var q = el('input'); q.type = 'search'; q.placeholder = '名前で探す'; q.setAttribute('aria-label', '比べるものを名前で探す');
-    q.addEventListener('input', function () { var t = q.value.trim(); list.querySelectorAll('.dmitem').forEach(function (l) { l.hidden = !!t && l.dataset.n.indexOf(t) < 0; }); });
+    q.addEventListener('input', function () {
+      var t = q.value.trim(), head = null, any = false;
+      Array.prototype.forEach.call(list.children, function (c) { // 合うものがない見出しは隠す
+        if (c.classList.contains('dmhead')) { if (head) { head.hidden = !any; } head = c; any = false; return; }
+        c.hidden = !!t && c.dataset.n.indexOf(t) < 0; if (!c.hidden) { any = true; }
+      });
+      if (head) { head.hidden = !any; }
+    });
     var ok = el('button', 'dbtn', 'この条件で表示（7つまで）'); ok.type = 'button'; ok.addEventListener('click', function () { set({ pick: chosen.slice(0, 7) }); });
     panel.appendChild(q); panel.appendChild(list); var bar = el('div', 'dmbar'); bar.appendChild(ok); panel.appendChild(bar); ms.appendChild(panel);
-    btn.addEventListener('click', function (ev) { ev.stopPropagation(); ms.classList.toggle('open'); });
+    btn.addEventListener('click', function (ev) { ev.stopPropagation(); ms.classList.toggle('open'); if (ms.classList.contains('open')) { Z.fitPanel(panel); } });
     document.addEventListener('click', function (ev) { if (!ms.contains(ev.target)) { ms.classList.remove('open'); } });
     row.appendChild(ms);
     function sel(lab, val, opts, on) { var l = el('label', 'dctl'), s = el('select'); opts.forEach(function (o) { var op = el('option'); op.value = o[0]; op.textContent = o[1]; s.appendChild(op); }); s.value = val; s.addEventListener('change', function () { on(s.value); }); l.appendChild(el('span', 'dlab', lab)); l.appendChild(s); return l; }

@@ -29,7 +29,9 @@ button.dmitem:hover, button.dmitem:focus-visible { background: var(--btn-soft); 
 button.dmitem[aria-selected="true"] { font-weight: 700; background: var(--btn-soft); }
 button.dmitem[aria-selected="true"]::before { content: "✓"; color: var(--btn); }
 .dmitem .sub { margin-left: auto; }
-.dmhead { font-size: 14px; color: var(--sub); font-weight: 700; padding: 8px 6px 2px; }
+.dmhead { font-size: 14px; color: var(--sub); font-weight: 700; padding: 8px 6px 2px; position: sticky; top: 0; background: var(--card); z-index: 1; border-bottom: 1px solid var(--line); }
+.dmreg { margin-bottom: 6px; }
+.dmreg select { width: 100%; }
 .dmbar { display: flex; flex-wrap: wrap; gap: 6px; }
 .dacts { flex-direction: row; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .dnow { flex: 1 1 100%; font-size: 15px; margin: 2px 0 0; padding-top: 8px; border-top: 1px dashed var(--line); }
@@ -72,6 +74,8 @@ svg.jmap .mval { font-weight: 600; }
 ul.dbars li { grid-template-columns: minmax(7em, 36%) 1fr auto 52px; }
 ul.dbars li.ranked { grid-template-columns: 2.2em minmax(7em, 34%) 1fr auto; }
 ul.dbars li.ranked.withp { grid-template-columns: 2.2em minmax(7em, 32%) 1fr auto 52px; }
+ul.dbars.fit li.ranked { grid-template-columns: 2em var(--nmw) 1fr var(--vw); } /* 名前と数の幅は dash.js で、いちばん長いものに合わせる */
+ul.dbars.fit li.ranked .track { display: block; }
 ul.dbars li.hl { background: var(--btn-soft); }
 svg.pie .dring { cursor: pointer; }
 ul.dbars .rk { color: var(--sub); text-align: right; font-variant-numeric: tabular-nums; }

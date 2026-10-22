@@ -221,6 +221,8 @@ def read_municipal(path, sheet=0):
             if parent.startswith("特別区"):  # 東京の23区は、それぞれが市区町村
                 add(name, "市区町村", vals)
             else:
+                if name.startswith("市") and name.endswith("区"):  # 2019年12月末・2020年6月末の表は相模原市の南区が「市南区」
+                    name = name[1:]
                 add(name if name.startswith(parent) else parent + name, "区", vals)
     df = pd.DataFrame(out, columns=["都道府県", "郡", "市区町村", "種別", "列", "人数"])
     df.insert(1, "市区町村コード", "")

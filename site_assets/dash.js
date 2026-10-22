@@ -9,7 +9,7 @@
   var root = document.getElementById('dash');
   // グラフの部品は半期速報のページ（sokuho.js）でも使う
   window.KZC = { el: el, nodata: nodata, lineChart: lineChart, pieChart: pieChart, barList: barList, tableEl: tableEl, details: details,
-    topWithOther: topWithOther, wl: wl, signed: signed };
+    topWithOther: topWithOther, wl: wl, signed: signed, fitPanel: function (p) { fitPanel(p); } };
   if (!root) { return; }
   var M = null, MUNI = {}, PREF_ROMA = {};
   var MAXCMP = 5, SLOTS = 7;
@@ -295,8 +295,25 @@
     return s;
   }
   var openPanel = null;
+  function fitPanel(p) { // 開いた欄が画面の右からはみ出すときは、そのぶん左へずらす（スマホで右の列の欄を開いたとき）
+    p.style.left = '';
+    var r = p.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+    if (r.right > vw - 8) { p.style.left = Math.round(vw - 8 - r.right) + 'px'; }
+  }
   document.addEventListener('click', function (ev) { if (openPanel && !openPanel.contains(ev.target)) { openPanel.classList.remove('open'); openPanel = null; } });
-  function multiPick(label, all, selected, onChange) {
+  // 地域区分の選ぶ欄（州ごとにまとめる。州そのものも選べる）
+  function regionSelect(tree, first) {
+    var s = el('select'); s.appendChild(new Option(first, ''));
+    tree.forEach(function (g) {
+      var og = document.createElement('optgroup'); og.label = g[0];
+      og.appendChild(new Option(g[0] + '（すべて）', g[0]));
+      g[1].forEach(function (x) { if (x !== g[0]) { og.appendChild(new Option(x, x)); } });
+      s.appendChild(og);
+    });
+    return s;
+  }
+  // いくつか選ぶ欄。reg（{map: 名前 → [州, 地域区分], tree}）があれば、まず地域区分で絞れて、一覧は地域区分ごとの見出しつき
+  function multiPick(label, all, selected, onChange, reg) {
     var wrap = el('div', 'dctl dmulti'), btn = el('button', 'dmbtn'), panel = el('div', 'dmpanel');
     btn.type = 'button';
     wrap.appendChild(el('span', 'dlab', esc(label)));
@@ -304,15 +321,31 @@
     if (selected.length) { btn.classList.add('on'); }
     btn.setAttribute('aria-haspopup', 'listbox');
     var q = el('input'); q.type = 'search'; q.placeholder = '名前で探す'; q.setAttribute('aria-label', label + 'を名前で探す');
-    var list = el('div', 'dmlist'), chosen = selected.slice();
+    var list = el('div', 'dmlist'), chosen = selected.slice(), rs = null, rv = '';
+    if (reg) {
+      rs = regionSelect(reg.tree, '地域区分：すべて'); rs.setAttribute('aria-label', '地域区分で絞る');
+      rs.addEventListener('change', function () { rv = rs.value; draw(); });
+    }
+    function item(n) {
+      var l = el('label', 'dmitem'), c = el('input'); c.type = 'checkbox'; c.checked = chosen.indexOf(n) >= 0;
+      c.addEventListener('change', function () { if (c.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } });
+      l.appendChild(c); l.appendChild(document.createTextNode(' ' + n));
+      if (reg && reg.old && reg.old[n]) { l.appendChild(el('span', 'sub', '（古い表の書き方。2005年まで）')); }
+      list.appendChild(l);
+    }
     function draw() {
       list.innerHTML = '';
-      var t = q.value.trim();
-      var tk = kana(t);
-      all.filter(function (n) { return !tk || kana(n).indexOf(tk) >= 0; }).slice(0, 300).forEach(function (n) {
-        var l = el('label', 'dmitem'), c = el('input'); c.type = 'checkbox'; c.checked = chosen.indexOf(n) >= 0;
-        c.addEventListener('change', function () { if (c.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } });
-        l.appendChild(c); l.appendChild(document.createTextNode(' ' + n)); list.appendChild(l);
+      var tk = kana(q.value.trim());
+      var hits = all.filter(function (n) { return (!tk || kana(n).indexOf(tk) >= 0) && (!rv || (reg.map[n] || []).indexOf(rv) >= 0); });
+      if (!hits.length) { list.appendChild(el('p', 'dhelp', '合うものがありません。')); return; }
+      if (!reg) { hits.slice(0, 300).forEach(item); return; }
+      var by = {}, stOf = {};
+      hits.forEach(function (n) { var r = reg.map[n] || ['その他', 'その他']; (by[r[1]] = by[r[1]] || []).push(n); stOf[r[1]] = r[0]; });
+      var order = []; reg.tree.forEach(function (g) { g[1].forEach(function (x) { order.push(x); }); });
+      order.concat(['その他']).forEach(function (sub) {
+        if (!by[sub]) { return; }
+        list.appendChild(el('div', 'dmhead', esc(sub) + (stOf[sub] !== sub ? '（' + esc(stOf[sub]) + '）' : '') + '　' + by[sub].length));
+        by[sub].forEach(item);
       });
     }
     q.addEventListener('input', draw);
@@ -322,12 +355,13 @@
     ok.addEventListener('click', function () { wrap.classList.remove('open'); openPanel = null; onChange(chosen); });
     clr.addEventListener('click', function () { wrap.classList.remove('open'); openPanel = null; onChange([]); });
     var bar = el('div', 'dmbar'); bar.appendChild(ok); bar.appendChild(clr);
+    if (rs) { var rl = el('label', 'dctl dmreg'); rl.appendChild(el('span', 'dlab', 'まず地域区分で絞る（アジア・南アジアなど）')); rl.appendChild(rs); panel.appendChild(rl); }
     panel.appendChild(q); panel.appendChild(list); panel.appendChild(bar);
     btn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       if (openPanel && openPanel !== wrap) { openPanel.classList.remove('open'); }
       wrap.classList.toggle('open'); openPanel = wrap.classList.contains('open') ? wrap : null;
-      if (openPanel) { chosen = selected.slice(); draw(); q.focus(); }
+      if (openPanel) { chosen = selected.slice(); draw(); fitPanel(panel); (rs || q).focus(); }
     });
     wrap.appendChild(btn); wrap.appendChild(panel);
     return wrap;
@@ -389,7 +423,7 @@
       if (openPanel && openPanel !== wrap) { openPanel.classList.remove('open'); }
       wrap.classList.toggle('open'); openPanel = wrap.classList.contains('open') ? wrap : null;
       btn.setAttribute('aria-expanded', openPanel ? 'true' : 'false');
-      if (openPanel) { q.value = ''; draw(); q.focus(); }
+      if (openPanel) { q.value = ''; draw(); fitPanel(panel); q.focus(); }
     });
     wrap.appendChild(btn); wrap.appendChild(panel);
     return wrap;
@@ -399,7 +433,8 @@
     var f = el('div', 'dfilter');
     var a = area();
     f.appendChild(areaPick());
-    f.appendChild(multiPick('国籍・地域', natList(), S.nat, function (v) { setS({ nat: v }); }));
+    var old = {}; (M.natOld || []).forEach(function (n) { old[n] = 1; });
+    f.appendChild(multiPick('国籍・地域', natList(), S.nat, function (v) { setS({ nat: v }); }, M.natRegion ? { map: M.natRegion, tree: M.regions, old: old } : null));
     f.appendChild(multiPick('在留資格', visaList(), S.visa, function (v) { setS({ visa: v }); }));
     var per = periodsOf(a).slice().reverse();
     f.appendChild(selectEl(per.map(function (w) { return [w, wl(w)]; }), whenOf(a), function (v) { setS({ when: v }); }, '時点'));
@@ -595,16 +630,24 @@
     wrap.appendChild(g); wrap.appendChild(ul);
     return wrap;
   }
-  function barList(items, total, opt) { // items：[名前, 値, 補足, リンク, クリック]
+  function barList(items, total, opt) { // items：[名前, 値, 補足, リンク, クリック, 値がないときの言葉]
     opt = opt || {};
     var f = opt.f || function (v) { return fmt(v) + '人'; };
     var ul = el('ul', 'hbars dbars'), max = Math.max.apply(null, items.map(function (x) { return Math.abs(x[1] || 0); }).concat([1]));
+    function vt(x) { return x[1] == null ? x[5] || 'データなし' : f(x[1]); }
+    if (opt.fit) { // 名前と数の欄を、いちばん長いものの幅にそろえる（棒が広くなり、どの行も同じ長さの物差しになる）。補足は押したときの吹き出しへ
+      var wide = function (s) { return s.replace(/[^\x00-\x7f]/g, 'xx').length; };
+      ul.classList.add('fit');
+      ul.style.setProperty('--nmw', Math.min(8, Math.max.apply(null, items.map(function (x) { return x[0].length; }))) + 0.5 + 'em');
+      ul.style.setProperty('--vw', Math.max.apply(null, items.map(function (x) { return wide(vt(x)); })) + 0.5 + 'ch');
+    }
     items.forEach(function (x, i) {
       var li = el('li'), w = Math.abs(x[1] || 0) / max * 100;
       var name = x[4] ? '<button type="button" class="dlink">' + esc(x[0]) + '</button>' : x[3] ? '<a href="' + esc(x[3]) + '">' + esc(x[0]) + '</a>' : esc(x[0]);
-      li.innerHTML = (opt.rank ? '<span class="rk">' + (i + 1) + '</span>' : '') + '<span class="nm">' + name + (x[2] ? ' <span class="sub">' + esc(x[2]) + '</span>' : '') + '</span>' +
-        '<span class="track"><span class="fill' + ((x[1] || 0) < 0 ? ' neg' : '') + '" style="width:' + w.toFixed(1) + '%"></span></span><span class="v">' + (x[1] == null ? 'データなし' : f(x[1])) + '</span>' +
+      li.innerHTML = (opt.rank ? '<span class="rk">' + (i + 1) + '</span>' : '') + '<span class="nm">' + name + (x[2] && !opt.fit ? ' <span class="sub">' + esc(x[2]) + '</span>' : '') + '</span>' +
+        '<span class="track"><span class="fill' + ((x[1] || 0) < 0 ? ' neg' : '') + '" style="width:' + w.toFixed(1) + '%"></span></span><span class="v">' + esc(vt(x)) + '</span>' +
         (total ? '<span class="p">' + ((x[1] || 0) / total * 100).toFixed(1) + '%</span>' : '');
+      if (opt.fit && x[2]) { li.title = x[2]; }
       if (opt.rank) { li.classList.add('ranked'); }
       if (total) { li.classList.add('withp'); }
       if (x[4]) { li.querySelector('.dlink').addEventListener('click', x[4]); }
@@ -752,9 +795,10 @@
       var side = el('div', 'dside');
       var sorted = vals.slice().sort(function (x, y) { return (y.v == null ? -1e15 : y.v) - (x.v == null ? -1e15 : x.v); });
       side.appendChild(el('h3', null, esc('多い順（' + METRICS[m].label + '）')));
-      var ranked = barList(sorted.map(function (x) {
-        return [x.name, x.v, x.why || '', null, function () { if (level === 'pref') { setS({ pref: x.key, muni: '' }); } else { setS({ muni: x.key, v: 'area' }); } }];
-      }), null, { f: f, rank: true });
+      var ranked = barList(sorted.map(function (x) { // 単位（人）は見出しにあるので、数だけにする
+        return [x.name, x.v, x.why || '', null, function () { if (level === 'pref') { setS({ pref: x.key, muni: '' }); } else { setS({ muni: x.key, v: 'area' }); } },
+          x.s.hid[x.s.per.indexOf(when)] ? '非公表' : null];
+      }), null, { f: function (v) { return f(v).replace(/人$/, ''); }, rank: true, fit: true });
       Array.prototype.forEach.call(ranked.children, function (li, i) { // 一覧の上にマウスを置くと、地図のその場所を囲む
         var p = map._paths[sorted[i].key]; if (!p) { return; }
         li.addEventListener('mouseenter', function () { p.classList.add('hl'); li.classList.add('hl'); });

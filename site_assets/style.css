@@ -150,7 +150,7 @@ select, input[type="search"], input[type="text"], textarea { font: inherit; font
 
 /* 切り替えボタン（円グラフ・棒グラフ・表 など）：選んでいるものは緑と「✓」 */
 .modes, .stab { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--btn-line); border-radius: 10px; overflow: hidden; }
-.modes button, .stab button { font: inherit; font-size: 15px; padding: 6px 14px; min-height: 44px; border: 0; background: var(--card); color: var(--text); cursor: pointer; white-space: nowrap; }
+.modes button, .stab button { font: inherit; font-size: 15px; padding: 6px 14px; min-height: 42px; border: 0; background: var(--card); color: var(--text); cursor: pointer; white-space: nowrap; } /* 枠の線と合わせて 44px（となりの選ぶ欄・ボタンと同じ高さ） */
 .modes button + button, .stab button + button { border-left: 1px solid var(--btn-line); }
 .modes button[aria-pressed="true"], .stab button[aria-pressed="true"] { background: var(--btn); color: var(--btn-ink); font-weight: 700; }
 .modes button[aria-pressed="true"]::before, .stab button[aria-pressed="true"]::before { content: "✓ "; }
@@ -158,7 +158,8 @@ select, input[type="search"], input[type="text"], textarea { font: inherit; font
 
 /* グラフの上の操作（切り替え・画像を保存）と、表示している条件 */
 .vtools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin: 0 0 10px; }
-.vtools .modes { margin: 0; }
+.vtools .modes, .vtools .lines-ctl, .vtools .map-ctl { margin: 0; } /* 並べた欄の下の線をそろえる（余白があると、そのぶん上にずれる） */
+.vtools select, .map-ctl select { height: 44px; }
 .vtools .savebtn { margin-left: auto; }
 .vnow { font-size: 15px; margin: 0 0 8px; }
 .vnow b { font-weight: 700; }
@@ -194,6 +195,11 @@ details { margin-top: 10px; font-size: 15px; }
 details > summary { cursor: pointer; padding: 10px 0; color: var(--accent); font-weight: 600; }
 .note { font-size: 15px; color: var(--sub); }
 .note li { margin: 4px 0; }
+
+/* 地域区分ごとの人数（州の行は太く、その中の地域区分は字下げ） */
+table.regtab tr.rst td { font-weight: 700; background: var(--bg); border-top: 2px solid var(--line); }
+table.regtab tr.rsub td:first-child { padding-left: 28px; }
+table.regtab tr.rsub td:first-child::before { content: "└ "; color: var(--sub); }
 
 /* 長い一覧の操作（名前で探す・並べ方・もっと見る） */
 .ttools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin: 0 0 10px; }

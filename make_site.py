@@ -17,6 +17,7 @@
 #   地図の形は site_assets/map/*.json（make_map.py で国土地理院「地球地図日本」から作る）。site/assets/ に写す
 #   （ページに書いた数から JavaScript でグラフを作る。JavaScript が動かなくても表は見える）。
 #   数はそのまま示し、良い・悪いの言葉は使わない。数え方のちがい（2011年までは登録外国人統計）はグラフと注意書きで示す
+import csv
 import html
 import json
 import os
@@ -50,6 +51,47 @@ HIDDEN = "（秘匿）"
 HIDDEN_LABEL = "公表されていない（10人以下の市町村）"
 # 地図にあって今の表にない町村（外国人のいない町村は2017年12月末から表にのらない。古い表にはコードがないので、名前とコードを手で結ぶ）
 MAP_ONLY = {"02343": ("青森県", "西目屋村")}
+
+
+def load_regions():
+    """国籍・地域 → (州, 地域区分)（データ/国籍・地域の区分.csv）。州は国の表のとおり、地域区分はその中をこのサイトで分けたもの。
+    あわせて [[州, [地域区分, …]], …]（表の順）も返す"""
+    out, tree = {}, {}
+    with open(os.path.join(DATA, "国籍・地域の区分.csv"), encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            out[r["国籍・地域"]] = (r["州"], r["地域区分"])
+            subs = tree.setdefault(r["州"], [])
+            if r["地域区分"] not in subs:
+                subs.append(r["地域区分"])
+    return out, [[k, v] for k, v in tree.items()]
+
+
+NAT_REGION, REGION_TREE = load_regions()
+SUB_ORDER = [s for _, subs in REGION_TREE for s in subs]
+NO_REGION = set()  # 区分の表にない国籍・地域（あれば最後に知らせる）
+
+
+def region_of(n):
+    if n not in NAT_REGION:
+        NO_REGION.add(n)
+    return NAT_REGION.get(n, ("その他", "その他"))
+
+
+def select_html(labels, groups=None, values=None):
+    """選ぶ欄の <option>。groups（選択肢ごとのまとまりの名前）があれば <optgroup> でまとめる（国籍・地域は地域区分の順。その中は多い順のまま）。
+    value は values（なければ、もとの番号）。はじめに選ばれているのは、もとの1つ目"""
+    groups = groups or [None] * len(labels)
+    values = values if values is not None else [str(i) for i in range(len(labels))]
+
+    def gkey(g):
+        sub = (g or "").split("：")[-1]
+        return (0, 0) if g is None else ((1, SUB_ORDER.index(sub)) if sub in SUB_ORDER else (2, 0))
+    out = ""
+    for g in sorted(dict.fromkeys(groups), key=gkey):
+        opts = "".join(f'<option value="{esc(values[i])}"{" selected" if i == 0 else ""}>{esc(labels[i])}</option>'
+                       for i in range(len(labels)) if groups[i] == g)
+        out += f'<optgroup label="{esc(g)}">{opts}</optgroup>' if g else opts
+    return out
 
 
 # ---------------------------------------------------------------- 書き方の部品
@@ -166,6 +208,15 @@ def breakdown(title, items, total, head, area, dim, nat=None):
             f'<tbody>{rows}</tbody></table></div></div><script type="application/json">{jdump(data)}</script></div>')
 
 
+def option_groups(options):
+    """地図の選び方のまとまり：「国籍・地域：〇〇」は地域区分ごと、「在留資格：〇〇」は1つに"""
+    out = []
+    for o in options:
+        n = o[0]
+        out.append("国籍・地域：" + region_of(n[len("国籍・地域："):])[1] if n.startswith("国籍・地域：") else ("在留資格" if n.startswith("在留資格：") else None))
+    return out
+
+
 def shape_map(options, links, shape, area, level, names=None, notes=None, tiles=False, label="地図に色で示す数", note="", nat=None):
     """地図（数をオレンジの濃さで）。形は国土地理院「地球地図日本」から作ったもの（make_map.py）。
     options: [(名前, {場所: 数}, 公表されていない場所の一覧), …]。2つ以上なら選べる。tiles=True なら「四角で並べる」地図にも切り替えられる（日本全体）。
@@ -179,7 +230,7 @@ def shape_map(options, links, shape, area, level, names=None, notes=None, tiles=
     sel = ""
     if len(opts) > 1:
         sel = (f'<div class="map-ctl"><label class="dctl"><span class="dlab">{esc(label)}</span><select>' +
-               "".join(f"<option>{esc(o['label'])}</option>" for o in opts) + "</select></label></div>")
+               select_html([o["label"] for o in opts], option_groups(options)) + "</select></label></div>")
     nm = names or {}
     rows = "".join(f"<tr><td>{esc(nm.get(k, k))}</td><td class='n'>{num(v)}</td></tr>"
                    for k, v in sorted(opts[0]["values"].items(), key=lambda x: -x[1]))
@@ -250,7 +301,7 @@ def visa_lines(sets, area, label="国籍・地域を選ぶ"):
     sel = ""
     if len(sets) > 1:
         sel = (f'<div class="lines-ctl"><label class="dctl"><span class="dlab">{esc(label)}</span><select>' +
-               "".join(f"<option>{esc(s['label'])}</option>" for s in sets) + "</select></label></div>")
+               select_html([s["label"] for s in sets], [region_of(s["nat"])[1] if s.get("nat") else None for s in sets]) + "</select></label></div>")
     s0 = sets[0]
     head = "".join(f"<th class='n'>{esc(s['name'])}</th>" for s in s0["series"])
     rows = "".join(f"<tr><td>{w}</td>" + "".join(f"<td class='n'>{'—' if s['values'][j] is None else num(s['values'][j])}</td>" for s in s0["series"]) + "</tr>"
@@ -262,7 +313,7 @@ def visa_lines(sets, area, label="国籍・地域を選ぶ"):
 
 def pick_by_nat(cols, rows, head="市区町村"):
     """国籍を選んで、市区町村の多い順。rows: [(名前, リンク, 補足, [総数, 国籍1の数, …]), …]"""
-    sel = "".join(f"<option>{esc(c)}</option>" for c in cols[1:])
+    sel = select_html(cols[1:], [region_of(c)[1] for c in cols[1:]], cols[1:])
     data = {"cols": cols, "rows": [list(r) for r in rows], "head": head, "share": "その中の割合", "limit": 30}
     return (f'<div class="viz" data-viz="pick"><div class="pick-ctl"><label class="dctl"><span class="dlab">国籍・地域を選ぶ</span><select>{sel}</select></label></div>'
             f'<div class="pick-body scroll"></div><button type="button" class="pick-more" hidden></button>'
@@ -293,7 +344,7 @@ def cross_table(nat_items, xd, n=8):
             f"{out}</table></div>")
 
 
-CSS_VER = "6"
+CSS_VER = "7"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -377,23 +428,26 @@ def dash_link(**kw):
     return "dash.html#" + "&".join(f"{k}={quote(str(v))}" for k, v in kw.items() if v)
 
 
-def tbl(head, rows, sorts=(), search="", example="", limit=20, tid="", namecol=1):
-    """長い一覧の表（名前で探す・並べ替え・もっと見るは app.js。行は全部ページに書く）。
-    head：[(見出し, 数の列か)]、rows：[(名前, [(セルの HTML, 並べ替えに使う数 or None), …])]、sorts：[(並べ方の名前, 列, 1＝少ない順 / -1＝多い順)]"""
+def tbl(head, rows, sorts=(), search="", example="", limit=20, tid="", namecol=1, groups=None):
+    """長い一覧の表（名前で探す・並べ替え・もっと見る・地域区分で絞るは app.js。行は全部ページに書く）。
+    head：[(見出し, 数の列か)]、rows：[(名前, [(セルの HTML, 並べ替えに使う数 or None), …], まとまり)]（まとまりは「州|地域区分」。なくてもよい）、
+    sorts：[(並べ方の名前, 列, 1＝少ない順 / -1＝多い順)]、groups：絞るときの選び方 [[州, [地域区分, …]], …]"""
     th = "".join(f'<th scope="col"{" class=" + chr(34) + "n" + chr(34) if n else ""}>{esc(h)}</th>' for h, n in head)
     trs = ""
-    for name, cells in rows:
+    for name, cells, *grp in rows:
         tds = ""
         for (h, v), (_, n) in zip(cells, head):
             attrs = (' class="n"' if n else "") + ("" if v is None else f' data-v="{v}"')
             tds += f"<td{attrs}>{h}</td>"
-        trs += f'<tr data-name="{esc(name)}">{tds}</tr>'
+        trs += f'<tr data-name="{esc(name)}"{f" data-group={chr(34)}{esc(grp[0])}{chr(34)}" if grp else ""}>{tds}</tr>'
     attrs = f' id="{tid}"' if tid else ""
     attrs += f' data-limit="{limit}" data-namecol="{namecol}"'
     if sorts:
         attrs += f' data-sorts="{esc(json.dumps(sorts, ensure_ascii=False))}"'
     if search:
         attrs += f' data-search="{esc(search)}" data-example="{esc(example)}"'
+    if groups:
+        attrs += f' data-groups="{esc(json.dumps(groups, ensure_ascii=False))}"'
     return f'<div class="tbl"{attrs}><div class="scroll"><table class="t"><thead><tr>{th}</tr></thead><tbody>{trs}</tbody></table></div></div>'
 
 
@@ -629,6 +683,38 @@ def pref_table(d, title="都道府県の一覧", limit=10):
             + tbl(head, rows, sorts_for(2, 3, 4, 1, 5), "都道府県の名前で探す", "東京", limit, "pref-list") + "</section>")
 
 
+def region_link(key, label=None):
+    """地域区分（または州）で絞った国籍・地域の一覧へのリンク"""
+    return f'<a href="nat-index.html#r={quote(key)}" data-filter="{esc(key)}">{esc(label or key)}</a>'
+
+
+def region_table(d, ranked):
+    """州・地域区分ごとの人数（国籍・地域の数を足したもの）。名前を押すと、下の一覧をその区分だけにする"""
+    now = sum(v for _, v in ranked)
+    agg = defaultdict(lambda: [0, 0, 0, []])  # 鍵 → [人数, 1年前, 国・地域の数, [多い名前]]
+    for n, v in ranked:
+        st, sub = region_of(n)
+        b = d.nat_series[n].get(YEAR_AGO, 0)
+        for k in (st, st + "|" + sub):
+            a = agg[k]
+            a[0] += v; a[1] += b; a[2] += 1
+            if len(a[3]) < 3:
+                a[3].append(n)
+    rows = ""
+    for st, subs in REGION_TREE:
+        if st not in agg:
+            continue
+        for k, lab, cls in [(st, st, "rst")] + [(st + "|" + s, s, "rsub") for s in subs if s != st]:
+            if k not in agg:
+                continue
+            v, b, c, top = agg[k]
+            key = k.split("|")[-1]
+            rows += (f"<tr class='{cls}'><td>{region_link(key, lab)}</td><td class='n'>{num(v)}</td><td class='n'>{v / now * 100:.1f}%</td>"
+                     f"<td class='n'>{signed(v - b) if b else '—'}</td><td class='n'>{c}</td><td>{'・'.join(esc(x) for x in top)}</td></tr>")
+    return ("<div class='scroll'><table class='t regtab'><thead><tr><th>州・地域区分</th><th class='n'>人数</th><th class='n'>割合</th><th class='n'>1年前から</th>"
+            f"<th class='n'>国・地域の数</th><th>人数の多い国・地域</th></tr></thead><tbody>{rows}</tbody></table></div>")
+
+
 def nat_index_page(d):
     rows = []
     ranked = sorted(((n, s[LATEST]) for n, s in d.nat_series.items() if s.get(LATEST)), key=lambda x: -x[1])
@@ -638,16 +724,26 @@ def nat_index_page(d):
         fp = firsts[0][0] if firsts[0][1] else ""
         vs = d.nat_visa.get((LATEST, n), {})
         fv = max(vs.items(), key=lambda x: x[1])[0] if vs else ""
-        rows.append((n, [(str(i), i), (f"<a href='{href(nat_file(n))}'>{esc(n)}</a>", None), (num(v), v)] + diff_cells(v, b) +
-                     [diff_cells(v, b10)[0], (f"<a href='{PREF_FILE[fp]}'>{esc(fp)}</a>" if fp else "", None), (esc(fv), None)]))
-    head = [("順位", True), ("国籍・地域", False), ("人数", True), ("1年前から", True), ("増減の割合", True), ("10年前から", True),
+        st, sub = region_of(n)
+        rows.append((n, [(str(i), i), (f"<a href='{href(nat_file(n))}'>{esc(n)}</a>", None),
+                         (f"{esc(sub)}{'' if sub == st else f' <span class=sub>（{esc(st)}）</span>'}", f"{SUB_ORDER.index(sub) if sub in SUB_ORDER else 99:03d}"), (num(v), v)] +
+                     diff_cells(v, b) + [diff_cells(v, b10)[0], (f"<a href='{PREF_FILE[fp]}'>{esc(fp)}</a>" if fp else "", None), (esc(fv), None)], f"{st}|{sub}"))
+    head = [("順位", True), ("国籍・地域", False), ("地域区分", False), ("人数", True), ("1年前から", True), ("増減の割合", True), ("10年前から", True),
             ("いちばん多く住む都道府県", False), ("いちばん多い在留資格", False)]
+    sorts = sorts_for(3, 4, 5, 1, 6)
+    sorts.insert(-1, ("地域区分の順", 2, 1))
     body = f"""<h1>国籍から探す</h1>
 {meta_line(f"日本に住む外国人（{len(ranked)}の国籍・地域）")}
-<p class="lead">国籍・地域の名前を押すと、その国籍・地域の人の在留資格や、住んでいる都道府県・市区町村が見られます。</p>
+<p class="lead">国籍・地域の名前を押すと、その国籍・地域の人の在留資格や、住んでいる都道府県・市区町村が見られます。アジア・アフリカなどの地域区分で絞ることもできます。</p>
+{jump([("regions", "地域区分ごとの人数"), ("list", "国籍・地域の一覧")])}
+<section class="card" id="regions"><h2>地域区分ごとの人数</h2>
+<p class="cardmeta">集計時点：{when_label(LATEST)}。国籍・地域の人数を、州・地域区分ごとに足したもの。区分の名前を押すと、下の一覧がその区分の国・地域だけになります。</p>
+{region_table(d, ranked)}
+<p class="note">州は国の表（在留外国人統計）のとおりです。国の表では、中央アジア（ウズベキスタンなど）とコーカサス（ジョージアなど）の国は「ヨーロッパ」、トルコは「アジア」、メキシコや中米・カリブ海の国は「北アメリカ」に入っています。
+地域区分は、その州の中を国連の統計の地域分類（M49）をもとにこのサイトで分けたものです（イランは西アジア（中東）に入れています）。</p></section>
 <section class="card" id="list"><h2>国籍・地域の一覧</h2>
 <p class="cardmeta">順位は人数の多い順。増加率は、もとの人数が少ないと大きく出ます。「—」は前の数がないもの（並べ替えではいちばん下）。</p>
-{tbl(head, rows, sorts_for(2, 3, 4, 1, 5), "国籍・地域の名前で探す", "ネパール", 20, "nat-list")}</section>
+{tbl(head, rows, sorts, "国籍・地域の名前で探す", "ネパール", 20, "nat-list", groups=REGION_TREE)}</section>
 {related([("visa-index.html", "在留資格から探す", "永住者・留学・技能実習など、資格ごとの人数と割合"),
           ("area-index.html", "地域から探す", "都道府県・市区町村ごとの国籍の内わけ"),
           (dash_link(v="trend", cmp="nat"), "国籍ごとの移り変わりを比べる", "ダッシュボードで、いくつかの国籍・地域の線を重ねて比べる")])}
@@ -678,8 +774,9 @@ def nat_page(d, n, rank):
                 mrows.append([name, href(link), p, c, total_of(d, ref)])
     hidden_note = ("（外国人が10人以下の市町村は国籍が公表されていないので、市区町村の合計は全国の数より少なくなります）")
     first_pref = max(PREFS, key=lambda p: pv[p])
+    st, sub = region_of(n)
     body = f"""<h1>{esc(n)}の人</h1>
-{meta_line(f"日本に住む、国籍・地域が「{n}」の人（全国）")}
+{meta_line(f"日本に住む、国籍・地域が「{n}」の人（全国）", f'<span>地域区分：{region_link(sub)}{"" if sub == st else "（" + esc(st) + "）"}</span>')}
 {kpis(now, s, f"国籍・地域のうち {rank}番目に多い", f"{n}の人")}
 {jump([("trend", "移り変わり"), ("visa", "在留資格"), ("visa-trend", "在留資格の移り変わり"), ("prefs", "住んでいる都道府県"), ("munis", "住んでいる市区町村")])}
 <section class="card" id="trend"><h2>{esc(n)}の人の数の移り変わり</h2>{line_chart(dict(sorted(s.items())), f"{n}の人の数の移り変わり", "全国", n)}
@@ -692,9 +789,9 @@ def nat_page(d, n, rank):
 {related([(PREF_FILE[first_pref], f"{first_pref}のページ", f"{n}の人がいちばん多く住む都道府県。市区町村の地図と国籍の内わけ"),
           (dash_link(v="map", nat=n), f"{n}の人の数を地図で年ごとに見る", "ダッシュボードの全国マップ。時点を動かせます"),
           (dash_link(v="trend", cmp="visa", nat=n), f"{n}の人の在留資格ごとの移り変わり", "ダッシュボードで線を重ねて比べる"),
-          ("nat-index.html", "ほかの国籍・地域を探す", "国籍から探す（一覧・名前で探す）")])}
+          (f"nat-index.html#r={quote(sub)}", f"{sub}のほかの国籍・地域", "国籍から探す（地域区分で絞った一覧）")])}
 {NOTES}"""
-    return page(n, [("日本全体", "index.html"), ("国籍から探す", "nat-index.html"), (n, None)], body,
+    return page(n, [("日本全体", "index.html"), ("国籍から探す", "nat-index.html"), (sub, f"nat-index.html#r={quote(sub)}"), (n, None)], body,
                 f"日本に住む{n}の人は{when_label(LATEST)}に{num(now)}人。在留資格・都道府県・市区町村ごとの数。", active="nat")
 
 
@@ -1081,6 +1178,8 @@ def main():
     print("地図と市区町村：" + ("すべて合っています" if not MAP_WARN else f"合わない所 {len(MAP_WARN)}"))
     for w in MAP_WARN:
         print("  " + w)
+    if NO_REGION:  # 新しい国籍・地域の名前が出たら、データ/国籍・地域の区分.csv に足す
+        print("地域区分の表にない国籍・地域：" + "、".join(sorted(NO_REGION)))
 
 
 if __name__ == "__main__":

@@ -32,9 +32,26 @@ sys.stdout.reconfigure(encoding="utf-8")
 BASE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(BASE, "元データ")
 OUT = os.path.join(BASE, "データ")
-# 年によって名前が変わった国（新しい名前にそろえる）。「韓国・朝鮮」（2015年6月末まで1つ）は分けられないのでそのまま
-RENAME = {"マケドニア": "北マケドニア", "マケドニア旧ユーゴスラビア共和国": "北マケドニア", "スワジランド": "エスワティニ",
-          "（朝鮮）": "朝鮮"}
+# 国籍・地域の名前をそろえる。元の表の書き方とそろえた名前は「データ/国籍・地域の名前の直し.csv」に書き出す。
+# 「韓国・朝鮮」（2015年6月末まで1つ）は分けられないのでそのまま。別の国（ユーゴスラビア・セルビア・モンテネグロ・セルビア・モンテネグロ）はまとめない
+RENAME_WHY = {
+    "国の名前が変わった（新しい名前にそろえる）": {
+        "マケドニア": "北マケドニア", "マケドニア旧ユーゴスラビア共和国": "北マケドニア", "スワジランド": "エスワティニ", "グルジア": "ジョージア"},
+    "同じ国の書き方の違い（新しい表の書き方にそろえる）": {
+        "（朝鮮）": "朝鮮", "カーボヴェルデ": "カーボベルデ", "ギニア・ビサウ": "ギニアビサウ",
+        "セントクリストファー・ネイビス": "セントクリストファー・ネービス", "セントクリストファー・ネーヴィス": "セントクリストファー・ネービス",
+        "ユーゴースラビア": "ユーゴスラビア", "ユーゴスラヴィア": "ユーゴスラビア", "南スーダン": "南スーダン共和国",
+        "セルビア共和国": "セルビア", "モンテネグロ共和国": "モンテネグロ"},
+    "元の表のマスで、改行の前と後が入れ替わっている（2006〜2010年末の都道府県の表）": {
+        "・トバゴトリニダード": "トリニダード・トバゴ", "・バーブーダアンティグア": "アンティグア・バーブーダ",
+        "・プリンシペサントメ": "サントメ・プリンシペ", "・ヘルツェゴビナボスニア": "ボスニア・ヘルツェゴビナ",
+        "・モンテネグロセルビア": "セルビア・モンテネグロ", "・ネイビスセントクリストファー": "セントクリストファー・ネービス",
+        "・ネーヴィスセントクリストファー": "セントクリストファー・ネービス"},
+}
+RENAME = {a: b for m in RENAME_WHY.values() for a, b in m.items()}
+WHY = {a: why for why, m in RENAME_WHY.items() for a in m}
+NAME_FIXES = defaultdict(set)  # (元の表の書き方, そろえた名前, わけ) → {(時点, 元のファイル)}
+READING = [None, None]         # 今読んでいる (時点, 元のファイル)
 OTHER_ROW = "その他"
 SPLIT = ("都道府県_国籍_在留資格", "市区町村_国籍", "市区町村_在留資格", "市区町村_国籍_在留資格")  # 時点ごとのファイルに分ける表
 
@@ -44,7 +61,11 @@ def nat(v):
     s = re.sub(r"^\d{2}\D*?\d{2,3}(?=\D)", "", s)  # 「02アジア02アフガニスタン」の形（2023年からの t1）
     s = re.sub(r"^\d{3}(?=\D)", "", s)  # 「001アフガニスタン」の形（2020・2021年の t1）
     s = re.sub(r"^\d+(?=\D)", "", s)  # 「08無国籍」の形（州の番号だけ付いている）
-    return RENAME.get(s, s)
+    t = s.replace("･", "・")  # 2006年末の都道府県の表の「韓国･朝鮮」（半角の中点）
+    t = RENAME.get(t, t)
+    if t != s:
+        NAME_FIXES[(s, t, WHY.get(s.replace("･", "・"), "元の表の中点が半角（･）。全角（・）にそろえる"))].add(tuple(READING))
+    return t
 
 
 def kind_of(title):
@@ -150,6 +171,8 @@ def muni_kinds(df, colname):
             n = UNKNOWN_PREF
         elif n.startswith("その他"):
             k = OTHER_ROW
+        elif n in [c + TOTAL for c in cities]:  # 2021年6月末の第7表の2は「札幌市総数」（かっこなし）。区と足すと二重になる
+            n, k = n[:-len(TOTAL)], TOTAL_ROW
         elif n.startswith("特別区") or n in cities:
             k = TOTAL_ROW
         elif k == "市区町村" and any(n.startswith(c) and n != c for c in cities):
@@ -239,6 +262,7 @@ def main():
             continue
         path = os.path.join(SRC, r["ファイル"])
         print(when, k, os.path.basename(path), flush=True)
+        READING[:] = [when, os.path.basename(path)]
         if k == "nat_visa":
             df, pub = load_nat_visa(path)
             check[when]["国の発表（第1表の総数）"] = pub
@@ -287,7 +311,17 @@ def main():
             tables[name].append(pd.concat([tot, g]).assign(時点=when, 出どころ="t2"))
             check[when][name] = int(tot["人数"].sum())
 
+    # 負の人数は、読み方のまちがい（合計の行を区と数えたなど）。合計が合っても書き出さずに止める
+    neg = [d[d["人数"] < 0].assign(表=name) for name, ds in tables.items() for d in ds if (d["人数"] < 0).any()]
+    if neg:
+        sys.exit("負の人数があります（書き出していません）:\n" + pd.concat(neg).head(20).to_string())
+
     os.makedirs(OUT, exist_ok=True)
+    if not only:
+        fixes = [{"元の表の書き方": a, "サイトの名前": b, "わけ": why, "時点": "・".join(sorted({w for w, _ in s})),
+                  "元のファイル": "・".join(sorted({f for _, f in s}))} for (a, b, why), s in sorted(NAME_FIXES.items())]
+        pd.DataFrame(fixes).to_csv(os.path.join(OUT, "国籍・地域の名前の直し.csv"), index=False, encoding="utf-8-sig")
+        print(f"書き出し 国籍・地域の名前の直し.csv {len(fixes)}行")
     order = {
         "全国_国籍_在留資格": ["時点", "国籍・地域", "在留資格", "人数"],
         "都道府県_国籍": ["時点", "都道府県", "国籍・地域", "人数", "出どころ"],

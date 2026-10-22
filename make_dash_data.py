@@ -6,7 +6,8 @@
 #     P  … 全国・都道府県の時点（1959〜2005年の統計書の年と、2006年末〜の時点。1964年は「その他の国籍」の表がないので入れない）
 #     MP … 市区町村の時点（2006年末〜）
 #   作るファイル（必要な分だけ読み込めるように分ける）
-#     meta.json            時点・都道府県・市区町村・国籍・在留資格の一覧、市区町村の表にのっている国籍（年による）、人口の基準日
+#     meta.json            時点・都道府県・市区町村・国籍・在留資格の一覧、市区町村の表にのっている国籍（年による）、人口の基準日、
+#                          国籍・地域の州と地域区分（データ/国籍・地域の区分.csv）
 #     japan.json           全国の総数・国籍別（1984年〜）・在留資格別（1992年〜）・人口
 #     japan-x.json         全国の 国籍×在留資格（2006年末〜）
 #     prefs.json           都道府県の総数・人口
@@ -291,8 +292,17 @@ def main():
             "listed": listed, "fullNatFrom": FULL_NAT_FROM, "muniVisaFrom": MUNI_VISA_FROM,
             "pxPeriods": px_periods, "mxPeriods": mx_periods, "popDates": pop_dates, "renames": ms.VISA_RENAME,
             "oldNatFrom": OLD_NAT_FROM, "oldVisaFrom": OLD_VISA_FROM, "built": date.today().isoformat()}
+    # 国籍・地域の州と地域区分（国籍・地域を選ぶ欄を、地域区分で絞れるように）
+    meta["natRegion"] = {n: list(ms.region_of(n)) for n in meta["nats"]}
+    meta["natOld"] = [n for n in meta["nats"] if n not in d.nat_series]  # 2005年までの古い表だけにある名前・書き方（選ぶ欄で印をつける）
+    meta["regions"] = ms.REGION_TREE
     size["meta.json"] = dump("meta.json", meta)
-    size["sokuho.json"] = dump("sokuho.json", sokuho(d, MP))
+    sk = sokuho(d, MP)
+    sk["natRegion"] = {n: list(ms.NAT_REGION[n]) for n in sk["sp"]["国籍・地域"] if n in ms.NAT_REGION}
+    sk["regions"] = ms.REGION_TREE
+    size["sokuho.json"] = dump("sokuho.json", sk)
+    if ms.NO_REGION:
+        print("地域区分の表にない国籍・地域：" + "、".join(sorted(ms.NO_REGION)))
     total = sum(size.values())
     big = sorted(size.items(), key=lambda x: -x[1])[:6]
     print(f"ファイル {len(size)}、合わせて {total / 2**20:.1f}MB。大きいもの：" + "、".join(f"{k} {v / 2**20:.2f}MB" for k, v in big))
