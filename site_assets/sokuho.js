@@ -8,7 +8,8 @@
   var K = window.KZ, Z = window.KZC, fmt = K.fmt, esc = K.esc, el = Z.el, wl = Z.wl, signed = Z.signed;
   var D = null, DIMS = ['国籍・地域', '在留資格', '都道府県'], OUTER = { '総数': 1, 'その他': 1, '中長期在留者': 1 };
   var SRC = '出入国在留管理庁「在留外国人数について」（報道発表・速報）';
-  var S = { dim: '国籍・地域', w: '', cmp: 'half', pick: [], conf: '1', from: '', to: '' };
+  var DEF = { dim: '国籍・地域', w: '', cmp: 'half', pick: [], conf: '1', from: '', to: '' };
+  var S = JSON.parse(JSON.stringify(DEF));
 
   function readHash() { var q = new URLSearchParams(location.hash.slice(1)); Object.keys(S).forEach(function (k) { var v = q.get(k); if (v != null) { S[k] = k === 'pick' ? v.split(',').filter(Boolean) : v; } }); }
   function writeHash() {
@@ -47,6 +48,11 @@
     var sel = el('select'); D.W.slice().reverse().forEach(function (w) { var o = el('option'); o.value = w; o.textContent = wl(w) + '（' + pubText(rel(w)) + '公表）'; sel.appendChild(o); });
     sel.value = S.w; sel.addEventListener('change', function () { set({ w: sel.value }); });
     var t2 = el('label', 'dctl'); t2.appendChild(el('span', 'dlab', '時点（発表）')); t2.appendChild(sel); f.appendChild(t2);
+    var latest = D.W[D.W.length - 1], plain = Object.keys(DEF).every(function (k) { return k === 'w' ? S.w === latest : JSON.stringify(S[k]) === JSON.stringify(DEF[k]); });
+    var acts = el('div', 'dctl dacts'), reset = el('button', 'dbtn dbtn-sub', '条件をリセット'); reset.type = 'button'; reset.disabled = plain;
+    reset.addEventListener('click', function () { S = JSON.parse(JSON.stringify(DEF)); S.w = latest; render(); });
+    acts.appendChild(reset); f.appendChild(acts);
+    f.appendChild(el('p', 'dnow', '表示中：表 <b>' + esc(S.dim) + '</b>　時点 <b>' + esc(wl(S.w)) + '</b>（' + esc(pubText(rel(S.w))) + '公表の速報）'));
     return f;
   }
 
@@ -102,9 +108,11 @@
     btn.type = 'button'; btn.textContent = pick.length === 1 ? pick[0] : pick[0] + ' ほか' + (pick.length - 1);
     ms.appendChild(el('span', 'dlab', '比べるもの')); ms.appendChild(btn);
     var chosen = pick.slice();
-    all.forEach(function (n) { var l = el('label', 'dmitem'), cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.indexOf(n) >= 0; cb.addEventListener('change', function () { if (cb.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } }); l.appendChild(cb); l.appendChild(document.createTextNode(' ' + n)); list.appendChild(l); });
-    var ok = el('button', 'dbtn', '決める'); ok.type = 'button'; ok.addEventListener('click', function () { set({ pick: chosen.slice(0, 7) }); });
-    panel.appendChild(list); var bar = el('div', 'dmbar'); bar.appendChild(ok); panel.appendChild(bar); ms.appendChild(panel);
+    all.forEach(function (n) { var l = el('label', 'dmitem'), cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.indexOf(n) >= 0; cb.addEventListener('change', function () { if (cb.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } }); l.appendChild(cb); l.appendChild(document.createTextNode(' ' + n)); l.dataset.n = n; list.appendChild(l); });
+    var q = el('input'); q.type = 'search'; q.placeholder = '名前で探す'; q.setAttribute('aria-label', '比べるものを名前で探す');
+    q.addEventListener('input', function () { var t = q.value.trim(); list.querySelectorAll('.dmitem').forEach(function (l) { l.hidden = !!t && l.dataset.n.indexOf(t) < 0; }); });
+    var ok = el('button', 'dbtn', 'この条件で表示（7つまで）'); ok.type = 'button'; ok.addEventListener('click', function () { set({ pick: chosen.slice(0, 7) }); });
+    panel.appendChild(q); panel.appendChild(list); var bar = el('div', 'dmbar'); bar.appendChild(ok); panel.appendChild(bar); ms.appendChild(panel);
     btn.addEventListener('click', function (ev) { ev.stopPropagation(); ms.classList.toggle('open'); });
     document.addEventListener('click', function (ev) { if (!ms.contains(ev.target)) { ms.classList.remove('open'); } });
     row.appendChild(ms);

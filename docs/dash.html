@@ -1,22 +1,27 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ダッシュボード｜数でみる在留外国人</title><meta name="description" content="在留外国人の数を、地域・国籍・在留資格・時点を選んで地図・グラフ・ランキングで見るダッシュボード。">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap"><link rel="stylesheet" href="assets/style.css?v=5"><link rel="stylesheet" href="assets/dash.css?v=5"></head><body>
-<header class="top"><div class="in"><div class="brand"><a class="home" href="index.html">数でみる在留外国人</a><span class="tag">国籍・在留資格・都道府県・市区町村</span></div>
-<nav class="menu"><a href="dash.html">ダッシュボード</a><a href="sokuho.html">半期速報</a><a href="index.html">日本全体</a><a href="index.html#prefs">都道府県</a><a href="nat-index.html">国籍・地域</a><a href="about.html">このサイトについて</a></nav>
-<nav class="crumb"><a href="index.html">日本全体</a> › ダッシュボード</nav></div></header>
-<main><h1>ダッシュボード</h1>
+<script>document.documentElement.className+=' js'</script>
+<link rel="stylesheet" href="assets/style.css?v=6"><link rel="stylesheet" href="assets/dash.css?v=6"></head><body>
+<a class="skip" href="#main">本文へ移動</a>
+<header class="top"><div class="in"><a class="home" href="index.html">数でみる在留外国人</a>
+<button type="button" class="menu-btn" aria-expanded="false" aria-controls="site-menu"><span class="menu-ic" aria-hidden="true"></span><span class="mt">メニュー</span></button>
+<nav class="menu" id="site-menu" aria-label="サイトのメニュー"><a href="index.html">日本全体</a><a href="area-index.html">地域から探す</a><a href="nat-index.html">国籍から探す</a><a href="dash.html" aria-current="page">ダッシュボード</a><a href="sokuho.html">半期速報</a><a href="about.html">このサイトについて</a></nav></div></header>
+<nav class="crumb" aria-label="いまいる所"><ol><li><a href="index.html">日本全体</a></li><li aria-current="page">ダッシュボード</li></ol></nav>
+<main id="main"><h1>ダッシュボード</h1>
 <p class="dintro">地域・国籍・在留資格・時点を選ぶと、地図・グラフ・ランキングが変わります。選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。</p>
 <div id="dash"><nav class="dmenu" aria-label="見方"><a href="#v=map" data-v="map">全国マップ</a><a href="#v=trend" data-v="trend">年別の推移</a><a href="#v=visa" data-v="visa">在留資格の内訳</a><a href="#v=nat" data-v="nat">国籍の構成</a><a href="#v=rank" data-v="rank">ランキング</a><a href="#v=cmp" data-v="cmp">地域比較</a><a href="#v=area" data-v="area">地域を詳しく</a><a class="dext" href="sokuho.html">法務省・半期速報</a></nav>
 <div id="dash-filter"></div><div id="dash-loading" hidden>読み込み中…</div><div id="dash-view"><p class="dhelp">読み込み中…</p></div></div>
 <noscript><p class="note">このページは JavaScript を使います。JavaScript が動かないときは、<a href="index.html">日本全体</a>や都道府県・国籍のページの表をご覧ください。</p></noscript>
-<section class="card note"><h2>数を見るときの注意</h2><ul>
+<section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
+<li>出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。</li>
 <li><b>2011年までと2012年からで数え方が違います。</b>2011年までは「外国人登録をした人」（登録外国人統計）、2012年12月末からは「中長期在留者と特別永住者」（在留外国人統計）です。</li>
 <li>国籍・地域の名前は国の表のとおりです。「韓国・朝鮮」は2015年6月末まで1つにまとめて数えられています。</li>
 <li>在留資格の「技能実習」「特定技能」「高度専門職」は、号ごとの細かい区分をまとめて示しています。</li>
-<li>くわしくは<a href="about.html">このサイトについて</a>。</li>
+<li>使っているデータや数え方のくわしい説明は<a href="about.html">このサイトについて</a>にあります。</li>
 </ul></section></main>
-<footer>出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」を加工して作成。
-数は国の発表のまま示しています。良い・悪いの判断はしていません。データは2025年12月末まで。ページを作った日 2026年10月22日。</footer>
-<script src="assets/app.js?v=5" defer></script><script src="assets/share.js?v=5" defer></script><script src="assets/dash.js?v=5" defer></script>
+<footer><p class="fname">数でみる在留外国人</p><nav aria-label="サイトのメニュー（ページの下）"><a href="index.html">日本全体</a><a href="area-index.html">地域から探す</a><a href="nat-index.html">国籍から探す</a><a href="dash.html">ダッシュボード</a><a href="sokuho.html">半期速報</a><a href="about.html">このサイトについて</a></nav>
+<p>出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」を加工して作成。
+数は国の発表のまま示しています。良い・悪いの判断はしていません。データは2025年12月末まで（それより新しい数は<a href="sokuho.html">半期速報</a>）。ページを作った日 2026年10月22日。</p></footer>
+<script src="assets/app.js?v=6" defer></script><script src="assets/share.js?v=6" defer></script><script src="assets/dash.js?v=6" defer></script>
 </body></html>

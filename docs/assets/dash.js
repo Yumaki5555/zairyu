@@ -67,6 +67,8 @@
       S[k] = LISTS[k] ? (v ? v.split(',').filter(Boolean) : []) : (v == null ? DEF[k] : v);
     });
   }
+  // 見方（v）や地域（pref・muni）が変わったときは、ブラウザの「戻る」で前の画面に戻れるように、履歴を1つ足す
+  var pushNext = false, shownHash = null;
   function writeHash() {
     var q = new URLSearchParams();
     Object.keys(DEF).forEach(function (k) {
@@ -74,8 +76,11 @@
       if (v !== (LISTS[k] ? '' : DEF[k]) && v !== '') { q.set(k, v); }
     });
     var h = '#' + q.toString();
-    if (location.hash !== h) { history.replaceState(null, '', h === '#' ? location.pathname : h); }
+    if (location.hash !== h && !(h === '#' && !location.hash)) { (pushNext ? history.pushState : history.replaceState).call(history, null, '', h === '#' ? location.pathname : h); }
+    pushNext = false; shownHash = location.hash;
   }
+  function isDefault() { return Object.keys(DEF).every(function (k) { return k === 'v' || (LISTS[k] ? !S[k].length : S[k] === DEF[k]); }); }
+  function kana(s) { return String(s || '').normalize('NFKC').toLowerCase().replace(/[ぁ-ゖ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) + 0x60); }).replace(/\s+/g, ''); }
 
   // ---------- 地域
   function area() {
@@ -296,20 +301,23 @@
     btn.type = 'button';
     wrap.appendChild(el('span', 'dlab', esc(label)));
     btn.textContent = selected.length ? (selected.length === 1 ? selected[0] : selected[0] + ' ほか' + (selected.length - 1)) : 'すべて';
+    if (selected.length) { btn.classList.add('on'); }
     btn.setAttribute('aria-haspopup', 'listbox');
     var q = el('input'); q.type = 'search'; q.placeholder = '名前で探す'; q.setAttribute('aria-label', label + 'を名前で探す');
     var list = el('div', 'dmlist'), chosen = selected.slice();
     function draw() {
       list.innerHTML = '';
       var t = q.value.trim();
-      all.filter(function (n) { return !t || n.indexOf(t) >= 0; }).slice(0, 300).forEach(function (n) {
+      var tk = kana(t);
+      all.filter(function (n) { return !tk || kana(n).indexOf(tk) >= 0; }).slice(0, 300).forEach(function (n) {
         var l = el('label', 'dmitem'), c = el('input'); c.type = 'checkbox'; c.checked = chosen.indexOf(n) >= 0;
         c.addEventListener('change', function () { if (c.checked) { chosen.push(n); } else { chosen = chosen.filter(function (x) { return x !== n; }); } });
         l.appendChild(c); l.appendChild(document.createTextNode(' ' + n)); list.appendChild(l);
       });
     }
     q.addEventListener('input', draw);
-    var ok = el('button', 'dbtn', '決める'), clr = el('button', 'dbtn dbtn-sub', 'すべてに戻す');
+    panel.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { wrap.classList.remove('open'); openPanel = null; btn.focus(); } });
+    var ok = el('button', 'dbtn', 'この条件で表示'), clr = el('button', 'dbtn dbtn-sub', '選ぶのをやめる（すべて）');
     ok.type = clr.type = 'button';
     ok.addEventListener('click', function () { wrap.classList.remove('open'); openPanel = null; onChange(chosen); });
     clr.addEventListener('click', function () { wrap.classList.remove('open'); openPanel = null; onChange([]); });
@@ -327,24 +335,78 @@
   function natList() { return M.nats; }
   function visaList() { return M.visas.filter(function (v) { return !M.renames[v]; }); }
   function munisOf(pref) { return (M.munis[PREF_ROMA[pref]] || []).map(function (r) { return MUNI[r[0]]; }); }
-  function setS(patch) { Object.keys(patch).forEach(function (k) { S[k] = patch[k]; }); render(); }
+  var justChanged = false;
+  function setS(patch) {
+    if (['v', 'pref', 'muni'].some(function (k) { return k in patch && patch[k] !== S[k]; })) { pushNext = true; }
+    Object.keys(patch).forEach(function (k) { S[k] = patch[k]; });
+    justChanged = true; render();
+  }
+  // 地域：名前で探して1つ選ぶ（全国・47都道府県・市区町村。選んだ都道府県の市区町村は、探さなくても並ぶ）
+  function areaPick() {
+    var a = area(), wrap = el('div', 'dctl dmulti'), btn = el('button', 'dmbtn' + (a.type !== 'japan' ? ' on' : '')), panel = el('div', 'dmpanel');
+    btn.type = 'button'; btn.textContent = a.type === 'muni' ? MUNI[a.key].pref + ' ' + MUNI[a.key].name : a.name;
+    btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
+    wrap.appendChild(el('span', 'dlab', '地域'));
+    btn.title = '全国・都道府県・市区町村から選びます（名前で探せます）';
+    var q = el('input'); q.type = 'search'; q.placeholder = '名前で探す（例：新宿、浜松）'; q.setAttribute('aria-label', '地域を名前で探す');
+    var list = el('div', 'dmlist'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', '地域');
+    function close() { wrap.classList.remove('open'); openPanel = null; btn.setAttribute('aria-expanded', 'false'); }
+    function item(label, sub, patch, selected) {
+      var b = el('button', 'dmitem'); b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', selected ? 'true' : 'false');
+      b.appendChild(el('span', null, esc(label))); if (sub) { b.appendChild(el('span', 'sub', esc(sub))); }
+      b.addEventListener('click', function () { close(); setS(patch); });
+      return b;
+    }
+    function kindText(m) { return m.kind === '政令市' ? '市全体' : m.kind === '区' ? '区' : ''; }
+    function draw() {
+      list.innerHTML = '';
+      var t = kana(q.value);
+      if (!t) {
+        list.appendChild(item('全国', '', { pref: '', muni: '' }, a.type === 'japan'));
+        if (S.pref) {
+          list.appendChild(el('div', 'dmhead', esc(S.pref + 'の市区町村')));
+          list.appendChild(item(S.pref + '（全体）', '', { pref: S.pref, muni: '' }, a.type === 'pref'));
+          munisOf(S.pref).forEach(function (m) { list.appendChild(item(m.name, kindText(m), { pref: S.pref, muni: m.key }, S.muni === m.key)); });
+        }
+        list.appendChild(el('div', 'dmhead', '都道府県'));
+        M.prefs.forEach(function (p) { list.appendChild(item(p[0], '', { pref: p[0], muni: '' }, a.type === 'pref' && S.pref === p[0])); });
+        return;
+      }
+      var n = 0;
+      M.prefs.forEach(function (p) { if (kana(p[0]).indexOf(t) >= 0) { n++; list.appendChild(item(p[0], '都道府県', { pref: p[0], muni: '' }, a.type === 'pref' && S.pref === p[0])); } });
+      Object.keys(MUNI).some(function (k) {
+        var m = MUNI[k];
+        if (kana(m.name).indexOf(t) >= 0) { n++; list.appendChild(item(m.name, m.pref + (kindText(m) ? '・' + kindText(m) : ''), { pref: m.pref, muni: k }, S.muni === k)); }
+        return n >= 80;
+      });
+      if (!n) { list.appendChild(el('p', 'dhelp', '合う名前がありません。漢字で、名前の一部を入れてください。')); }
+    }
+    q.addEventListener('input', draw);
+    panel.appendChild(q); panel.appendChild(list);
+    panel.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { close(); btn.focus(); } });
+    btn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (openPanel && openPanel !== wrap) { openPanel.classList.remove('open'); }
+      wrap.classList.toggle('open'); openPanel = wrap.classList.contains('open') ? wrap : null;
+      btn.setAttribute('aria-expanded', openPanel ? 'true' : 'false');
+      if (openPanel) { q.value = ''; draw(); q.focus(); }
+    });
+    wrap.appendChild(btn); wrap.appendChild(panel);
+    return wrap;
+  }
 
   function filterBar() {
     var f = el('div', 'dfilter');
     var a = area();
-    f.appendChild(selectEl([['', '全国']].concat(M.prefs.map(function (p) { return [p[0], p[0]]; })), S.pref, function (v) { setS({ pref: v, muni: '' }); }, '都道府県'));
-    if (S.pref) {
-      var opts = [['', '（' + S.pref + '全体）']];
-      munisOf(S.pref).forEach(function (m) { opts.push([m.key, (m.kind === '区' ? '　' : '') + m.name + (m.kind === '政令市' ? '（市全体）' : '')]); });
-      f.appendChild(selectEl(opts, S.muni, function (v) { setS({ muni: v }); }, '市区町村'));
-    }
+    f.appendChild(areaPick());
     f.appendChild(multiPick('国籍・地域', natList(), S.nat, function (v) { setS({ nat: v }); }));
     f.appendChild(multiPick('在留資格', visaList(), S.visa, function (v) { setS({ visa: v }); }));
     var per = periodsOf(a).slice().reverse();
     f.appendChild(selectEl(per.map(function (w) { return [w, wl(w)]; }), whenOf(a), function (v) { setS({ when: v }); }, '時点'));
     var acts = el('div', 'dctl dacts');
     var reset = el('button', 'dbtn dbtn-sub', '条件をリセット'); reset.type = 'button';
-    reset.addEventListener('click', function () { var v = S.v; readHashFrom(''); S.v = v; render(); });
+    reset.disabled = isDefault(); reset.title = reset.disabled ? '選んでいる条件はありません' : '地域・国籍・在留資格・時点などを、はじめの状態に戻します';
+    reset.addEventListener('click', function () { var v = S.v; readHashFrom(''); S.v = v; pushNext = true; justChanged = true; render(); });
     var share = el('button', 'dbtn dbtn-sub', 'アドレスをコピー'); share.type = 'button';
     share.addEventListener('click', function () {
       writeHash();
@@ -353,6 +415,13 @@
     });
     acts.appendChild(reset); acts.appendChild(share);
     f.appendChild(acts);
+    // いま表示している条件（選んだ結果が画面に出たことがわかるように）
+    var now = el('p', 'dnow');
+    now.innerHTML = '表示中：地域 <b>' + esc(a.type === 'muni' ? MUNI[a.key].pref + ' ' + MUNI[a.key].name : a.name) + '</b>　国籍・地域 <b>' + esc(S.nat.length ? S.nat.join('・') : 'すべて') +
+      '</b>　在留資格 <b>' + esc(S.visa.length ? S.visa.join('・') : 'すべて') + '</b>　時点 <b>' + esc(wl(whenOf(a))) + '</b>' +
+      (justChanged ? '<span class="upd" role="status">✓ 表示を変えました</span>' : '');
+    f.appendChild(now);
+    if (justChanged) { setTimeout(function () { var u = now.querySelector('.upd'); if (u) { u.remove(); } }, 2500); justChanged = false; }
     return f;
   }
   function readHashFrom(h) { var keep = location.hash; history.replaceState(null, '', h ? '#' + h : location.pathname); readHash(); if (h) { history.replaceState(null, '', keep); } }
@@ -467,7 +536,7 @@
       });
       var cross = svg('line', { class: 'cross', x1: 0, x2: 0, y1: T, y2: H - B, visibility: 'hidden' }); g.appendChild(cross);
       var hit = svg('rect', { x: L, y: T, width: W - L - R, height: H - T - B, class: 'hit' });
-      hit.addEventListener('mousemove', function (ev) {
+      var move = function (ev) {
         var r = g.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * W, best = 0, bd = 1e9;
         xs.forEach(function (xx, i) { var dd = Math.abs(X(xx) - x); if (dd < bd) { bd = dd; best = i; } });
         cross.setAttribute('x1', X(xs[best])); cross.setAttribute('x2', X(xs[best])); cross.setAttribute('visibility', 'visible');
@@ -477,10 +546,12 @@
           var v = s.vals[best];
           return '<br><span class="sw sw-' + s.cls + '"></span> ' + esc(s.name) + '：' + (v == null ? (s.hid && s.hid[best] ? '公表されていない' : 'データなし') : (opt.index ? v.toFixed(1) : (opt.f ? opt.f(v) : fmt(v) + '人')));
         }).join(''));
-      });
-      hit.addEventListener('mouseleave', function () { cross.setAttribute('visibility', 'hidden'); K.hideTip(); });
+      };
+      hit.addEventListener('pointermove', move); hit.addEventListener('click', move);
+      hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); K.hideTip(); });
       g.appendChild(hit);
       box.appendChild(g);
+      box.appendChild(el('p', 'hint', '線の上を押すと（マウスを合わせると）、その時点の数が出ます。' + (series.length > 1 ? '下の名前を押すと、その線を消したり出したりできます。' : '')));
       if (series.length > 1) {
         var lg = el('div', 'lines-legend');
         series.forEach(function (s) {
@@ -488,6 +559,7 @@
           b.setAttribute('aria-pressed', hidden[s.name] ? 'false' : 'true');
           var last = null; for (var i = s.vals.length - 1; i >= 0; i--) { if (s.vals[i] != null) { last = s.vals[i]; break; } }
           b.innerHTML = '<span class="sw sw-' + s.cls + (s.dash ? ' swdash' : '') + '"></span>' + esc(s.name) + (last != null && !opt.index ? ' <span class="sub">' + (opt.f ? opt.f(last) : fmt(last) + '人') + '</span>' : '');
+          b.title = hidden[s.name] ? 'この線を出す' : 'この線を消す';
           b.addEventListener('click', function () { hidden[s.name] = !hidden[s.name]; draw(); });
           lg.appendChild(b);
         });
@@ -594,8 +666,10 @@
     }, 0);
     if (shape.note) { holder.appendChild(el('p', 'note', esc(shape.note))); }
     var lg = legendOf(sc, opt.f, Object.keys(values).some(function (k) { return values[k] == null; }));
+    lg.insertBefore(el('span', 'lgh', '色の見方：'), lg.firstChild);
     holder.appendChild(lg);
-    holder._cls = clsOf; holder._legend = lg._items;
+    if (opt.hint) { holder.appendChild(el('p', 'hint', esc(opt.hint))); }
+    holder._cls = clsOf; holder._legend = lg._items; holder._paths = paths;
     return holder;
   }
   function shortOf(m) {
@@ -631,7 +705,7 @@
   // ---------- 画面：全国マップ
   var playing = null;
   function metricSelect(keys, value, onChange) {
-    var l = selectEl(keys.map(function (k) { return [k, METRICS[k].label]; }), value, onChange, '色で示すもの');
+    var l = selectEl(keys.map(function (k) { return [k, METRICS[k].label]; }), value, onChange, '地図の色で示すもの');
     var help = el('p', 'dhelp', esc(HELP[value] || ''));
     var w = el('div', 'dmetric'); w.appendChild(l); w.appendChild(help);
     return w;
@@ -671,22 +745,35 @@
         mapVals[k] = x.v; names[k] = x.name; if (x.why) { why[k] = x.why; }
       });
       var map = drawMap(shape, mapVals, { f: f, short: shortOf(m), names: names, why: why, label: METRICS[m].label, title: title,
+        hint: level === 'pref' ? '▶ 都道府県を押すと、その中の市区町村の地図になります。右の一覧（スマホでは下）の名前を押しても同じです。'
+          : '▶ 市区町村を押すと、その市区町村のくわしい数（地域を詳しく）が出ます。',
         onClick: function (key) { stopPlay(); if (level === 'pref') { setS({ pref: key, muni: '' }); } else { setS({ muni: key, v: 'area' }); } } });
+      if (level === 'muni' && S.muni && map._paths[S.muni]) { map._paths[S.muni].classList.add('sel'); } // いま選んでいる市区町村
       var side = el('div', 'dside');
       var sorted = vals.slice().sort(function (x, y) { return (y.v == null ? -1e15 : y.v) - (x.v == null ? -1e15 : x.v); });
       side.appendChild(el('h3', null, esc('多い順（' + METRICS[m].label + '）')));
-      side.appendChild(barList(sorted.map(function (x) {
+      var ranked = barList(sorted.map(function (x) {
         return [x.name, x.v, x.why || '', null, function () { if (level === 'pref') { setS({ pref: x.key, muni: '' }); } else { setS({ muni: x.key, v: 'area' }); } }];
-      }), null, { f: f, rank: true }));
+      }), null, { f: f, rank: true });
+      Array.prototype.forEach.call(ranked.children, function (li, i) { // 一覧の上にマウスを置くと、地図のその場所を囲む
+        var p = map._paths[sorted[i].key]; if (!p) { return; }
+        li.addEventListener('mouseenter', function () { p.classList.add('hl'); li.classList.add('hl'); });
+        li.addEventListener('mouseleave', function () { p.classList.remove('hl'); li.classList.remove('hl'); });
+      });
+      side.appendChild(ranked);
       body.appendChild(map); body.appendChild(side);
-      var nav = el('p', 'dnav');
+      // いま見ている地域（全国 › 都道府県）。前の段へは、ここかブラウザの「戻る」で
+      var nav = el('div', 'dpath');
+      nav.appendChild(el('span', 'dlab', 'いま見ている地図：'));
       if (level === 'muni') {
-        var back = el('button', 'dbtn dbtn-sub', '← 日本全体の地図へ'); back.type = 'button';
+        var back = el('button', null, '全国'); back.type = 'button';
         back.addEventListener('click', function () { setS({ pref: '', muni: '' }); });
-        nav.appendChild(back);
-        nav.appendChild(el('span', 'dhelp', '市区町村を押すと、くわしい数が出ます。'));
+        nav.appendChild(back); nav.appendChild(el('span', 'dsep', '›')); nav.appendChild(el('b', null, esc(S.pref + 'の市区町村')));
+        var back2 = el('button', 'dbtn dbtn-sub', '← 日本全体の地図へ戻る'); back2.type = 'button'; back2.style.marginLeft = 'auto';
+        back2.addEventListener('click', function () { setS({ pref: '', muni: '' }); });
+        nav.appendChild(back2);
       } else {
-        nav.appendChild(el('span', 'dhelp', '都道府県を押すと、その中の市区町村の地図になります。'));
+        nav.appendChild(el('b', null, '全国（都道府県ごと）'));
       }
       var c = card(title, null, srcNote(when, m === 'ratio'));
       c.appendChild(ctrl); c.appendChild(nav); c.appendChild(body); c.appendChild(toolBar());
@@ -924,7 +1011,7 @@
         var sub = m === 'count' || x.count == null ? '' : fmt(x.count) + '人' + (METRICS[m].back && x.base != null ? '（' + METRICS[m].back + '年前 ' + fmt(x.base) + '人）' : '');
         return [x.name, x.v, sub, x.link, x.click];
       }), null, { f: METRICS[m].f, rank: true }));
-      if (ok.length > 30) { var more = el('button', 'pick-more', S.all === '1' ? '上位30だけにする' : 'すべて見る（' + ok.length + '）'); more.type = 'button'; more.addEventListener('click', function () { setS({ all: S.all === '1' ? '0' : '1' }); }); c.appendChild(more); }
+      if (ok.length > 30) { var more = el('button', 'dbtn dbtn-sub pick-more', S.all === '1' ? '上位30件だけにする' : 'すべて表示する（全' + ok.length + '件）'); more.type = 'button'; more.addEventListener('click', function () { setS({ all: S.all === '1' ? '0' : '1' }); }); c.appendChild(more); }
       if (miss.length) { c.appendChild(el('p', 'dhelp', esc('データがないため並べていないもの：' + miss.length + '（' + miss.slice(0, 8).map(function (x) { return x.name; }).join('、') + (miss.length > 8 ? '…' : '') + '）'))); }
       if (METRICS[m].rate) { c.appendChild(el('p', 'dhelp', '増加率は、もとの人数が少ないと大きく出ます。横の小さな数字はその時点の人数です。')); }
       setTable(title, ['順位', what, METRICS[m].label, '人数', '時点'], ok.map(function (x, k) { return [k + 1, x.name, m === 'count' ? x.v : x.v.toFixed(2), x.count, wl(when)]; }));
@@ -1050,9 +1137,15 @@
       viewBox.replaceChildren(nodata('データを読み込めませんでした。しばらくしてから、もう一度開いてください。'));
     });
   }
-  window.addEventListener('hashchange', function () { readHash(); render(); });
+  function onNav() { if (M && location.hash !== shownHash) { stopPlay(); readHash(); render(); } } // ブラウザの「戻る」「進む」、アドレスの書きかえ
+  window.addEventListener('hashchange', onNav);
+  window.addEventListener('popstate', onNav);
   document.querySelectorAll('.dmenu [data-v]').forEach(function (b) {
-    b.addEventListener('click', function (ev) { ev.preventDefault(); setS({ v: b.dataset.v }); window.scrollTo({ top: root.offsetTop - 8, behavior: 'smooth' }); });
+    b.addEventListener('click', function (ev) {
+      ev.preventDefault(); setS({ v: b.dataset.v });
+      var hh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hdr'), 10) || 56;
+      window.scrollTo({ top: root.getBoundingClientRect().top + window.scrollY - hh - 8, behavior: 'smooth' });
+    });
   });
   load('meta.json').then(function (m) {
     M = m;
