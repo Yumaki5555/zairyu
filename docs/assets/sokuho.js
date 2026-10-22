@@ -66,6 +66,7 @@
     var c = card(wl(w) + 'の' + dim + 'ランキング', SP);
     c.appendChild(el('p', 'stotal', '在留外国人の総数 <b>' + fmt(total) + '人</b>（' + esc(wl(w)) + '）'));
     if (dim === '国籍・地域') { c.appendChild(el('p', 'dhelp', esc('発表にのっているのは、多い' + names.length + 'の国籍・地域と「その他」です（2022年末までの発表は上位10、2023年6月末からは上位20）。下の数を足しても総数にはなりません。'))); }
+    var vn = K.vnote(names); if (vn) { c.appendChild(el('p', 'dhelp', esc('グラフの' + vn))); }
     var rows = names.map(function (n, k) {
       var v = own(dim, n, w), p = valueAt(dim, n, prevW, w), y = valueAt(dim, n, yearW, w);
       var pr = prevNames.indexOf(n), move = !prevNames.length ? '—' : pr < 0 ? '前回の発表になし' : pr === k ? '→' : pr > k ? '↑' + (pr - k) : '↓' + (k - pr);

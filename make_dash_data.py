@@ -172,7 +172,7 @@ def main():
     # ---- 人口（住民基本台帳、翌年1月1日現在 → 12月末の時点）
     pop = pd.read_csv(os.path.join(DATA, "人口", "住民基本台帳人口.csv"), dtype={"団体コード": str})
     pop["時点"] = [f"{int(b[:4]) - 1}-12" for b in pop["基準日"]]
-    pop["団体コード"] = pop["団体コード"].map(lambda c: NEW_CODE.get(c, c))
+    pop["団体コード"] = pop["団体コード"].map(lambda c: ms.SAME_AREA.get(NEW_CODE.get(c, c), NEW_CODE.get(c, c)))
     pop_dates = {f"{int(b[:4]) - 1}-12": b for b in sorted(pop["基準日"].unique())}
     pop_jp = dict(zip(pop[pop["種別"] == "全国"]["時点"], pop[pop["種別"] == "全国"]["人口"]))
     pop_pref = defaultdict(dict)
@@ -242,7 +242,7 @@ def main():
     # ---- 市区町村
     def keyed(df):  # 合計の行を除き、コードのない時点（2021年6月末まで）は名前でコードに結ぶ
         df = df[df["種別"] != "合計の行"].copy()
-        df["key"] = [c if isinstance(c, str) else d.name2code.get((p, n)) for c, p, n in zip(df["市区町村コード"], df["都道府県"], df["市区町村"])]
+        df["key"] = [d.key_of(c, p, n) for c, p, n in zip(df["市区町村コード"], df["都道府県"], df["市区町村"])]
         return df
 
     folder = os.path.join(DATA, "市区町村_国籍")
@@ -310,6 +310,7 @@ def main():
     for f in sorted(os.listdir(folder)):
         w = f[:7]
         x = group_visas(pd.read_csv(os.path.join(folder, f), dtype={"市区町村コード": str}))
+        x["市区町村コード"] = x["市区町村コード"].map(lambda c: ms.SAME_AREA.get(c, c))  # 2023年12月末の浜松市天竜区（前のコード）
         x = x[(x["在留資格"] != "総数") & (x["国籍・地域"] != "総数") & x["市区町村コード"].isin(code_pref)]
         by = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))  # 都道府県 → 鍵 → 国籍 → {在留資格: 人数}
         for (k, n, v), c in x.groupby(["市区町村コード", "国籍・地域", "在留資格"])["人数"].sum().items():

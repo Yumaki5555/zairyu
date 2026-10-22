@@ -13,6 +13,13 @@
   function fmt(n) { return Number(n).toLocaleString('ja-JP'); }
   function pct(v, t) { return t ? (v / t * 100).toFixed(1) + '%' : ''; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  // グラフの名前（凡例・棒・線）では、長い在留資格の名前を短くする。表と、押したときの吹き出しは元の名前のまま（2026年10月 作った人の希望）
+  var SHORT = [['技術・人文知識・国際業務', '技人国']];
+  function vs(s) { s = String(s); SHORT.forEach(function (x) { s = s.split(x[0]).join(x[1]); }); return s; }
+  function vnote(names) { // 短くした名前が入っていれば、その説明の文
+    return SHORT.filter(function (x) { return names.some(function (n) { return String(n).indexOf(x[0]) >= 0; }); })
+      .map(function (x) { return '「' + x[1] + '」は「' + x[0] + '」のことです。'; }).join('');
+  }
   function data(box) { var s = box.querySelector('script[type="application/json"]'); return s ? JSON.parse(s.textContent) : null; }
   function wl(w) { var p = w.split('-'); return p[0] + '年' + (+p[1]) + '月末'; }
   function svg(tag, attrs) {
@@ -108,7 +115,7 @@
 
   function legendRow(it, i, total, other) {
     var li = document.createElement('li');
-    var name = it[2] ? '<a href="' + esc(it[2]) + '">' + esc(it[0]) + '</a>' : esc(it[0]);
+    var name = it[2] ? '<a href="' + esc(it[2]) + '">' + esc(vs(it[0])) + '</a>' : esc(vs(it[0]));
     li.innerHTML = '<span class="sw ' + (other ? 'sw-o' : 'sw-' + (i + 1)) + '"></span><span class="nm">' + name +
       '</span><span class="v">' + fmt(it[1]) + '人</span><span class="p">' + pct(it[1], total) + '</span>';
     return li;
@@ -151,7 +158,8 @@
     g.appendChild(t1); g.appendChild(t2);
     wrap.appendChild(g); wrap.appendChild(legend);
     body.appendChild(wrap);
-    body.appendChild(mk('p', 'hint', '円の色の所を押すと（マウスを合わせると）、人数と割合が出ます。8番目より少ないものは「その他」にまとめています（全部は「表」で見られます）。'));
+    body.appendChild(mk('p', 'hint', '円の色の所を押すと（マウスを合わせると）、人数と割合が出ます。8番目より少ないものは「その他」にまとめています（全部は「表」で見られます）。' +
+      vnote(items.map(function (it) { return it[0]; }))));
   }
 
   function bar(body, d) {
@@ -162,7 +170,7 @@
     var ul = document.createElement('ul'); ul.className = 'hbars';
     items.forEach(function (it) {
       var li = document.createElement('li');
-      var name = it[2] ? '<a href="' + esc(it[2]) + '">' + esc(it[0]) + '</a>' : esc(it[0]);
+      var name = it[2] ? '<a href="' + esc(it[2]) + '">' + esc(vs(it[0])) + '</a>' : esc(vs(it[0]));
       li.innerHTML = '<span class="nm">' + name + '</span><span class="track"><span class="fill' + (it[3] ? ' o' : '') +
         '" style="width:' + (it[1] / max * 100).toFixed(1) + '%"></span></span><span class="v">' + fmt(it[1]) +
         '人</span><span class="p">' + pct(it[1], total) + '</span>';
@@ -173,7 +181,8 @@
       ul.appendChild(li);
     });
     body.appendChild(ul);
-    body.appendChild(mk('p', 'hint', '多い12と、それより少ないものをまとめた「その他」です（全部は「表」で見られます）。'));
+    body.appendChild(mk('p', 'hint', '多い12と、それより少ないものをまとめた「その他」です（全部は「表」で見られます）。' +
+      vnote(items.map(function (it) { return it[0]; }))));
   }
 
   function drawBreakdown(box) {
@@ -513,13 +522,14 @@
     hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); hideTip(); });
     g.appendChild(hit);
     body.appendChild(g);
-    body.appendChild(mk('p', 'hint', '線の上を押すと（マウスを合わせると）、その年の数が出ます。下の名前を押すと、その線を消したり出したりできます（残った線に合わせて目もりが変わります）。'));
+    body.appendChild(mk('p', 'hint', '線の上を押すと（マウスを合わせると）、その年の数が出ます。下の名前を押すと、その線を消したり出したりできます（残った線に合わせて目もりが変わります）。' +
+      vnote(ds.series.map(function (s) { return s.name; }))));
     var lg = document.createElement('div'); lg.className = 'lines-legend';
     ds.series.forEach(function (s, i) {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'lgb' + (hidden[s.name] ? ' off' : '');
       b.setAttribute('aria-pressed', hidden[s.name] ? 'false' : 'true');
       var last = s.values[s.values.length - 1];
-      b.innerHTML = '<span class="sw sw-' + cls(i, s) + '"></span>' + esc(s.name) + (last !== null ? ' <span class="sub">' + fmt(last) + '人</span>' : '');
+      b.innerHTML = '<span class="sw sw-' + cls(i, s) + '"></span>' + esc(vs(s.name)) + (last !== null ? ' <span class="sub">' + fmt(last) + '人</span>' : '');
       b.title = hidden[s.name] ? 'この線を出す' : 'この線を消す';
       b.addEventListener('click', function () { hidden[s.name] = !hidden[s.name]; drawLines(box); });
       lg.appendChild(b);
@@ -741,6 +751,6 @@
   hints();
 
   // ダッシュボード（dash.js）でも使う部品
-  window.KZ = { fmt: fmt, pct: pct, esc: esc, svg: svg, showTip: showTip, hideTip: hideTip, cuts: cuts, binOf: binOf, shade: shade,
+  window.KZ = { fmt: fmt, pct: pct, esc: esc, vs: vs, vnote: vnote, svg: svg, showTip: showTip, hideTip: hideTip, cuts: cuts, binOf: binOf, shade: shade,
     loadShape: loadShape, BINS: BINS, hints: hintsLater, saveButton: saveButton };
 })();

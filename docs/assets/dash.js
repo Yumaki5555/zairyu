@@ -136,6 +136,61 @@
   function missingAt(j, dim, names, w) { return names.filter(function (x) { return dim === 'nat' ? !visaAt(j, x, w) : !natAt(j, x, w); }); } // 絞り込み（dim の反対側）のうち、その時点の表にない名前
   function missingWhy(miss) { return 'この時点の国の表には「' + miss.join('」「') + '」の区分がありません（区分がなかったか、ほかとまとめて数えていました）'; }
   function anyAt(table, i) { return Object.keys(table || {}).some(function (k) { return table[k][i] != null; }); } // その時点の数が1つでもあるか
+  // 「データなし」の理由（線を押したときと、グラフの下の一覧に出す）
+  var WHY = {
+    natOld: '国籍別の数は1984年からです', visaOld: '在留資格別の数は1992年からです（それより前は区分が今と違います）',
+    xOld: '国籍×在留資格の数は2006年末からです', pxOld: '都道府県の国籍×在留資格の数は2016年12月末からです（2020年までは12月末だけ）',
+    mxOld: '市区町村の国籍×在留資格の数は2023年12月末からです', muniVisaOld: '市区町村の在留資格別の数は2019年12月末からです',
+    muniNone: 'この時点の国の表に、この市区町村はのっていません（外国人の少ない町村など）', muniTown: '2011年までの国の表は市と区だけです（町村はのっていません）',
+    muniNoNat: 'この時点の国籍別の表に、この市区町村はのっていません', muniNoVisa: 'この時点の在留資格別の表に、この市区町村はのっていません（外国人の少ない町村）',
+    okinawa: '1972年5月まで沖縄は日本の施政下になかったため、国の表にありません'
+  };
+  function natWhy(x, w) {
+    if (w < M.oldNatFrom) { return WHY.natOld; }
+    if ((x === '韓国' || x === '朝鮮') && w < '2015-12') { return '2015年6月末までは「韓国・朝鮮」として1つに数えていました'; }
+    if (x === '韓国・朝鮮' && w >= '2015-12') { return '2015年12月末からは「韓国」と「朝鮮」に分けて数えています'; }
+    return 'この時点の国の表に、この国籍・地域の行はありません';
+  }
+  function visaWhy(v, w) { return w < M.oldVisaFrom ? WHY.visaOld : 'この時点の国の表に、この在留資格の区分はありません（区分ができる前など）'; }
+  // getSeries の結果に、データのない時点ごとの理由（why）をつける
+  function explain(a, nats, visas, s) {
+    var need = [load('japan.json')];
+    if (a.type === 'muni') { need.push(load('muni-total.json'), muniEntry(PREF_ROMA[a.pref], a.key)); }
+    return Promise.all(need).then(function (r) {
+      var j = r[0], tot = a.type === 'muni' && r[1][a.key] ? r[1][a.key][1] : null, e = r[2];
+      s.why = s.per.map(function (w, i) {
+        if (s.val[i] != null || s.hid[i]) { return null; }
+        if (a.type === 'muni' && (!tot || tot[i] == null)) { return w < '2012-12' && /[町村]$/.test(a.name) ? WHY.muniTown : WHY.muniNone; }
+        if (a.type === 'pref' && a.pref === '沖縄県' && w < '1972-12') { return WHY.okinawa; }
+        for (var k = 0; k < nats.length; k++) { if (!natAt(j, nats[k], w)) { return natWhy(nats[k], w); } }
+        for (k = 0; k < visas.length; k++) { if (!visaAt(j, visas[k], w)) { return visaWhy(visas[k], w); } }
+        if (nats.length && visas.length) { return a.type === 'japan' ? WHY.xOld : a.type === 'pref' ? WHY.pxOld : WHY.mxOld; }
+        if (a.type === 'muni' && nats.length) {
+          if (!anyAt(e.n, i)) { return WHY.muniNoNat; }
+          var out = nats.filter(function (x) { return w < M.fullNatFrom && (M.listed[w] || []).indexOf(x) < 0; });
+          if (out.length) { return 'この時点の市区町村の表は主な国籍・地域だけで、「その他」に入っています'; }
+        }
+        if (a.type === 'muni' && visas.length) { return w < M.muniVisaFrom ? WHY.muniVisaOld : !anyAt(e.v, i) ? WHY.muniNoVisa : null; }
+        return null;
+      });
+      return s;
+    });
+  }
+  function whyList(per, series) { // グラフの下の「データがない時点とその理由」：線ごとに、続く時点をまとめる
+    var ul = el('ul', 'dwhy'), n = 0;
+    series.forEach(function (s) {
+      var run = null;
+      function flush() { if (run) { var li = el('li'); li.innerHTML = '<b>' + esc(s.name) + '</b>：' + esc(wl(per[run.a]) + (run.b > run.a ? '〜' + wl(per[run.b]) : '')) + '　' + esc(run.t); ul.appendChild(li); n++; run = null; } }
+      per.forEach(function (w, i) {
+        var t = s.vals[i] == null ? (s.hid && s.hid[i] ? '公表されていません（外国人が10人以下の市町村）' : (s.why && s.why[i]) || 'データがありません') : null;
+        if (run && t === run.t && i === run.b + 1) { run.b = i; return; }
+        flush();
+        if (t) { run = { a: i, b: i, t: t }; }
+      });
+      flush();
+    });
+    return n ? ul : null;
+  }
   function crossAt(a, file, nats, visas, j, w) { // 国籍×在留資格の表の1時点分から、選んだ国籍×選んだ在留資格の合計
     if (!allAt(j, nats, visas, w)) { return null; }
     var rec = a.type === 'japan' ? file : a.type === 'pref' ? file[a.pref] : file[a.key];
@@ -644,21 +699,22 @@
           .sort(function (a, b) { return (b.vals[best] || -1e12) - (a.vals[best] || -1e12); });
         K.showTip(ev, '<b>' + esc(wl(per[best])) + '</b>' + rows.map(function (s) {
           var v = s.vals[best];
-          return '<br><span class="sw sw-' + s.cls + '"></span> ' + esc(s.name) + '：' + (v == null ? (s.hid && s.hid[best] ? '公表されていない' : 'データなし') : (opt.index ? v.toFixed(1) : (opt.f ? opt.f(v) : fmt(v) + '人')));
+          return '<br><span class="sw sw-' + s.cls + '"></span> ' + esc(s.name) + '：' + (v == null ? (s.hid && s.hid[best] ? '公表されていない' : 'データなし' + (s.why && s.why[best] ? '<br><span class="tipwhy">（' + esc(s.why[best]) + '）</span>' : '')) : (opt.index ? v.toFixed(1) : (opt.f ? opt.f(v) : fmt(v) + '人')));
         }).join(''));
       };
       hit.addEventListener('pointermove', move); hit.addEventListener('click', move);
       hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); K.hideTip(); });
       g.appendChild(hit);
       box.appendChild(g);
-      box.appendChild(el('p', 'hint', '線の上を押すと（マウスを合わせると）、その時点の数が出ます。' + (series.length > 1 ? '下の名前を押すと、その線を消したり出したりできます。' : '')));
+      box.appendChild(el('p', 'hint', '線の上を押すと（マウスを合わせると）、その時点の数が出ます。' + (series.length > 1 ? '下の名前を押すと、その線を消したり出したりできます。' : '') +
+        K.vnote(series.map(function (s) { return s.name; }))));
       if (series.length > 1) {
         var lg = el('div', 'lines-legend');
         series.forEach(function (s) {
           var b = el('button', 'lgb' + (hidden[s.name] ? ' off' : '')); b.type = 'button';
           b.setAttribute('aria-pressed', hidden[s.name] ? 'false' : 'true');
           var last = null; for (var i = s.vals.length - 1; i >= 0; i--) { if (s.vals[i] != null) { last = s.vals[i]; break; } }
-          b.innerHTML = '<span class="sw sw-' + s.cls + (s.dash ? ' swdash' : '') + '"></span>' + esc(s.name) + (last != null && !opt.index ? ' <span class="sub">' + (opt.f ? opt.f(last) : fmt(last) + '人') + '</span>' : '');
+          b.innerHTML = '<span class="sw sw-' + s.cls + (s.dash ? ' swdash' : '') + '"></span>' + esc(K.vs(s.name)) + (last != null && !opt.index ? ' <span class="sub">' + (opt.f ? opt.f(last) : fmt(last) + '人') + '</span>' : '');
           b.title = hidden[s.name] ? 'この線を出す' : 'この線を消す';
           b.addEventListener('click', function () { hidden[s.name] = !hidden[s.name]; draw(); });
           lg.appendChild(b);
@@ -687,7 +743,7 @@
       var html = '<b>' + esc(p.name) + '</b><br>' + fmt(p.v) + '人（' + (frac * 100).toFixed(1) + '%）';
       c.addEventListener('mousemove', function (ev) { K.showTip(ev, html); }); c.addEventListener('mouseleave', K.hideTip);
       g.appendChild(c); acc += len;
-      var li = el('li'); li.innerHTML = '<span class="sw sw-' + p.cls + '"></span><span>' + esc(p.name) + '</span><span class="v">' + fmt(p.v) + '人</span><span class="p">' + (frac * 100).toFixed(1) + '%</span>';
+      var li = el('li'); li.innerHTML = '<span class="sw sw-' + p.cls + '"></span><span>' + esc(K.vs(p.name)) + '</span><span class="v">' + fmt(p.v) + '人</span><span class="p">' + (frac * 100).toFixed(1) + '%</span>';
       ul.appendChild(li);
     });
     var t1 = svg('text', { x: size / 2, y: size / 2 - 6, 'text-anchor': 'middle', class: 'pie-c1' }); t1.textContent = '合計'; g.appendChild(t1);
@@ -703,12 +759,13 @@
     if (opt.fit) { // 名前と数の欄を、いちばん長いものの幅にそろえる（棒が広くなり、どの行も同じ長さの物差しになる）。補足は押したときの吹き出しへ
       var wide = function (s) { return s.replace(/[^\x00-\x7f]/g, 'xx').length; };
       ul.classList.add('fit');
-      ul.style.setProperty('--nmw', Math.min(8, Math.max.apply(null, items.map(function (x) { return x[0].length; }))) + 0.5 + 'em');
+      ul.style.setProperty('--nmw', Math.min(8, Math.max.apply(null, items.map(function (x) { return K.vs(x[0]).length; }))) + 0.5 + 'em');
       ul.style.setProperty('--vw', Math.max.apply(null, items.map(function (x) { return wide(vt(x)); })) + 0.5 + 'ch');
     }
     items.forEach(function (x, i) {
       var li = el('li'), w = Math.abs(x[1] || 0) / max * 100;
-      var name = x[4] ? '<button type="button" class="dlink">' + esc(x[0]) + '</button>' : x[3] ? '<a href="' + esc(x[3]) + '">' + esc(x[0]) + '</a>' : esc(x[0]);
+      var nm = esc(K.vs(x[0]));
+      var name = x[4] ? '<button type="button" class="dlink">' + nm + '</button>' : x[3] ? '<a href="' + esc(x[3]) + '">' + nm + '</a>' : nm;
       li.innerHTML = (opt.rank ? '<span class="rk">' + (i + 1) + '</span>' : '') + '<span class="nm">' + name + (x[2] && !opt.fit ? ' <span class="sub">' + esc(x[2]) + '</span>' : '') + '</span>' +
         '<span class="track"><span class="fill' + ((x[1] || 0) < 0 ? ' neg' : '') + '" style="width:' + w.toFixed(1) + '%"></span></span><span class="v">' + esc(vt(x)) + '</span>' +
         (total ? '<span class="p">' + ((x[1] || 0) / total * 100).toFixed(1) + '%</span>' : '');
@@ -908,7 +965,7 @@
       list = Promise.resolve([{ name: a.name + 'の' + whoText(), a: a, nats: S.nat, visas: S.visa }]);
     }
     return list.then(function (items) {
-      return Promise.all(items.map(function (it) { return getSeries(it.a, it.nats, it.visas); })).then(function (ss) {
+      return Promise.all(items.map(function (it) { return getSeries(it.a, it.nats, it.visas).then(function (s) { return explain(it.a, it.nats, it.visas, s); }); })).then(function (ss) {
         if (!alive()) { return; }
         // 時点をそろえる（市区町村と都道府県を比べるときは市区町村の時点に）
         var per = ss.reduce(function (p, s) { return s.per.length < p.length ? s.per : p; }, ss.length ? ss[0].per : M.P);
@@ -918,9 +975,9 @@
         var sub = per.slice(i0, i1 + 1), idx = S.idx === '1';
         var series = items.map(function (it, k) {
           var s = ss[k], vals = sub.map(function (w) { var j = s.per.indexOf(w); return j < 0 ? null : s.val[j]; });
-          var hid = {}; sub.forEach(function (w, j) { var q = s.per.indexOf(w); if (q >= 0 && s.hid[q]) { hid[j] = 1; } });
+          var hid = {}, why = {}; sub.forEach(function (w, j) { var q = s.per.indexOf(w); if (q >= 0 && s.hid[q]) { hid[j] = 1; } if (q >= 0 && s.why[q]) { why[j] = s.why[q]; } });
           if (idx) { var base = null; vals.forEach(function (v) { if (base == null && v) { base = v; } }); vals = vals.map(function (v) { return v == null || !base ? null : v / base * 100; }); }
-          return { name: it.name, vals: vals, hid: hid, cls: k < SLOTS ? String(k + 1) : 'o' };
+          return { name: it.name, vals: vals, hid: hid, why: why, cls: k < SLOTS ? String(k + 1) : 'o' };
         });
         var title = (cmp === 'area' ? '地域ごとの' + whoText() : a.name + 'の' + (cmp === 'nat' ? '国籍・地域ごとの' : cmp === 'visa' ? '在留資格ごとの' : '') + whoText()) + 'の移り変わり（' + wl(sub[0]) + '〜' + wl(sub[sub.length - 1]) + '）';
         var c = card(title, null, srcNote(sub[sub.length - 1]));
@@ -938,6 +995,8 @@
         c.appendChild(anyData ? lineChart(sub, series, { index: idx, title: title }) : nodata());
         c.appendChild(el('p', 'dhelp', 'データのない時点は線を切っています（推測で埋めていません）。2012年12月末から数え方が変わりました（2011年までは登録外国人統計）。' +
           (a.type === 'muni' || cmp === 'area' ? '市区町村の国籍別は2023年6月末までは主な国籍・地域だけです。' : '')));
+        var wl2 = whyList(sub, series);
+        if (wl2) { c.appendChild(details('データがない時点とその理由', wl2)); }
         var head = ['時点'].concat(series.map(function (s) { return s.name; }));
         var rows = sub.map(function (w, j) { return [wl(w)].concat(series.map(function (s) { var v = s.vals[j]; return v == null ? (s.hid[j] ? '公表されていない' : '') : (idx ? v.toFixed(1) : v); })); });
         c.appendChild(details('グラフの数を表で見る', tableEl(head, rows.map(function (r) { return r.map(function (x, i) { return i && typeof x === 'number' && !idx ? fmt(x) : x; }); }), 1)));
@@ -990,6 +1049,7 @@
         var total = b.total != null ? b.total : b.items.reduce(function (s, x) { return s + x[1]; }, 0);
         c.appendChild(el('p', 'dkpi', '合計 <b>' + fmt(total) + '人</b>　<span class="sub">統計時点：' + esc(wl(when)) + '</span>'));
         if (b.partial) { c.appendChild(el('p', 'dhelp', esc(b.partial) + '。')); }
+        var vn = K.vnote(b.items.map(function (x) { return x[0]; })); if (vn) { c.appendChild(el('p', 'dhelp', esc(vn))); }
         var grid = el('div', 'cols');
         var parts = topWithOther(b.items, total, SLOTS);
         var pc = el('section', 'dsub'); pc.appendChild(el('h3', null, '円グラフ（多い7つと「その他」）')); pc.appendChild(pieChart(parts, total, title));
@@ -1218,7 +1278,7 @@
   // ---------- 画面：地域を詳しく
   function viewArea(box, alive) {
     var a = area(), when = whenOf(a);
-    return Promise.all([getSeries(a, S.nat, S.visa), getPop(a), getBreakdown(a, 'nat', when, S.visa), getBreakdown(a, 'visa', when, S.nat)]).then(function (r) {
+    return Promise.all([getSeries(a, S.nat, S.visa).then(function (s) { return explain(a, S.nat, S.visa, s); }), getPop(a), getBreakdown(a, 'nat', when, S.visa), getBreakdown(a, 'visa', when, S.nat)]).then(function (r) {
       if (!alive()) { return; }
       var s = r[0], i = s.per.indexOf(when), ctx = { pop: r[1] };
       var title = a.name + 'の' + whoText() + '（' + wl(when) + '）';
@@ -1230,11 +1290,12 @@
       kpi('1年間の増減', 'diff1'); kpi('5年間の増減', 'diff5'); kpi('10年間の増減', 'diff10');
       c.appendChild(k);
       var lc = el('section', 'dsub'); lc.appendChild(el('h3', null, '移り変わり'));
-      lc.appendChild(lineChart(s.per, [{ name: a.name, vals: s.val, hid: s.hid, cls: '1' }], { title: title })); c.appendChild(lc);
+      lc.appendChild(lineChart(s.per, [{ name: a.name, vals: s.val, hid: s.hid, why: s.why, cls: '1' }], { title: title })); c.appendChild(lc);
       var grid = el('div', 'cols');
       [['国籍・地域（多い10）', r[2]], ['在留資格（多い10）', r[3]]].forEach(function (x) {
         var sec = el('section', 'dsub'); sec.appendChild(el('h3', null, esc(x[0])));
         if (!x[1].items.length) { sec.appendChild(nodata(x[1].why)); } else { sec.appendChild(barList(x[1].items.slice(0, 10).map(function (y) { return [y[0], y[1]]; }), x[1].total || null, { rank: true })); }
+        var vn = K.vnote(x[1].items.slice(0, 10).map(function (y) { return y[0]; })); if (vn) { sec.appendChild(el('p', 'dhelp', esc(vn))); }
         grid.appendChild(sec);
       });
       c.appendChild(grid);

@@ -25,6 +25,20 @@
   function el(tag, cls, html) { var e = document.createElement(tag); if (cls) { e.className = cls; } if (html != null) { e.innerHTML = html; } return e; }
   function measure(ctx, t) { return ctx.measureText(t).width; }
   function maxW(ctx, list) { return list.reduce(function (m, t) { return Math.max(m, measure(ctx, t)); }, 0); }
+  // グラフの名前は画面（app.js）と同じように短くする（技術・人文知識・国際業務 → 技人国）。短くしたときは、出典の行に説明を入れる
+  var vs = window.KZ && window.KZ.vs || String, vnote = window.KZ && window.KZ.vnote || function () { return ''; };
+  function copy(o, patch) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); return c; }
+  function chartNames(ch) {
+    return [].concat((ch.parts || []).map(function (p) { return p.name; }), (ch.series || []).map(function (s) { return s.name; }),
+      (ch.rows || []).map(function (r) { return r[0]; }), (ch.sorted || []).map(function (r) { return r[0]; }));
+  }
+  function shortChart(ch) {
+    var row = function (r) { return [vs(r[0])].concat(r.slice(1)); };
+    return copy(ch, {
+      parts: ch.parts && ch.parts.map(function (p) { return copy(p, { name: vs(p.name) }); }),
+      series: ch.series && ch.series.map(function (s) { return copy(s, { name: vs(s.name) }); }),
+      rows: ch.rows && ch.rows.map(row), sorted: ch.sorted && ch.sorted.map(row) });
+  }
   function color(cls) { return C.s[cls] || C.s.o; }
 
   // ---- 文字を幅に収める
@@ -410,6 +424,8 @@
   // ---- 1枚の画像を組み立てる。opts.site：右下にサイトの名前を入れる
   function compose(items, size, title, opts) {
     opts = opts || {};
+    var vn = vnote([].concat.apply([], items.map(function (x) { return chartNames(x.chart); })));
+    items = items.map(function (x) { return copy(x, { chart: shortChart(x.chart) }); });
     var W = size[1], H = size[2], cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     var ctx = cv.getContext('2d'), u = H > W ? W / 56 : W / 64, pad = 2.6 * u;
     // 描いた字（あとで、その字の入った字のファイルを読み込む）と、字の置かれた四角（字が重なっていないかを確かめるため）
@@ -435,7 +451,7 @@
     // 出典（とサイトの名前）：下から高さを決める
     var siteW = 0;
     if (opts.site) { ctx.font = font(1.45 * u, true); siteW = measure(ctx, SITE) + 2 * u; }
-    var srcText = '出典：' + m.src + 'を加工して作成' + (ch.pop ? '。人口：総務省「住民基本台帳に基づく人口」' : '');
+    var srcText = '出典：' + m.src + 'を加工して作成' + (ch.pop ? '。人口：総務省「住民基本台帳に基づく人口」' : '') + (vn ? '　' + vn : '');
     var fs = fitLines(ctx, srcText, W - 2 * pad - siteW, 1.45 * u, false, 2, 1.05 * u);
     var footH = fs.lines.length * fs.size * 1.35 + 1.4 * u, bottom = H - pad - footH;
     // 大事な数（横長の地図は、地図と凡例を大きくするため出さない。いちばん多い所は「多い順」にある）
