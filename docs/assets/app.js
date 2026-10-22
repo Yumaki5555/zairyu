@@ -205,6 +205,11 @@
     if (!shape) { holder.innerHTML = '<p class="note">地図の形を読み込めませんでした（下の表をご覧ください）。</p>'; return; }
     var g = svg('svg', { viewBox: '0 0 ' + shape.w + ' ' + shape.h, class: 'jmap', role: 'img', 'aria-label': opt.label + 'の地図' });
     var parts = shape.prefs || shape.areas, drawn = {};
+    (shape.frames || []).forEach(function (f) { // 島の集まりごとの枠（沖縄県）
+      var b = f.box;
+      g.appendChild(svg('rect', { x: b[0], y: b[1], width: b[2] - b[0], height: b[3] - b[1], class: 'frame', rx: 6 }));
+      var t = svg('text', { x: b[0] + 8, y: b[1] + 20, class: 'frame-lb' }); t.textContent = f.label; g.appendChild(t);
+    });
     Object.keys(parts).forEach(function (key) {
       var none = key.indexOf('none:') === 0, unk = !none && opt.unknown && opt.unknown.indexOf(key) >= 0, memo = d.notes && d.notes[key];
       var v = opt.values[key] || 0, bb = v > 0 ? binOf(v, cs) : -1;
@@ -390,4 +395,8 @@
     if (more) { more.addEventListener('click', function () { all = !all; draw(); }); }
     draw();
   });
+
+  // ダッシュボード（dash.js）でも使う部品
+  window.KZ = { fmt: fmt, pct: pct, esc: esc, svg: svg, showTip: showTip, hideTip: hideTip, cuts: cuts, binOf: binOf, shade: shade,
+    loadShape: loadShape, BINS: BINS };
 })();

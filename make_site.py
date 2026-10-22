@@ -10,6 +10,8 @@
 #     city-<名前>.html      政令市（区の合計）
 #     nat-<国籍>.html       国籍・地域ごと（在留資格とその移り変わり・都道府県の地図・市区町村）
 #   グラフの部品（円グラフ・棒グラフ・表の切り替え、地図、いくつかの線の折れ線、選んで見る表）は site_assets/app.js、見た目は site_assets/style.css
+#     sokuho.html           法務省・半期速報（報道発表の数。確定統計とは分けて示す。数は site/data/sokuho.json）
+#     dash.html             ダッシュボード（絞り込み・地図・推移・内訳・ランキング・比較。数は make_dash_data.py が作る site/data/*.json）
 #   地図の形は site_assets/map/*.json（make_map.py で国土地理院「地球地図日本」から作る）。site/assets/ に写す
 #   （ページに書いた数から JavaScript でグラフを作る。JavaScript が動かなくても表は見える）。
 #   数はそのまま示し、良い・悪いの言葉は使わない。数え方のちがい（2011年までは登録外国人統計）はグラフと注意書きで示す
@@ -284,22 +286,26 @@ def cross_table(nat_items, xd, n=8):
             f"{out}</table></div>")
 
 
-CSS_VER = "3"
+CSS_VER = "5"
 
 
-def page(title, crumbs, body, desc):
+JP_FONT = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+           '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap">')  # 画像に日本語を正しく描くため（X投稿用の画像のあるページだけ）
+
+
+def page(title, crumbs, body, desc, css=(), js=()):
     crumb = " › ".join(f'<a href="{h}">{esc(t)}</a>' if h else esc(t) for t, h in crumbs)
     return f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)}｜{esc(SITE_NAME)}</title><meta name="description" content="{esc(desc)}">
-<link rel="stylesheet" href="assets/style.css?v={CSS_VER}"></head><body>
+{JP_FONT if "share.js" in js else ""}<link rel="stylesheet" href="assets/style.css?v={CSS_VER}">{"".join(f'<link rel="stylesheet" href="assets/{c}?v={CSS_VER}">' for c in css)}</head><body>
 <header class="top"><div class="in"><div class="brand"><a class="home" href="index.html">{esc(SITE_NAME)}</a><span class="tag">{esc(TAGLINE)}</span></div>
-<nav class="menu"><a href="index.html">日本全体</a><a href="index.html#prefs">都道府県</a><a href="nat-index.html">国籍・地域</a><a href="about.html">このサイトについて</a></nav>
+<nav class="menu"><a href="dash.html">ダッシュボード</a><a href="sokuho.html">半期速報</a><a href="index.html">日本全体</a><a href="index.html#prefs">都道府県</a><a href="nat-index.html">国籍・地域</a><a href="about.html">このサイトについて</a></nav>
 <nav class="crumb">{crumb}</nav></div></header>
 <main>{body}</main>
 <footer>出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」を加工して作成。
 数は国の発表のまま示しています。良い・悪いの判断はしていません。データは{when_label(LATEST)}まで。ページを作った日 {date.today():%Y年%m月%d日}。</footer>
-<script src="assets/app.js?v={CSS_VER}" defer></script>
+<script src="assets/app.js?v={CSS_VER}" defer></script>{"".join(f'<script src="assets/{j}?v={CSS_VER}" defer></script>' for j in js)}
 </body></html>
 """
 
@@ -472,6 +478,7 @@ def top_page(d):
     sets += [visa_set(d, n, lambda w, n=n: d.nat_visa.get((w, n))) for n, _, _ in ni[:20]]
     body = f"""<h1>日本に住む外国人の数</h1>
 <p class="lead">出入国在留管理庁が発表している在留外国人の数を、国籍・在留資格・都道府県・市区町村ごとに見られるようにしたサイトです。</p>
+{DASH_MENU}
 {kpis(now, s, "日本全体")}
 <section class="card"><h2>移り変わり（1959年〜{LATEST[:4]}年）</h2>{line_chart(s, "在留外国人の数の移り変わり")}</section>
 <div class="cols">
@@ -702,6 +709,47 @@ def city_page(d, key, rank_in):
                 f"{pref}{city}の在留外国人は{when_label(LATEST)}に{num(s.get(LATEST, 0))}人。国籍・在留資格・区ごとの数。")
 
 
+DASH_MENU = """<nav class="bigmenu" aria-label="ダッシュボード">
+<a href="dash.html#v=map"><b>全国マップ</b><span>都道府県・市区町村ごとの人数や割合を地図の色で</span></a>
+<a href="dash.html#v=trend"><b>年別の推移</b><span>1959年からの移り変わり。国籍・在留資格・地域を重ねて比べる</span></a>
+<a href="dash.html#v=visa"><b>在留資格の内訳</b><span>地域と国籍を選んで、在留資格の円グラフと横棒</span></a>
+<a href="dash.html#v=area"><b>地域を詳しく</b><span>市区町村まで選んで、人数・割合・増減をまとめて</span></a>
+</nav>
+<p class="note">ほかに、<a href="dash.html#v=nat">国籍の構成</a>・<a href="dash.html#v=rank">ランキング</a>・<a href="dash.html#v=cmp">地域の比較</a>もあります。</p>"""
+
+
+def dash_page():
+    menu = "".join(f'<a href="#v={k}" data-v="{k}">{t}</a>' for k, t in (
+        ("map", "全国マップ"), ("trend", "年別の推移"), ("visa", "在留資格の内訳"), ("nat", "国籍の構成"),
+        ("rank", "ランキング"), ("cmp", "地域比較"), ("area", "地域を詳しく"))) + '<a class="dext" href="sokuho.html">法務省・半期速報</a>' 
+    body = f"""<h1>ダッシュボード</h1>
+<p class="dintro">地域・国籍・在留資格・時点を選ぶと、地図・グラフ・ランキングが変わります。選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。</p>
+<div id="dash"><nav class="dmenu" aria-label="見方">{menu}</nav>
+<div id="dash-filter"></div><div id="dash-loading" hidden>読み込み中…</div><div id="dash-view"><p class="dhelp">読み込み中…</p></div></div>
+<noscript><p class="note">このページは JavaScript を使います。JavaScript が動かないときは、<a href="index.html">日本全体</a>や都道府県・国籍のページの表をご覧ください。</p></noscript>
+{NOTES}"""
+    return page("ダッシュボード", [("日本全体", "index.html"), ("ダッシュボード", None)], body,
+                "在留外国人の数を、地域・国籍・在留資格・時点を選んで地図・グラフ・ランキングで見るダッシュボード。", css=("dash.css",), js=("share.js", "dash.js"))
+
+
+def sokuho_page():
+    body = f"""<h1>法務省・半期速報</h1>
+<p class="dintro">出入国在留管理庁が毎年6月末と12月末の数を発表する「在留外国人数について」（報道発表）の数です。
+国籍・地域は発表にのっている上位だけ（2022年末までは上位10、2023年6月末からは上位20）で、市区町村の数はありません。
+あとで e-Stat に出る確定統計とは別に記録し、<span class="sbadge sp">速報</span><span class="sbadge cf">確定統計</span>の印で分けて示します。</p>
+<div id="sokuho"><div id="sokuho-ctl"></div><div id="sokuho-view"><p class="dhelp">読み込み中…</p></div></div>
+<noscript><p class="note">このページは JavaScript を使います。数は GitHub の データ/半期速報/半期速報.csv でも見られます。</p></noscript>
+<section class="card note"><h2>このページの数について</h2><ul>
+<li>法務省の今のサイトにある発表（令和2年末〜）を取り込んでいます。それより前の発表は今のサイトにないため、入れていません。</li>
+<li>発表ごとに、資料の URL と公表日を記録しています。同じ時点の発表は1つだけ取り込み、前の発表の数を上書きしません。</li>
+<li>取り込むときに、内わけの合計が総数と合うか、同じ時点の確定統計（e-Stat）と同じかを確かめています。</li>
+<li>市区町村ごとの数や、国籍×在留資格のくわしい数は<a href="dash.html">ダッシュボード</a>（確定統計）で見られます。</li>
+</ul></section>"""
+    return page("法務省・半期速報", [("日本全体", "index.html"), ("法務省・半期速報", None)], body,
+                "法務省（出入国在留管理庁）の半期速報「在留外国人数について」の国籍・在留資格・都道府県別の数と移り変わり。",
+                css=("dash.css",), js=("share.js", "dash.js", "sokuho.js"))
+
+
 def about_page():
     body = f"""<h1>このサイトについて</h1>
 <section class="card"><h2>目的</h2><p>日本に住む外国人について考えるときの材料として、国（出入国在留管理庁）が発表している数を、国籍・在留資格・都道府県・市区町村ごとに見やすくしたサイトです。
@@ -710,7 +758,9 @@ def about_page():
 <li>出入国在留管理庁「在留外国人統計」（2012年12月末〜{when_label(LATEST)}）。2013年からは6月末と12月末の年2回</li>
 <li>同「登録外国人統計」（1959〜2011年末。2011年までの数え方）。1959〜2005年は紙の統計書のスキャンしかないため、画像から数字を読み取り、
 合計がすべて合うことを確かめて使っています。元の統計書の数そのものが合っていない所（印刷のずれ）は、数を直さずに記録しています</li>
-<li>どちらも政府統計の総合窓口（e-Stat）で公開されているものです</li></ul></section>
+<li>どちらも政府統計の総合窓口（e-Stat）で公開されているものです</li>
+<li>外国人の割合の分母：総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」（日本人住民と外国人住民の合計、各年1月1日現在。2014年から）。12月末の在留外国人の数を、翌年1月1日の人口で割っています</li>
+<li><a href="sokuho.html">半期速報</a>：出入国在留管理庁の報道発表「〇年〇月末現在における在留外国人数について」（令和2年末から）。確定統計とは別に示しています</li></ul></section>
 <section class="card note"><h2>数を見るときの注意</h2><ul>
 <li><b>2011年までと2012年からで数え方が違います。</b>2011年までは「外国人登録をした人」（短い期間の滞在の人なども入る）、2012年12月末からは「中長期在留者と特別永住者」です。つなげて増え方を見るときは注意してください。</li>
 <li>市区町村ごとの数は、2023年6月末までは主な国籍だけ、2023年12月末からは全部の国籍が公表されています。</li>
@@ -734,7 +784,7 @@ def main():
             if f.endswith(".html"):
                 os.remove(os.path.join(OUT, f))
     os.makedirs(os.path.join(OUT, "assets"), exist_ok=True)
-    for f in ("app.js", "style.css"):
+    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js"):
         shutil.copyfile(os.path.join(BASE, "site_assets", f), os.path.join(OUT, "assets", f))
     src, dst = os.path.join(BASE, "site_assets", "map"), os.path.join(OUT, "assets", "map")  # 地図の形
     os.makedirs(dst, exist_ok=True)
@@ -742,7 +792,7 @@ def main():
         os.remove(os.path.join(dst, f))
     for f in os.listdir(src):
         shutil.copyfile(os.path.join(src, f), os.path.join(dst, f))
-    pages = {"index.html": top_page(d), "nat-index.html": nat_index_page(d), "about.html": about_page()}
+    pages = {"index.html": top_page(d), "nat-index.html": nat_index_page(d), "about.html": about_page(), "dash.html": dash_page(), "sokuho.html": sokuho_page()}
     for p in PREFS:
         pages[PREF_FILE[p]] = pref_page(d, p)
     for p in PREFS:  # 市区町村：都道府県の中の順位（政令市は区の合計で1つ）

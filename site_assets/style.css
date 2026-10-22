@@ -4,8 +4,10 @@
   --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --sub: #5b6474; --line: #dfe3ea; --accent: #2a5f96;
   --grid: #e1e0d9; --old: #9aa3b2; --mark: #b7791f;
   --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #6250d6; --co: #b9bdc5;
-  --s0: #cde2fb; --s1: #9ec5f4; --s2: #6da7ec; --s3: #3987e5; --s4: #256abf; --s5: #184f95; --s6: #0d366b; --sz: #eef0f3;
-  --s-ink-0: #0b0b0b; --s-ink-1: #0b0b0b; --s-ink-2: #0b0b0b; --s-ink-3: #0b0b0b; --s-ink-4: #ffffff; --s-ink-5: #ffffff; --s-ink-6: #ffffff;
+  --s0: #fde9d7; --s1: #fbcfa6; --s2: #f7ae70; --s3: #f08a3e; --s4: #d76a1f; --s5: #ac4f12; --s6: #7c360b; --sz: #eef0f3;
+  --d1: #cfe1f6; --d2: #8fb8e8; --d3: #4a86cf;
+  --btn: #1f7a4f; --btn-ink: #ffffff; --btn-soft: #e6f4ec; --btn-line: #9fd3b7;
+  --s-ink-0: #0b0b0b; --s-ink-1: #0b0b0b; --s-ink-2: #0b0b0b; --s-ink-3: #0b0b0b; --s-ink-4: #0b0b0b; --s-ink-5: #ffffff; --s-ink-6: #ffffff;
   --bar: #2a78d6; --edge: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
@@ -13,7 +15,9 @@
     --bg: #14171c; --card: #1d2128; --text: #e7eaf0; --sub: #9aa3b2; --line: #2e343e; --accent: #8fb5dd;
     --grid: #2c2c2a; --old: #6b7380; --mark: #d9a441;
     --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --co: #5b616b;
-    --s0: #16263d; --s1: #184f95; --s2: #256abf; --s3: #3987e5; --s4: #6da7ec; --s5: #9ec5f4; --s6: #cde2fb; --sz: #23272e;
+    --s0: #3b2414; --s1: #64361a; --s2: #8f4a1d; --s3: #c4621f; --s4: #ef8a3d; --s5: #f7ae70; --s6: #fcd3ad; --sz: #23272e;
+    --d1: #1d3554; --d2: #2f5f99; --d3: #5f97dd;
+    --btn: #43b581; --btn-ink: #08150e; --btn-soft: #16291f; --btn-line: #2c5a43;
     --s-ink-0: #e7eaf0; --s-ink-1: #ffffff; --s-ink-2: #ffffff; --s-ink-3: #0b0b0b; --s-ink-4: #0b0b0b; --s-ink-5: #0b0b0b; --s-ink-6: #0b0b0b;
     --bar: #3987e5; --edge: #48505d;
   }
@@ -22,12 +26,14 @@
   --bg: #14171c; --card: #1d2128; --text: #e7eaf0; --sub: #9aa3b2; --line: #2e343e; --accent: #8fb5dd;
   --grid: #2c2c2a; --old: #6b7380; --mark: #d9a441;
   --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --co: #5b616b;
-  --s0: #16263d; --s1: #184f95; --s2: #256abf; --s3: #3987e5; --s4: #6da7ec; --s5: #9ec5f4; --s6: #cde2fb; --sz: #23272e;
+  --s0: #3b2414; --s1: #64361a; --s2: #8f4a1d; --s3: #c4621f; --s4: #ef8a3d; --s5: #f7ae70; --s6: #fcd3ad; --sz: #23272e;
+    --d1: #1d3554; --d2: #2f5f99; --d3: #5f97dd;
+    --btn: #43b581; --btn-ink: #08150e; --btn-soft: #16291f; --btn-line: #2c5a43;
   --s-ink-0: #e7eaf0; --s-ink-1: #ffffff; --s-ink-2: #ffffff; --s-ink-3: #0b0b0b; --s-ink-4: #0b0b0b; --s-ink-5: #0b0b0b; --s-ink-6: #0b0b0b;
   --bar: #3987e5; --edge: #48505d;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
+body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 17px;
        font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', Meiryo, system-ui, sans-serif; }
 a { color: var(--accent); }
 header.top { background: var(--card); border-bottom: 1px solid var(--line); }
@@ -78,7 +84,7 @@ details { margin-top: 8px; font-size: 14px; }
 .modes { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 0 0 10px; }
 .modes button { font: inherit; font-size: 14px; padding: 6px 14px; min-height: 40px; border: 0; background: var(--card); color: var(--text); cursor: pointer; }
 .modes button + button { border-left: 1px solid var(--line); }
-.modes button[aria-pressed="true"] { background: var(--accent); color: var(--card); font-weight: 700; }
+.modes button[aria-pressed="true"] { background: var(--btn); color: var(--btn-ink); font-weight: 700; }
 
 /* 円グラフ */
 .pie-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
@@ -133,10 +139,15 @@ svg.jmap path.area.hl { stroke: var(--text); stroke-width: 2; }
 svg.jmap a:focus-visible path.area { stroke: var(--text); stroke-width: 2.5; }
 svg.jmap .b0 { fill: var(--s0); } svg.jmap .b1 { fill: var(--s1); } svg.jmap .b2 { fill: var(--s2); } svg.jmap .b3 { fill: var(--s3); }
 svg.jmap .b4 { fill: var(--s4); } svg.jmap .b5 { fill: var(--s5); } svg.jmap .b6 { fill: var(--s6); } svg.jmap .b-z { fill: var(--sz); }
+svg.jmap .d1 { fill: var(--d1); } svg.jmap .d2 { fill: var(--d2); } svg.jmap .d3 { fill: var(--d3); }
+.d1 { background: var(--d1); } .d2 { background: var(--d2); } .d3 { background: var(--d3); color: #fff; }
 svg.jmap .b-n, svg.jmap .b-u { fill: var(--bg); stroke: var(--sub); stroke-dasharray: 3 2; }
 svg.jmap .b-n { cursor: default; }
 svg.jmap rect.inset { fill: transparent; stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; }
 .map-legend .sw.b-n { background: var(--bg); border-style: dashed; }
+svg.jmap rect.frame { fill: none; stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+svg.jmap .frame-lb { fill: var(--sub); font-size: 13px; pointer-events: none; }
+@media (max-width: 600px) { svg.jmap .frame-lb { font-size: 20px; } }
 
 /* いくつかの線の折れ線（国籍ごとの在留資格の移り変わり） */
 .lines-ctl { margin-bottom: 10px; font-size: 15px; }
@@ -169,3 +180,11 @@ footer { font-size: 13px; color: var(--sub); }
   svg .ax { font-size: 24px; } svg .dot { r: 5; }
   ul.hbars li { grid-template-columns: minmax(6em, 38%) 1fr auto; } .hbars .p { display: none; }
 }
+
+/* トップページのダッシュボードへの入り口 */
+.bigmenu { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0 4px; }
+.bigmenu a { display: flex; flex-direction: column; gap: 4px; padding: 14px 14px; border-radius: 12px; background: var(--btn); color: var(--btn-ink); text-decoration: none; min-height: 96px; }
+.bigmenu a b { font-size: 19px; }
+.bigmenu a span { font-size: 14px; opacity: .92; line-height: 1.5; }
+.bigmenu a:hover, .bigmenu a:focus-visible { outline: 3px solid var(--btn-line); outline-offset: 2px; }
+@media (max-width: 760px) { .bigmenu { grid-template-columns: 1fr 1fr; } }

@@ -8,6 +8,7 @@
 #     site/ のサイトのページ → 写す先では docs/（GitHub Pages で docs/ を公開する）。docs/.nojekyll も作る（GitHub に手を加えさせず、そのまま出す印）
 #     元データ/ のうち、人が手で作った一覧と出どころ一覧だけ
 #       出どころ一覧.csv（e-Stat の番号・URL・公開日。元のファイルはここから取り直せる）
+#       人口_出どころ一覧.csv・半期速報_出どころ一覧.csv（住民基本台帳人口と法務省の半期速報の資料の URL・公表日）
 #       OCR直し.csv・印刷のまま.csv・名前の直し.csv（画像で確かめて直した所・印刷のまま残した所・市区の名前の直し）
 #   公開しないもの：元データ/ の e-Stat から落としたファイル（Excel・PDF）と、画像の読み取り結果、国土地理院から落とした地図のデータ（大きく、取り直せるため）
 #
@@ -18,7 +19,7 @@ import shutil
 import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-HAND_MADE = ["出どころ一覧.csv", "OCR直し.csv", "印刷のまま.csv", "名前の直し.csv"]
+HAND_MADE = ["出どころ一覧.csv", "OCR直し.csv", "印刷のまま.csv", "名前の直し.csv", "人口_出どころ一覧.csv", "半期速報_出どころ一覧.csv"]
 KEEP = {".git", ".gitignore", "LICENSE"}  # 写す先で別に作るもの（消さない）
 EMPTY = object()  # 中身のないファイルを作る印
 

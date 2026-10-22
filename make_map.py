@@ -4,7 +4,8 @@
 #     https://www.gsi.go.jp/kankyochiri/gm_jpn.html から（国土地理院コンテンツ利用規約）
 #   作るもの
 #     japan.json         都道府県の形（市区町村を都道府県ごとにまとめたもの）。沖縄県は左上の枠の中に移し、1.3倍にする
-#     pref-<ローマ字>.json  都道府県の中の市区町村の形（市区町村のコード、政令市は名前）。東京都は伊豆諸島・小笠原を入れない
+#     pref-<ローマ字>.json  都道府県の中の市区町村の形（市区町村のコード、政令市は名前）。東京都は伊豆諸島・小笠原を入れない。
+#                         沖縄県は島が広く散らばっているので、島の集まりごとに枠に分けて置く（OKI_GROUPS）
 #   形の軽くし方: 点を画面の格子（地図の幅を約1000・600に分けたます目）に寄せる。となり合う市区町村は同じ点を持つので、
 #   寄せたあとも境目がずれない。都道府県の形は、同じ都道府県の中で向きの逆な辺どうしを消して作る
 import json
@@ -32,6 +33,20 @@ CITY = {"01100": "札幌市", "04100": "仙台市", "11100": "さいたま市", 
         "15100": "新潟市", "22100": "静岡市", "22130": "浜松市", "23100": "名古屋市", "26100": "京都市", "27100": "大阪市", "27140": "堺市",
         "28100": "神戸市", "33100": "岡山市", "34100": "広島市", "40100": "北九州市", "40130": "福岡市", "43201": "熊本市"}
 TERRITORY = {"01695", "01696", "01697", "01698", "01699", "01700"}  # 北方領土の6村（統計はない）
+# 沖縄県の島の集まり：(枠の名前, 輪の中心（経度, 緯度）が入る条件, 大きさの倍率, 枠の左上の位置)。
+#   本島とその周り・宮古・八重山・尖閣諸島は同じ大きさ（1度=OKI_S）。遠くの小さな島（大東諸島・沖大東島・硫黄鳥島）は大きくする。並びは西から東、北から南におおよそ合わせる
+OKI_S = 240
+OKI_GROUPS = [
+    ("沖縄本島とその周り", lambda lon, lat: 126.5 <= lon <= 128.5 and 25.9 <= lat <= 27.2, 1, (268, 4)),
+    ("尖閣諸島", lambda lon, lat: lon < 125 and lat > 25.5, 1, (4, 4)),
+    ("硫黄鳥島", lambda lon, lat: lat > 27.5, 6, (4, 112)),
+    ("八重山", lambda lon, lat: lon < 124.6 and lat < 25.0, 1, (4, 306)),
+    ("宮古", lambda lon, lat: 124.6 <= lon <= 125.6 and lat < 25.2, 1, (340, 306)),
+    ("大東諸島", lambda lon, lat: lon > 130 and lat > 25, 2.5, (544, 306)),
+    ("沖大東島", lambda lon, lat: lon > 130 and lat < 25, 6, (544, 452)),
+]
+OKI_NOTE = ("島が広く散らばっているため、島の集まりごとに枠に分けて置いています。「沖縄本島とその周り」「宮古」「八重山」「尖閣諸島」は同じ縮尺で、"
+            "大東諸島・沖大東島・硫黄鳥島は大きくしています。枠どうしの位置や距離は実際とは違います")
 
 
 def read_dbf(path):
@@ -130,6 +145,41 @@ def path(rings):
     return "".join("M" + "L".join(f"{x},{y}" for x, y in r) + "Z" for r in rings)
 
 
+def okinawa(mine):
+    """沖縄県の市町村の形を、島の集まりごとの枠に分けて置く。{"w","h","areas","frames","note"}"""
+    PAD, LABEL, MINW = 8, 28, 96  # 枠の内側の余白・枠の名前を書く高さ・枠のいちばん小さい幅
+    kk = math.cos(math.radians(25.5))
+    groups = defaultdict(list)
+    for a, rings in mine:
+        for ring in rings:
+            lon, lat = sum(x for x, _ in ring) / len(ring), sum(y for _, y in ring) / len(ring)
+            g = [n for n, test, _, _ in OKI_GROUPS if test(lon, lat)]
+            if len(g) != 1:
+                sys.exit(f"沖縄県の島の集まりが決まらない輪：{a}（{lon:.2f}, {lat:.2f}）")
+            groups[g[0]].append((a, ring))
+    areas, frames = defaultdict(list), []
+    for name, _, mult, (fx, fy) in OKI_GROUPS:
+        items = groups[name]
+        lons = [lon for _, r in items for lon, _ in r]
+        lats = [lat for _, r in items for _, lat in r]
+        sc = OKI_S * mult
+        w, h = (max(lons) - min(lons)) * kk * sc, (max(lats) - min(lats)) * sc
+        fw = max(MINW, round(w) + 2 * PAD)
+        x0, y0 = fx + (fw - w) / 2, fy + LABEL + PAD
+        for a, ring in items:
+            q = quantize(ring, lambda lon, lat: (round(x0 + (lon - min(lons)) * kk * sc), round(y0 + (max(lats) - lat) * sc)))
+            if q:
+                areas[a].append(q)
+        frames.append({"box": [fx, fy, fx + fw, round(y0 + h) + PAD], "label": name})
+    for i, f in enumerate(frames):  # 枠が重ならないか
+        for g in frames[i + 1:]:
+            a, b = f["box"], g["box"]
+            if a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]:
+                sys.exit(f"沖縄県の枠が重なっています：{f['label']} と {g['label']}")
+    return {"w": max(f["box"][2] for f in frames) + 4, "h": max(f["box"][3] for f in frames) + 4,
+            "areas": {a: path(r) for a, r in areas.items()}, "frames": frames, "note": OKI_NOTE}
+
+
 def main():
     rows = read_dbf(os.path.join(SRC, "polbnda_jpn.dbf"))
     polys = read_polygons(os.path.join(SRC, "polbnda_jpn.shp"))
@@ -196,6 +246,13 @@ def main():
     # 都道府県ごとの市区町村
     for pi, pref in enumerate(PREFS):
         mine = [(a, rings) for p, a, rings in recs if p == pref]
+        fn = os.path.join(OUT, f"pref-{ROMA[pi]}.json")
+        if pref == "沖縄県":
+            out = okinawa(mine)
+            with open(fn, "w", encoding="utf-8") as f:
+                json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+            print("沖縄県の枠", " ".join(f"{fr['label']}{fr['box']}" for fr in out["frames"]), f"全体 {out['w']}×{out['h']}")
+            continue
         keep = []
         for a, rings in mine:
             for ring in rings:
@@ -216,7 +273,6 @@ def main():
         out = {"w": Wp, "h": Hp, "areas": {a: path(r) for a, r in areas.items()}}
         if pref == "東京都":
             out["note"] = "伊豆諸島・小笠原諸島は地図に入れていません"
-        fn = os.path.join(OUT, f"pref-{ROMA[pi]}.json")
         with open(fn, "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT))
