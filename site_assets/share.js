@@ -57,6 +57,11 @@
       markNote: ch.kind === 'cross' && !ch.markNote ? CROSS_NOTE : ch.markNote });
   }
   function color(cls) { return C.s[cls] || C.s.o; }
+  // 凡例の色見本。点線の線（色の数より多い分類。不法残留の国籍・地域の8つ目からなど）は、見本も点線（短い太線を2つ）にする
+  function swatch(ctx, it, x, cy, s) {
+    ctx.fillStyle = color(it.cls);
+    if (it.dash) { ctx.fillRect(x, cy - s * 0.22, s * 0.4, s * 0.44); ctx.fillRect(x + s * 0.6, cy - s * 0.22, s * 0.4, s * 0.44); } else { ctx.fillRect(x, cy - s / 2, s, s); }
+  }
 
   // ---- 文字を幅に収める
   // 数（4,281,026 や 22.5%）は途中で切らない。行のはじめに来ない字（、。）など）は前の字といっしょに次の行へ
@@ -159,7 +164,7 @@
       }
       items.forEach(function (it, i) { // 多い順に、左の列の上から下へ
         var cx = x + Math.floor(i / p.perCol) * (p.cellW + g), cy = y + (i % p.perCol) * p.rowH + p.rowH / 2;
-        ctx.fillStyle = color(it.cls); ctx.fillRect(cx, cy - p.sw / 2, p.sw, p.sw);
+        swatch(ctx, it, cx, cy, p.sw);
         ctx.textBaseline = 'middle'; ctx.fillStyle = C.text;
         ctx.font = font(p.vf); ctx.textAlign = 'right'; ctx.fillText(it.val, cx + p.cellW, cy);
         ctx.font = font(p.nf, true); ctx.textAlign = 'left'; ctx.fillText(clip(ctx, it.name, p.cellW - p.sw - 0.6 * u - p.vlW - 1.2 * u), cx + p.sw + 0.6 * u, cy);
@@ -198,7 +203,7 @@
         lg = { hl: hl, hf: hf, headH: headH, lh: lh, nf: nf, vf: vf, sw: sw, rowW: rowW, vals: vals, vlW: vlW, top: y + Math.max(0, (h - headH - n * lh) / 2) };
       }
     }
-    if (multi && !legRight) { leg = legendBelow(ctx, series.map(function (s) { return { cls: s.cls, name: s.name, val: valText(s) }; }), w, h * 0.34, u, head.replace('　', '（') + (head.indexOf('　') >= 0 ? '）' : '')); }
+    if (multi && !legRight) { leg = legendBelow(ctx, series.map(function (s) { return { cls: s.cls, dash: s.dash, name: s.name, val: valText(s) }; }), w, h * 0.34, u, head.replace('　', '（') + (head.indexOf('　') >= 0 ? '）' : '')); }
     var T = y + (mark ? fa * 2 : fa * 0.6), B = y + h - fa * 2 - (leg ? leg.h + 1.4 * u : 0);
     var all = []; series.forEach(function (s) { s.vals.forEach(function (v) { if (v != null) { all.push(v); } }); });
     var nt = Math.max(2, Math.min(5, Math.floor((B - T) / (3 * u))));
@@ -237,9 +242,10 @@
     }
     series.forEach(function (s) {
       ctx.strokeStyle = color(s.cls); ctx.lineWidth = Math.max(3, 0.34 * u); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.setLineDash(s.dash ? [1.1 * u, 0.9 * u] : []); // 点線の線（s.dash）
       ctx.beginPath(); var pen = false;
       s.vals.forEach(function (v2, i) { if (v2 == null) { pen = false; return; } if (pen) { ctx.lineTo(X(xs[i]), Y(v2)); } else { ctx.moveTo(X(xs[i]), Y(v2)); pen = true; } });
-      ctx.stroke();
+      ctx.stroke(); ctx.setLineDash([]);
       s.vals.forEach(function (v2, i) { // 前後がない点（線にならない点）と最後の点は丸で示す
         if (v2 == null) { return; }
         var alone = s.vals[i - 1] == null && s.vals[i + 1] == null, last = i === s.vals.length - 1 || s.vals.slice(i + 1).every(function (q) { return q == null; });
@@ -253,7 +259,7 @@
       ly += lg.headH;
       series.forEach(function (s, i) {
         var cy = ly + i * lg.lh + lg.lh / 2, tx = lx + lg.sw + 0.6 * u;
-        ctx.fillStyle = color(s.cls); ctx.fillRect(lx, cy - lg.sw / 2, lg.sw, lg.sw);
+        swatch(ctx, s, lx, cy, lg.sw);
         ctx.textBaseline = 'middle';
         ctx.font = font(lg.vf); ctx.fillStyle = C.text; ctx.textAlign = 'right'; ctx.fillText(lg.vals[i], lx + lg.rowW, cy);
         ctx.font = font(lg.nf, true); ctx.textAlign = 'left'; ctx.fillText(clip(ctx, s.name, lg.rowW - lg.sw - 0.6 * u - lg.vlW - 1.2 * u), tx, cy);

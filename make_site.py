@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "18"
+CSS_VER = "19"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -1583,7 +1583,8 @@ def fuho_page():
     n_total = new[(new["時点"] == last) & (new["表"] == "国籍・地域別") & (new["名前"] == "総数")].set_index("区分")["人数"]
     new_sec = ""
     if last in new_whens:
-        before = [w for w in whens if w < last][-1]
+        # 新規の表が比べている前の時点は発表ごとに違う（2026年1月1日の発表は1年前、2026年7月1日の発表は半年前）。表に時点の列はないので、総数が同じ時点を探す
+        before = max(w for w in whens if w < last and total[w] == n_total["前の時点の数"])
         new_sec = f"""<section class="card" id="new"><h2>新しく分かった不法残留者（新規）</h2>
 <p>{day_label(before)}のあとに新しく分かり、{day_label(last)}も不法残留している人（国の発表では「新規不法残留者」）は <b>{num(n_total["新規"])}人</b>で、
 {day_label(last)}の不法残留者数の{n_total["新規"] / n_total["その時点の数"] * 100:.1f}%です。
@@ -1596,46 +1597,54 @@ def fuho_page():
 
     pubs = t.drop_duplicates("発表の時点")[["発表の時点", "公表日", "発表のページ"]].sort_values("発表の時点", ascending=False).values.tolist()
     pub_list = "".join(f'<li><a href="{esc(u)}">{day_label(w)}現在</a>（公表 {ymd_text(p)}）</li>' for w, p, u in pubs)
+    # 見せる順（大事なものから）：① 全国の総数と増減 → ② 国籍・地域別 → ③ 選んだ国籍・地域のくわしい数 → ④ 在留資格別 → ⑤ 推移 → ⑥ 新規・減少 → ⑦ くわしい数 → ⑧ 出典と注意（たたむ）。
+    # ①〜⑦ は fuho.js が選んだ時点・国籍・地域に合わせて作る。JavaScript が動かないときは、同じ順でいちばん新しい発表の数を noscript に書いておく（目次のリンク先の id も同じ）
+    up = '<p class="kup"><a href="#toc">↑ 上に戻る（目次）</a></p>'
     body = f"""<h1>不法残留者数</h1>
 <p class="lead">在留期間が過ぎたあとも日本から出国していない外国人の数です（国の発表のことばで「不法残留者」）。出入国在留管理庁が毎年1月1日と7月1日の数を発表しています。
 <a href="index.html">在留外国人の数</a>（在留外国人統計）とは別の統計で、在留外国人の数には入っていません。</p>
-<p class="meta"><span>対象：<b>日本全体</b></span><span>時点：<b>{day_label(last)}現在</b>（{ymd_text(pub["公表日"])}公表の発表）</span></p>
-{jump([("rank", "ランキング"), ("trend", "移り変わり"), ("grow", "増減"), ("pie", "構成"), ("cross", "国籍・地域×在留資格"), ("new", "新規"), ("notes", "注意と出典")])}
-{kpi}
-<p class="dintro">表（国籍・地域／在留資格）と時点（発表）を選ぶと、ランキング・増減・構成が変わります。移り変わりでは、比べる国籍・地域（男女別も）と期間を選べます。
-選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。どの図も「画像を保存」で X投稿用の画像にできます。</p>
+<p class="meta"><span>対象：<b>日本全体</b></span><span>時点：<b>{day_label(last)}現在</b>（{ymd_text(pub["公表日"])}公表の発表。移り変わりは{day_label(whens[0])}から）</span></p>
+<p class="dintro">すぐ下の欄で「時点」と「国籍・地域」を選ぶと、ページ全体が切り替わります。選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。どの図も「画像を保存」で X投稿用の画像にできます。</p>
 <div id="fuho"><div id="fuho-ctl"></div><div id="fuho-view"><p class="dhelp">読み込み中…</p></div></div>
 <noscript><p class="note">選んで見る部分は JavaScript を使います。下は、いちばん新しい発表の数です。</p>
-<section class="card" id="trend"><h2>不法残留者数の移り変わり</h2>
-{chart_total}
-<p class="note">{whens[0][:4]}〜2020年は、毎年1月1日の数です（発表の表にある時点）。2021年からは1月1日と7月1日の年2回です。
-それより前の数は、発表の資料ではグラフの絵だけで表がないため、ここには入れていません（発表のグラフは1990年からで、いちばん多いのは1993年5月1日の298,646人）。</p></section>
-<section class="card" id="nat"><h2>国籍・地域別（{day_label(last)}現在）</h2>
+{jump([("total", "全国の総数"), ("nat", "国籍別"), ("visa", "在留資格別"), ("trend", "推移"), ("new", "新規・減少"), ("list", "取り込んだ発表"), ("notes", "出典と注意")], nid="toc")}
+<section class="card" id="total"><h2>日本に不法残留者は何人いる？</h2>
+{kpi}{up}</section>
+<section class="card" id="nat"><h2>どの国籍・地域の人が多い？（{day_label(last)}現在）</h2>
 <p class="note">国の発表に名前の出ている上位10か国・地域と、それ以外をまとめた「その他」です。割合は不法残留者数（{num(now)}人）に対する割合です。</p>
 {nat_bars}
-{nat_table}
-<h3>上位7か国・地域の移り変わり</h3>
-{chart_nat}</section>
-<section class="card" id="visa"><h2>在留資格別（{day_label(last)}現在）</h2>
+{nat_table}{up}</section>
+<section class="card" id="visa"><h2>どの在留資格で不法残留になった？（{day_label(last)}現在）</h2>
 <p class="note">在留資格は、不法残留になったときにもっていた在留資格です。「留学」には、昔の在留資格「就学」（2010年7月より前）だった人も入ります。
 「その他」は、ここに名前の出ていない在留資格を合わせた数です。</p>
 {visa_bars}
 {visa_table}
-<h3>移り変わり</h3>
-{chart_visa}</section>
-<section class="card" id="cross"><h2>国籍・地域 × 在留資格（{day_label(last)}現在）</h2>
+<h3>国籍・地域 × 在留資格</h3>
 <p class="note">技能実習の号ごとの内わけは、GitHub の表（データ/不法残留/国籍_在留資格.csv）にあります。</p>
-{cross_table}</section>
+{cross_table}{up}</section>
+<section class="card" id="trend"><h2>増えている？減っている？</h2>
+{chart_total}
+<p class="note">{whens[0][:4]}〜2020年は、毎年1月1日の数です（発表の表にある時点）。2021年からは1月1日と7月1日の年2回です。
+それより前の数は、発表の資料ではグラフの絵だけで表がないため、ここには入れていません（発表のグラフは1990年からで、いちばん多いのは1993年5月1日の298,646人）。</p>
+<h3>上位7か国・地域の移り変わり</h3>
+{chart_nat}
+<h3>在留資格別の移り変わり</h3>
+{chart_visa}{up}</section>
 {new_sec}
-<section class="card" id="list"><h2>取り込んだ発表</h2><ul>{pub_list}</ul></section></noscript>
-<section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
+<section class="card" id="list"><h2>取り込んだ発表</h2><ul>{pub_list}</ul>{up}</section></noscript>
+<section class="card" id="notes"><h2>出典と、数を見るときの注意</h2>
+<details class="kfold"><summary>出典と注意を開く</summary><ul class="note">
 <li>出典：{FUHO_SRC}。</li>
 <li>不法残留者は、入管法第24条の不法残留の規定に当たる人です。国が出入国の記録と退去強制の手続きの情報などから出した<b>概数</b>です。</li>
-<li>時点は1月1日と7月1日です。在留外国人統計（6月末・12月末）とは時点も数え方も違うので、そのまま足したり割ったりできません。</li>
-<li>国籍・地域は、発表ごとの上位10か国・地域だけです。上位の顔ぶれは発表ごとに変わるので、「その他」に入っている国は発表によって違います。</li>
+<li>時点は1月1日と7月1日です（2020年までは1月1日だけ）。在留外国人統計（6月末・12月末）とは時点も数え方も違うので、そのまま足したり割ったりできません。</li>
+<li>国籍・地域は、発表ごとの上位10か国・地域だけです。上位の顔ぶれは発表ごとに変わるので、「その他」に入っている国は発表によって違います。上位10に入っていない時点の数は「公表データなし」「—」で、0人ではありません。</li>
+<li>ただし、新規不法残留者の表（{day_label(new_whens[0]) if new_whens else ""}現在の発表から）は、新規の人の多い国籍・地域ごとに「その時点の数」「前の時点の数」ものせています。上位10に入っていない時点でも、この表にのっている数は使っています（同じ統計の同じ時点の数です。表では※を付けています）。</li>
+<li>在留資格は、不法残留になったときにもっていた在留資格です。技能実習の号（1号・2号・3号、イ・ロ）の数は技能実習の内数です。</li>
+<li>「新規」は、前の時点のあと（その半期など）に新しく分かり、基準日にも不法残留している人です。「減少」は、前の時点にいた人のうち基準日までに数から外れた人で、送還された人だけではありません（出国命令で出国した人、在留特別許可を受けた人なども入ります）。新規・減少は、総数の増減とは別の数です。比べる前の時点は発表ごとに違います（2026年1月1日現在の発表は1年前の2025年1月1日、2026年7月1日現在の発表は半年前の2026年1月1日。発表の表のとおり）。</li>
 <li>同じ時点の数は、どの発表でも同じでした（あとから直された数はありません）。取り込むときに、内わけの合計が総数と合うかも確かめています。</li>
+<li>グラフの色は、国籍・地域ごと・在留資格ごとに決めていて、ページのどのグラフでも同じです。色は7つなので、8つ目からの国籍・地域は同じ色の点線（棒はしま模様）で分けています。</li>
 <li>表（1行に1つの数の CSV）は GitHub の「データ/不法残留/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
-</ul></section>
+</ul></details>{up}</section>
 {related([("kika.html", "帰化", "帰化の申請・許可の数"), ("sokuho.html", "半期速報", "在留外国人の新しい数"), ("visa-index.html", "在留資格から探す", "在留外国人の在留資格別の人数"),
           ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("不法残留者数", [("日本全体", "index.html"), ("不法残留者数", None)], body,

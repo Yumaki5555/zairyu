@@ -133,14 +133,14 @@ table.srank td.up { color: #1f7a4f; } table.srank td.down { color: #b4441a; }
 @media (max-width: 600px) { .dfilter .dwide { flex: 1 1 100%; } .stab { display: flex; width: 100%; } .stab button { flex: 1 1 0; padding: 6px 6px; } }
 @media (max-width: 360px) { .dfilter .dctl { flex: 1 1 100%; } .dfilter .dctl select { width: 100%; } }
 
-/* 帰化のページ（kika.js）：上から ① これまでの累計 ② 国籍別 ③ 毎年の推移 ④ くわしい数。字は大きめ、欄の間をあける */
+/* 帰化のページ（kika.js）：上から ① これまでの累計 ② 国籍別 ③ 毎年の推移 ④ くわしい数。字は大きめ、欄の間をあける。不法残留のページ（fuho.js）も同じ部品を使う */
 .kctl { align-items: center; }
 .kctl .kctlhelp { margin: 0; font-size: 15px; color: var(--sub); flex: 1 1 14em; }
-#kika-view .ksec { padding: 20px 22px; margin: 20px 0; scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
+#kika-view .ksec, #fuho-view .ksec { padding: 20px 22px; margin: 20px 0; scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
 #notes { scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
-#kika-view .ksec > h2 { font-size: 25px; line-height: 1.4; margin: 0 0 12px; }
-#kika-view .ksec h3 { font-size: 19px; margin: 18px 0 8px; }
-#kika-view .ksec .dhelp { font-size: 16px; line-height: 1.7; }
+#kika-view .ksec > h2, #fuho-view .ksec > h2 { font-size: 25px; line-height: 1.4; margin: 0 0 12px; }
+#kika-view .ksec h3, #fuho-view .ksec h3 { font-size: 19px; margin: 18px 0 8px; }
+#kika-view .ksec .dhelp, #fuho-view .ksec .dhelp { font-size: 16px; line-height: 1.7; }
 #kika-view .ksec .stotal { font-size: 18px; }
 #kika-view .ksec .stotal b { font-size: 22px; }
 #kika-view .ksec .stotal .sub { display: block; font-size: 15px; color: var(--sub); }
@@ -183,8 +183,8 @@ ul.krank li.none .fill { background: none; outline: 2px dashed var(--sub); outli
 ul.krank .v { text-align: right; font-weight: 700; font-size: 19px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 ul.krank .p { text-align: right; color: var(--sub); font-size: 15px; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
-  #kika-view .ksec { padding: 16px 14px; margin: 16px 0; }
-  #kika-view .ksec > h2 { font-size: 22px; }
+  #kika-view .ksec, #fuho-view .ksec { padding: 16px 14px; margin: 16px 0; }
+  #kika-view .ksec > h2, #fuho-view .ksec > h2 { font-size: 22px; }
   .khero .kbig { font-size: 46px; }
   .kyear > b { font-size: 28px; }
   .kviews button { flex: 1 1 100%; }
@@ -196,12 +196,78 @@ ul.krank .p { text-align: right; color: var(--sub); font-size: 15px; font-varian
   .kctl .dacts { flex: 0 0 auto; }
   /* たたんだ欄の表は、なるべく横にずらさずに入るよう、字と間を少し詰める */
   details.kfold { padding: 0 10px; }
-  #kika-view table.t { font-size: 14px; }
-  #kika-view table.t th, #kika-view table.t td { padding: 6px 4px; }
-  #kika-view table.t th { font-size: 13px; }
-  #kika-view table.t td:not(.n) { min-width: 4.5em; }
+  #kika-view table.t, #fuho-view table.t { font-size: 14px; }
+  #kika-view table.t th, #kika-view table.t td, #fuho-view table.t th, #fuho-view table.t td { padding: 6px 4px; }
+  #kika-view table.t th, #fuho-view table.t th { font-size: 13px; }
+  #kika-view table.t td:not(.n), #fuho-view table.t td:not(.n) { min-width: 4.5em; }
   /* スマホ：1段目に「順位・名前・人数・割合」、2段目に棒 */
   ul.krank li { grid-template-columns: 2.2em minmax(0, 1fr) auto 3.4em; grid-template-areas: "rk nm v p" ". tr tr tr"; gap: 4px 8px; }
   ul.krank .rk { grid-area: rk; } ul.krank .nm { grid-area: nm; } ul.krank .v { grid-area: v; } ul.krank .p { grid-area: p; }
   ul.krank .track { grid-area: tr; height: 12px; }
+}
+
+/* 不法残留のページ（fuho.js）：上から ① 全国の総数と増減（目次）② 国籍・地域別ランキング ③ 選んだ国籍・地域のくわしい数 ④ 在留資格別 ⑤ 推移 ⑥ 新規・減少 ⑦ くわしい数 */
+.fctl .dctl select { max-width: 17em; }
+.fwhen { display: inline-block; font-size: 15px; font-weight: 700; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 2px 12px; margin: 0 0 10px; }
+.fbox { display: flex; flex-direction: column; gap: 2px; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.fbox .flab { font-size: 15px; color: var(--sub); }
+.fbox > b { font-size: 30px; font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fbox > b small { font-size: .5em; font-weight: 700; margin: 0 6px 0 2px; }
+.fbox .fsub { font-size: 15px; color: var(--sub); white-space: pre-line; }
+.fbox > b.fnone, ul.frank .v.fnone { font-size: 17px; font-weight: 700; color: var(--sub); }
+.fchg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.fkpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin: 10px 0 6px; } /* 上の段に人数・割合・男女、下の段に半年前・1年前 */
+.fkpis > .fbox { grid-column: span 2; } .fkpis > .fbox.fwide { grid-column: span 3; }
+.fbox.fsex > b { font-size: 24px; line-height: 1.35; }
+.fflow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0 6px; }
+.feq { font-size: 16px; line-height: 1.7; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+.feq .sub { color: var(--sub); margin-left: 6px; }
+ul.fdefs { font-size: 16px; line-height: 1.7; margin: 8px 0; padding-left: 1.2em; }
+/* 目次（4つのボタン） */
+.ftoc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 16px 0 4px; }
+.ftoc a { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--btn-line);
+          background: var(--btn-soft); color: var(--text); font-weight: 700; font-size: 17px; text-decoration: none; text-align: center; }
+.ftoc a::after { content: "↓"; color: var(--btn); margin-left: 6px; }
+.ftoc a:hover { border-color: var(--btn); }
+.fmore { font-size: 15px; color: var(--sub); margin: 6px 0 0; }
+.fmore a { display: inline-block; padding: 6px 0; margin-left: 12px; }
+.fmreset { display: none; margin: 8px 0 0; } /* スマホだけ（上の欄のリセットを、ここに移す） */
+.fnath .sw { width: 18px; height: 18px; margin-right: 8px; vertical-align: -1px; }
+.fdetail { border: 2px solid var(--btn-line); }
+/* 横棒：国籍・地域は灰色で、選んでいるものだけその色。在留資格はそれぞれの色。8つ目からの国籍・地域（線は点線）は、しま模様 */
+ul.frank .fill { background-color: var(--old); }
+ul.frank .fill.c1 { background-color: var(--c1); } ul.frank .fill.c2 { background-color: var(--c2); } ul.frank .fill.c3 { background-color: var(--c3); }
+ul.frank .fill.c4 { background-color: var(--c4); } ul.frank .fill.c5 { background-color: var(--c5); } ul.frank .fill.c6 { background-color: var(--c6); }
+ul.frank .fill.c7 { background-color: var(--c7); } ul.frank .fill.co { background-color: var(--co); }
+ul.frank .fill.dash { background-image: repeating-linear-gradient(135deg, transparent 0 7px, var(--card) 7px 10px); }
+ul.frank li.rest .fill { background: repeating-linear-gradient(135deg, var(--co) 0 6px, transparent 6px 9px); }
+ul.frank li.on { background: var(--btn-soft); box-shadow: inset 4px 0 0 var(--btn); }
+ul.frank .fon { color: var(--btn); font-weight: 800; }
+ul.frank li[hidden] { display: none; }
+ul.frank li.kid { padding: 5px 0; } /* 字の大きさは中だけ変える（列の幅は em なので、行の字を変えると棒の位置がずれる） */
+ul.frank li.kid .nm { font-weight: 400; font-size: 15px; padding-left: .8em; }
+ul.frank li.kid .fill { opacity: .55; }
+ul.frank li.kid .v { font-size: 16px; }
+.flink { font: inherit; font-weight: 700; background: none; border: 0; padding: 2px 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left; min-height: 36px; }
+.fkids { display: block; font: inherit; font-size: 14px; font-weight: 400; margin: 4px 0 0; padding: 4px 12px; min-height: 36px; border-radius: 18px; border: 1px solid var(--btn-line);
+         background: var(--card); color: var(--text); cursor: pointer; }
+.fkids::after { content: " ▾"; color: var(--btn); }
+.fkids[aria-expanded="true"]::after { content: " ▴"; }
+@media (max-width: 600px) {
+  .fbox { padding: 8px 10px; }
+  .fbox > b { font-size: 24px; }
+  .fbox .fsub { font-size: 14px; }
+  .fkpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fkpis > .fbox { grid-column: span 1; } .fkpis > .fbox.fwide, .fkpis > .fbox.fsex { grid-column: span 2; }
+  .fbox.fsex > b { font-size: 20px; }
+  .fflow { gap: 6px; }
+  .fflow .fbox > b { font-size: 20px; }
+  .ftoc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fchg { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .fmreset { display: block; }
+  .kctl.fctl .dacts { display: none; }
+  /* 上の「時点」「国籍・地域」は1行に（画面の上に残るので、低くして見出しを隠さない） */
+  .kctl.fctl > .dctl:not(.dacts) { flex: 1 1 0; min-width: 0; }
+  .kctl.fctl > .dctl:not(.dacts) select { width: 100%; max-width: none; font-size: 15px; padding-left: 6px; padding-right: 4px; }
+  .fctl .dacts .dbtn { padding: 6px 8px; font-size: 14px; }
 }
