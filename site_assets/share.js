@@ -125,28 +125,38 @@
     var f = fit1(ctx, 'この図のデータがありません', w, 1.8 * u, false, 1 * u);
     ctx.fillStyle = C.sub; ctx.font = font(f.size); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(f.text, x + w / 2, y + h / 2);
   }
-  // 凡例を下に並べる（1列か2列）。items：[{cls, text}]、head：上に書く見出し（時点と単位）。高さを返し、draw(x, y) で描く
+  // 折れ線の凡例を下に並べる。items：[{cls, name, val}]、head：上に書く見出し（時点）。高さを返し、draw(x, y) で描く
+  // 名前（太字）と数は右の凡例と同じ大きさ。幅に入るだけ列を増やして行を減らす（図を高くする）。高さか幅に入らなければ字を小さくする
   function legendBelow(ctx, items, w, maxH, u, head) {
-    var hh = head ? px('tick', u) * 1.9 : 0, n = items.length;
-    // 広ければ2列。狭くても、1列では高さに入らないときは2列にする（図をつぶさないように）
-    var cols = n > 1 && (w >= 34 * u || (w >= 20 * u && n * 1.2 * u > maxH - hh)) ? 2 : 1, rows = Math.ceil(n / cols);
-    var rowH = Math.max(px('tick', u) * 1.3, Math.min(px('value', u) * 2, (maxH - hh) / rows)), fs = Math.min(px('value', u), rowH * 0.62), colW = (w - (cols - 1) * 1.6 * u) / cols;
-    return { h: hh + rows * rowH, draw: function (x, y) {
+    var hh = head ? px('tick', u) * 1.9 : 0, n = items.length, gap = 2.4 * u, p = null;
+    for (var sc = 1; sc >= 0.6 - 1e-9; sc -= 0.05) {
+      var nf = px('name', u) * sc, vf = px('value', u) * sc, sw = nf * 0.8;
+      ctx.font = font(nf, true); var nmW = maxW(ctx, items.map(function (it) { return it.name; }));
+      ctx.font = font(vf); var vlW = maxW(ctx, items.map(function (it) { return it.val; }));
+      var cellW = sw + 0.6 * u + nmW + 1.2 * u + vlW, cols = Math.max(1, Math.min(n, Math.floor((w + gap) / (cellW + gap))));
+      var perCol = Math.ceil(n / cols); cols = Math.ceil(n / perCol); // 列の長さをそろえる（5つは 4＋1 でなく 2＋2＋1）
+      p = { nf: nf, vf: vf, sw: sw, rowH: nf * 1.75, cellW: Math.min(cellW, w), vlW: vlW, cols: cols, perCol: perCol };
+      if (cellW <= w && hh + perCol * p.rowH <= maxH) { break; }
+    }
+    // 列の間は、余った幅を少し広げる（広げすぎない）
+    var g = p.cols > 1 ? Math.min(4 * u, (w - p.cols * p.cellW) / (p.cols - 1)) : 0;
+    return { h: hh + p.perCol * p.rowH, draw: function (x, y) {
       if (head) {
         var f0 = fit1(ctx, head, w, px('tick', u), false, 0.7 * u);
         ctx.fillStyle = C.sub; ctx.font = font(f0.size); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(f0.text, x, y); y += hh;
       }
-      items.forEach(function (it, i) {
-        var cx = x + (i % cols) * (colW + 1.6 * u), cy = y + Math.floor(i / cols) * rowH + rowH / 2, s = Math.min(1.1 * u, rowH * 0.55);
-        ctx.fillStyle = color(it.cls); ctx.fillRect(cx, cy - s / 2, s, s);
-        var f = fit1(ctx, it.text, colW - s - 0.8 * u, fs, false, Math.min(fs, 0.55 * u)); // 数を「…」で切らないよう、狭いとき（まとめた図）は小さくする
-        ctx.fillStyle = C.text; ctx.font = font(f.size); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(f.text, cx + s + 0.6 * u, cy);
+      items.forEach(function (it, i) { // 多い順に、左の列の上から下へ
+        var cx = x + Math.floor(i / p.perCol) * (p.cellW + g), cy = y + (i % p.perCol) * p.rowH + p.rowH / 2;
+        ctx.fillStyle = color(it.cls); ctx.fillRect(cx, cy - p.sw / 2, p.sw, p.sw);
+        ctx.textBaseline = 'middle'; ctx.fillStyle = C.text;
+        ctx.font = font(p.vf); ctx.textAlign = 'right'; ctx.fillText(it.val, cx + p.cellW, cy);
+        ctx.font = font(p.nf, true); ctx.textAlign = 'left'; ctx.fillText(clip(ctx, it.name, p.cellW - p.sw - 0.6 * u - p.vlW - 1.2 * u), cx + p.sw + 0.6 * u, cy);
       });
     } };
   }
 
   // ---- 図ごとの描き方（x, y, w, h の中に描く。u は字の大きさの目安）
-  function drawLine(ctx, ch, x, y, w, h, u) {
+  function drawLine(ctx, ch, x, y, w, h, u, wide) {
     var series = ch.series.filter(function (s) { return s.vals.some(function (v) { return v != null; }); }).slice(0, 8); // 画面と同じ線（多い7つと「その他」）
     if (!series.length) { noData(ctx, x, y, w, h, u); return; }
     var multi = series.length > 1, fa = px('tick', u), last = ch.per.length - 1;
@@ -160,8 +170,9 @@
       return i === last ? t : t + '（' + ymd(ch.per[i]) + '）';
     }
     var head = ymd(ch.per[last]) + (ch.index ? 'の指数　はじめの時点＝100' : 'の数'); // 「　」の所で2行に分けられる。単位はタイトルの下
-    // 凡例（線が2本以上）：広ければ右、狭ければ下。右のときは、名前と数がちょうど入る幅にする（すき間を空けない。図の幅の4割まで）
-    var legRight = multi && w >= 42 * u, legW = 0, leg = null, lg = null;
+    // 凡例（線が2本以上）：横長の画像で図が広ければ右、ほかは下。右のときは、名前と数がちょうど入る幅にする（すき間を空けない。図の幅の4割まで）
+    // 正方形・縦長の画像は、いつも下にしてグラフの横幅を広くとる（2026年10月 作った人の指示）
+    var legRight = multi && wide && w >= 42 * u, legW = 0, leg = null, lg = null;
     if (legRight) {
       var hf = px('tick', u), n = series.length, vals = series.map(valText);
       var lh = Math.min(px('name', u) * 2.1, (h - 2 * hf * 1.3 - 0.8 * u) / n), nf = Math.min(px('name', u), lh * 0.62), vf = Math.min(px('value', u), lh * 0.6), sw = nf * 0.8;
@@ -175,8 +186,8 @@
         lg = { hl: hl, hf: hf, headH: headH, lh: lh, nf: nf, vf: vf, sw: sw, rowW: rowW, vals: vals, vlW: vlW, top: y + Math.max(0, (h - headH - n * lh) / 2) };
       }
     }
-    if (multi && !legRight) { leg = legendBelow(ctx, series.map(function (s) { return { cls: s.cls, text: s.name + '　' + valText(s) }; }), w, h * 0.34, u, head.replace('　', '（') + (head.indexOf('　') >= 0 ? '）' : '')); }
-    var T = y + (mark ? fa * 2 : fa * 0.6), B = y + h - fa * 2 - (leg ? leg.h + 0.6 * u : 0);
+    if (multi && !legRight) { leg = legendBelow(ctx, series.map(function (s) { return { cls: s.cls, name: s.name, val: valText(s) }; }), w, h * 0.34, u, head.replace('　', '（') + (head.indexOf('　') >= 0 ? '）' : '')); }
+    var T = y + (mark ? fa * 2 : fa * 0.6), B = y + h - fa * 2 - (leg ? leg.h + 1.4 * u : 0);
     var all = []; series.forEach(function (s) { s.vals.forEach(function (v) { if (v != null) { all.push(v); } }); });
     var nt = Math.max(2, Math.min(5, Math.floor((B - T) / (3 * u))));
     var lo = Math.min(0, Math.min.apply(null, all)), hi = Math.max.apply(null, all), step = niceStep((hi - lo || 1) / nt);
@@ -232,7 +243,7 @@
         ctx.font = font(lg.nf, true); ctx.textAlign = 'left'; ctx.fillText(clip(ctx, s.name, lg.rowW - lg.sw - 0.6 * u - lg.vlW - 1.2 * u), tx, cy);
       });
     }
-    if (leg) { leg.draw(x, B + fa * 2 + 0.6 * u); }
+    if (leg) { leg.draw(x, B + fa * 2 + 1.4 * u); }
   }
 
   function drawPie(ctx, ch, x, y, w, h, u) {
@@ -835,7 +846,7 @@
         var used = ht.lines.length * ht.size * 1.25 + 0.8 * u; cy += used; chh -= used;
       }
       var fn = DRAW[it.chart.kind];
-      if (fn) { ctx.save(); fn(ctx, it.chart, cx, cy, cw, chh, uu); ctx.restore(); }
+      if (fn) { ctx.save(); fn(ctx, it.chart, cx, cy, cw, chh, uu, W > H); ctx.restore(); } // 最後は「横長の画像か」（折れ線の凡例の置き場所）
     });
     // 出典と注記（とサイトの名前）
     var ly = bottom + footGap / 2;
