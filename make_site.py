@@ -1625,7 +1625,8 @@ def fuho_page():
 <section class="card" id="cross"><h2>国籍・地域 × 在留資格（{day_label(last)}現在）</h2>
 <p class="note">技能実習の号ごとの内わけは、GitHub の表（データ/不法残留/国籍_在留資格.csv）にあります。</p>
 {cross_table}</section>
-{new_sec}</noscript>
+{new_sec}
+<section class="card" id="list"><h2>取り込んだ発表</h2><ul>{pub_list}</ul></section></noscript>
 <section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
 <li>出典：{FUHO_SRC}。</li>
 <li>不法残留者は、入管法第24条の不法残留の規定に当たる人です。国が出入国の記録と退去強制の手続きの情報などから出した<b>概数</b>です。</li>
@@ -1633,8 +1634,7 @@ def fuho_page():
 <li>国籍・地域は、発表ごとの上位10か国・地域だけです。上位の顔ぶれは発表ごとに変わるので、「その他」に入っている国は発表によって違います。</li>
 <li>同じ時点の数は、どの発表でも同じでした（あとから直された数はありません）。取り込むときに、内わけの合計が総数と合うかも確かめています。</li>
 <li>表（1行に1つの数の CSV）は GitHub の「データ/不法残留/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
-</ul>
-<h3>取り込んだ発表</h3><ul>{pub_list}</ul></section>
+</ul></section>
 {related([("kika.html", "帰化", "帰化の申請・許可の数"), ("sokuho.html", "半期速報", "在留外国人の新しい数"), ("visa-index.html", "在留資格から探す", "在留外国人の在留資格別の人数"),
           ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("不法残留者数", [("日本全体", "index.html"), ("不法残留者数", None)], body,
