@@ -13,12 +13,12 @@
   var NOTE = 'それぞれ、その年（1月〜12月）にあった数です。その年に申請した人がその年に許可・不許可になったとは限りません。';
   var ITEMS = ['帰化許可申請者数', '帰化許可者数', '帰化不許可者数'], NATS = ['韓国・朝鮮', '中国', 'その他'];
   var NAME = { '韓国・朝鮮': '帰化許可者のうち韓国・朝鮮', '中国': '帰化許可者のうち中国', 'その他': '帰化許可者のうちその他' };
-  var DEF = { y: '', pick: [], from: '', to: '', idx: '', cs: '', np: [] }; // cs：累計の数え始めの年（空＝1952年の記録の始めから）
+  var DEF = { y: '', pick: [], from: '', to: '', idx: '', cs: '', np: [], cp: [] }; // cs：累計の数え始めの年（空＝1952年の記録の始めから）。np・cp：国籍・地域ごとの線で比べるもの（移り変わり・累計）
   var S = JSON.parse(JSON.stringify(DEF));
 
-  function readHash() { var q = new URLSearchParams(location.hash.slice(1)); Object.keys(S).forEach(function (k) { var v = q.get(k); if (v != null) { S[k] = k === 'pick' || k === 'np' ? v.split(',').filter(Boolean) : v; } }); }
+  function readHash() { var q = new URLSearchParams(location.hash.slice(1)); Object.keys(S).forEach(function (k) { var v = q.get(k); if (v != null) { S[k] = Array.isArray(DEF[k]) ? v.split(',').filter(Boolean) : v; } }); }
   function writeHash() {
-    var q = new URLSearchParams(); Object.keys(S).forEach(function (k) { var v = k === 'pick' || k === 'np' ? S[k].join(',') : S[k]; if (v) { q.set(k, v); } });
+    var q = new URLSearchParams(); Object.keys(S).forEach(function (k) { var v = Array.isArray(DEF[k]) ? S[k].join(',') : S[k]; if (v) { q.set(k, v); } });
     history.replaceState(null, '', '#' + q.toString());
   }
   function set(p) { Object.keys(p).forEach(function (k) { S[k] = p[k]; }); render(); }
@@ -114,7 +114,7 @@
     return c;
   }
 
-  // ③ 帰化許可者数の国籍別の累計。国籍は法務省の毎年の表の「韓国・朝鮮」「中国」「その他」の3つ（くわしい国籍は2019年からしかないので、昔からの累計は作れない）。
+  // ③ 帰化許可者数の国籍別の累計。1952年からは法務省の毎年の表の「韓国・朝鮮」「中国」「その他」の3つ。くわしい国籍の累計は2019年から（下の「国籍・地域ごとの累計」）。
   //   1952年から数えるときは、1952年4月28日〜1966年をまとめた数を1966年の点に入れ、合計には国籍の内わけのない1952年4月27日以前の333人も入れる（法務省の累計と同じ）
   function cumCard() {
     var end = +S.y, pre = D.agg.filter(function (a) { return a.key === '-1952'; })[0], agg = D.agg.filter(function (a) { return a.key === '1952-1966'; })[0];
@@ -142,7 +142,7 @@
       index: false, area: '全国', when: String(end), from: String(per[0]), whenText: whenText };
     c.appendChild(Z.lineChart(per.map(String), series, { title: '帰化許可者数の国籍別の累計', at: per, lab: lab }));
     c.appendChild(tools(function () { return cur(chart, '全国｜帰化許可者の国籍別累計の移り変わり', note + (fromStart ? '1966年の点は1952年4月28日からの合計。合計には国籍の内わけのない1952年4月27日以前の333人も入れています。' : '')); }));
-    c.appendChild(el('p', 'dhelp', esc('国籍は、法務省の毎年の表の「韓国・朝鮮」「中国」「その他」の3つです（ネパール・ブラジルなどのくわしい国籍は2019年からしか分からないので、昔からの累計は作れません）。' +
+    c.appendChild(el('p', 'dhelp', esc('国籍は、法務省の毎年の表の「韓国・朝鮮」「中国」「その他」の3つです（ネパール・ブラジルなどのくわしい国籍は2019年からしか分からないので、その累計は下の「国籍・地域ごとの累計」に、2019年からの分を出しています）。' +
       (fromStart ? '1952年から数えるときの最初の点（1966年）は、1952年4月28日〜1966年をまとめた数です。合計には、国籍の内わけのない1952年4月27日以前の' + fmt(pre['帰化許可者数']) + '人も入れています（法務省の累計と同じ数になります）。' : ''))));
     c.appendChild(Z.details('累計を表で見る', Z.tableEl(['年', '合計'].concat(NATS), per.map(function (y, i) { return [lab(i)].concat(series.map(function (x) { return fmt(x.vals[i]); })); }).reverse(), 1)));
     var parts = series.slice(1).map(function (x) { return { name: x.name, v: x.vals[last], cls: x.cls }; });
@@ -150,22 +150,58 @@
     c.appendChild(el('h3', null, esc(since + 'から' + end + '年までの累計の国籍')));
     c.appendChild(Z.pieChart(parts, sum3, since + 'から' + end + '年までの累計の国籍'));
     c.appendChild(tools(function () { return cur(pie, '全国｜帰化許可者の国籍別累計の構成', note + (fromStart ? '国籍の内わけのない1952年4月27日以前の333人は入れていません。' : '')); }));
-    // 国ごとの合計（国籍別の上位10が分かる2019年から。数え始め〜数え終わりのうち、その年の分があるものを足す。どの年も上位10に入った国籍・地域だけ）
-    var ys = Object.keys(D.top).sort().filter(function (x) { return (fromStart || +x >= s0) && +x <= end; }), three = [], all3 = 0, span3 = '';
+    // 国籍・地域ごとの累計（くわしい国籍。国籍別の上位10が分かる2019年から、数え始め〜数え終わりのうち、その年の分があるものを足す）。
+    // 上位10に入らなかった年は数が分からないので足さない（名前に※。実際の累計はこれより多い）。累計の線は、数の分からない年は切る
+    var ys = Object.keys(D.top).sort().filter(function (x) { return (fromStart || +x >= s0) && +x <= end; });
     if (ys.length) {
       var names = [].concat.apply([], ys.map(function (x) { return D.top[x].rows.map(function (r) { return r[0]; }); })).filter(function (n, i, a) { return a.indexOf(n) === i; });
-      var full = names.filter(function (n) { return ys.every(function (x) { return natVal(n, x) != null; }); }), part = names.filter(function (n) { return full.indexOf(n) < 0; });
-      three = full.map(function (n) { return [n, ys.reduce(function (a2, x) { return a2 + natVal(n, x); }, 0)]; }).sort(function (a2, b2) { return b2[1] - a2[1]; });
-      all3 = ys.reduce(function (a2, x) { return a2 + D.top[x].total; }, 0);
-      span3 = ys[0] === ys[ys.length - 1] ? ys[0] + '年' : ys[0] + '〜' + ys[ys.length - 1] + '年の' + ys.length + '年間';
-      c.appendChild(el('h3', null, esc(span3 + 'の合計（国籍・地域別）')));
-      c.appendChild(el('p', 'dhelp', esc('くわしい国籍が分かるのは2019年からです。その年から数え終わりまでを足した数です（この間の帰化許可者数は合わせて' + fmt(all3) + '人）。' +
-        (ys.length > 1 ? 'どの年も上位10に入った国籍・地域だけです。' + (part.length ? part.join('・') + 'は上位10に入らなかった年があり、その年の数が分からないので入れていません。' : '') : ''))));
-      c.appendChild(Z.barList(three.map(function (r) { return [r[0], r[1], ys.map(function (x) { return x + '年 ' + fmt(natVal(r[0], x)); }).join('・')]; }), all3, { rank: true }));
-      var rank3 = { kind: 'rank', rows: three.slice(0, 10), f: function (x) { return fmt(x) + '人'; }, metric: '人数', area: '全国', when: String(end), what: '全国の国籍・地域', whenText: span3 + 'の合計' };
-      c.appendChild(tools(function () { return cur(rank3, '全国｜帰化許可者の国籍・地域別人数（' + span3 + 'の合計）', ys.length > 1 ? 'どの年も上位10に入った国籍・地域だけです。' : ''); }));
+      var known = function (n) { return ys.filter(function (x) { return natVal(n, x) != null; }); };
+      var mark = function (n) { return known(n).length < ys.length ? n + '※' : n; };
+      var tots = names.map(function (n) { return [n, known(n).reduce(function (a2, x) { return a2 + natVal(n, x); }, 0)]; }).sort(function (a2, b2) { return b2[1] - a2[1]; });
+      var all3 = ys.reduce(function (a2, x) { return a2 + D.top[x].total; }, 0), span3 = ys.length === 1 ? ys[0] + '年' : ys[0] + '〜' + ys[ys.length - 1] + '年';
+      var anyMark = tots.some(function (r) { return known(r[0]).length < ys.length; });
+      var NOTE3 = '※は、上位10に入らなかった年があり、その年の数が分からないので足していない国籍・地域です（実際の累計はこれより多い）。';
+      c.appendChild(el('h3', null, esc(span3 + 'の国籍・地域ごとの累計（くわしい国籍）')));
+      c.appendChild(el('p', 'dhelp', esc('ネパール・ブラジルなどのくわしい国籍は、2019年から分かります（毎年、上位10の国籍・地域だけ）。2019年（数え始めがそれより後ならその年）から数え終わりまでを、数の分かる年だけ足しました。' +
+        'この間の帰化許可者数は合わせて' + fmt(all3) + '人で、割合はこれに対する割合です。' + (anyMark ? NOTE3 : ''))));
+      // 累計の移り変わり（比べるものを選ぶ。はじめは、累計の多い国籍・地域のうち韓国・朝鮮と中国を除く7つ：人数の桁が違うので）
+      if (ys.length > 1) {
+        var cpick = S.cp.filter(function (n) { return names.indexOf(n) >= 0; });
+        if (!cpick.length) { cpick = tots.map(function (r) { return r[0]; }).filter(function (n) { return n !== '韓国・朝鮮' && n !== '中国'; }).slice(0, 7); }
+        var cser = cpick.map(function (n, k) {
+          var acc = 0;
+          return { name: mark(n), vals: ys.map(function (x) { var q = natVal(n, x); if (q == null) { return null; } acc += q; return acc; }), cls: k < 7 ? String(k + 1) : 'o' };
+        });
+        var crow = el('div', 'dctlrow'), cms = el('div', 'dctl dmulti'), cbtn = el('button', 'dmbtn'), cpanel = el('div', 'dmpanel'), clist = el('div', 'dmlist');
+        cbtn.type = 'button'; cbtn.textContent = cpick.length === 1 ? cpick[0] : cpick[0] + ' ほか' + (cpick.length - 1);
+        cms.appendChild(el('span', 'dlab', '比べる国籍・地域')); cms.appendChild(cbtn);
+        var cchosen = cpick.slice();
+        tots.forEach(function (r) {
+          var n = r[0], l2 = el('label', 'dmitem'), cb = el('input'); cb.type = 'checkbox'; cb.checked = cchosen.indexOf(n) >= 0;
+          cb.addEventListener('change', function () { if (cb.checked) { cchosen.push(n); } else { cchosen = cchosen.filter(function (x) { return x !== n; }); } });
+          l2.appendChild(cb); l2.appendChild(document.createTextNode(' ' + mark(n))); clist.appendChild(l2);
+        });
+        var cok = el('button', 'dbtn', 'この条件で表示（7つまで）'); cok.type = 'button'; cok.addEventListener('click', function () { set({ cp: cchosen.slice(0, 7) }); });
+        cpanel.appendChild(clist); var cbar = el('div', 'dmbar'); cbar.appendChild(cok); cpanel.appendChild(cbar); cms.appendChild(cpanel);
+        cbtn.addEventListener('click', function (ev) { ev.stopPropagation(); cms.classList.toggle('open'); if (cms.classList.contains('open')) { Z.fitPanel(cpanel); } });
+        document.addEventListener('click', function (ev) { if (!cms.contains(ev.target)) { cms.classList.remove('open'); } });
+        crow.appendChild(cms); c.appendChild(crow);
+        c.appendChild(el('p', 'dhelp', esc('はじめは、韓国・朝鮮と中国を除いて出しています（人数の桁が違うため。「比べる国籍・地域」で足せます）。上位10に入らなかった年は、線が切れます。')));
+        var nys = ys.map(Number);
+        c.appendChild(Z.lineChart(ys, cser, { title: '国籍・地域ごとの帰化許可者数の累計', at: nys, lab: function (i) { return ys[i] + '年まで'; } }));
+        var cchart = { kind: 'line', per: ys, labels: ys.map(function (x) { return x + '年まで'; }), at: nys, series: cser, index: false, area: '全国', when: ys[ys.length - 1], from: ys[0], whenText: span3 + 'の累計' };
+        c.appendChild(tools(function () { return cur(cchart, cpick.length === 1 ? '全国｜' + cpick[0] + 'の帰化許可者数の累計' : '全国｜帰化許可者の国籍・地域別累計の移り変わり', (anyMark ? NOTE3 : '') + '上位10に入らなかった年は線が切れています。'); }));
+        c.appendChild(Z.details('累計の移り変わりを表で見る', Z.tableEl(['年'].concat(cser.map(function (x) { return x.name; })), ys.map(function (x, k) {
+          return [x + '年まで'].concat(cser.map(function (s2) { return s2.vals[k] == null ? null : fmt(s2.vals[k]); }));
+        }), 1)));
+      }
+      // 累計の多い順（上位10に入った年が1つでもある国籍・地域は、すべて）
+      c.appendChild(el('h3', null, esc(span3 + 'の累計の多い順')));
+      c.appendChild(Z.barList(tots.map(function (r) { var k2 = known(r[0]); return [mark(r[0]), r[1], k2.length === ys.length ? '' : k2.length + '年分（' + k2.join('・') + '年）']; }), all3, { rank: true }));
+      var rank3 = { kind: 'rank', rows: tots.slice(0, 10).map(function (r) { return [mark(r[0]), r[1]]; }), f: function (x) { return fmt(x) + '人'; }, metric: '人数', area: '全国', when: String(end), what: '全国の国籍・地域', whenText: span3 + 'の累計' };
+      c.appendChild(tools(function () { return cur(rank3, '全国｜帰化許可者の国籍・地域別累計（' + span3 + '）', anyMark ? NOTE3 : ''); }));
     } else {
-      c.appendChild(el('p', 'dhelp', 'くわしい国籍（ネパール・ブラジルなど）が分かるのは2019年からなので、この期間の国ごとの合計はありません。'));
+      c.appendChild(el('p', 'dhelp', 'くわしい国籍（ネパール・ブラジルなど）が分かるのは2019年からなので、この期間の国籍・地域ごとの累計はありません。'));
     }
     c.appendChild(srcLine());
     return c;
