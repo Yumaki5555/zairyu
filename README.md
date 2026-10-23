@@ -10,6 +10,7 @@
 - トップページのいちばん上に「グラフの画像を作る（X投稿用）」：何のグラフ（国籍・地域／在留資格／地域／国籍×在留資格）・どこの・だれの・いつ（開始・終了）を選ぶと、X投稿用の画像と投稿文ができます。1時点のグラフでは、確定統計より新しい法務省の半期速報（全国の国籍・地域／在留資格／都道府県ごと）も選べます（画像と投稿文に「（速報）」と速報の出典が入ります）
 - 目的別の入口：地域から探す（名前で探す・日本地図）・国籍から探す・在留資格から探す。長い一覧は名前で探す・並べ替え・もっと見るができます
 - 国籍・在留資格の内わけ（円グラフ・棒グラフ・表）、移り変わりの折れ線、日本と都道府県の地図
+- 在留外国人統計とは別の統計のページ：不法残留者数（法務省の報道発表、2017年〜）と帰化の数（法務省民事局、1952年〜）
 
 ## 入っているもの
 
@@ -35,6 +36,8 @@ Python 3 と pandas・openpyxl・xlrd・pbixray を使います（古い表の�
    `python make_world_map.py` … 「国籍から探す」の世界地図の形を作る（先に Natural Earth v5.1.2 の `ne_10m_admin_0_countries_jpn.geojson` を `元データ/地図/natural-earth/` に置く）
 5. `python download_population.py` → `python make_population.py` … 外国人の割合の分母にする人口（総務省「住民基本台帳に基づく人口」）
 6. `python download_press.py` → `python make_press.py` … 法務省の半期速報（報道発表の資料）。内わけの合計と、同じ時点の確定統計と同じかを確かめる
+   `python download_fuho.py` → `python make_fuho.py` … 不法残留者数（報道発表の資料、`データ/不法残留/`）。
+   `python download_kika.py` → `python make_kika.py` … 帰化の数（法務省民事局の PDF、`データ/帰化/`）。どちらも内わけの合計などを確かめる（サイトの「不法残留」「帰化」のページに使う）
 7. `python make_site.py` … `site/` にサイトのページを作る
 8. `python make_dash_data.py` … ダッシュボードが読む小さな表（`site/data/*.json`）を作る
 9. `python copy_public.py <写す先>` … 公開するものだけを写す（`site/` は `docs/` になる）。`upload_github.py` はこれをして GitHub に上げる
@@ -44,6 +47,8 @@ Python 3 と pandas・openpyxl・xlrd・pbixray を使います（古い表の�
 - 出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat、https://www.e-stat.go.jp/ ）を加工して作成。e-Stat の利用規約に従い、出典を示して使っています
 - 人口：総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」（e-Stat）を加工して作成（外国人の割合の分母）
 - 半期速報：出入国在留管理庁「〇年〇月末現在における在留外国人数について」（報道発表、https://www.moj.go.jp/isa/ ）
+- 不法残留者数：出入国在留管理庁「本邦における不法残留者数について（〇年〇月１日現在）」（報道発表、https://www.moj.go.jp/isa/ ）
+- 帰化：法務省民事局「帰化許可申請者数等の推移」（https://www.moj.go.jp/MINJI/toukei_t_minj03.html ）
 - 地図：国土地理院「地球地図日本」（https://www.gsi.go.jp/kankyochiri/gm_jpn.html ）を加工して作成（国土地理院コンテンツ利用規約による）
 - 世界地図：Natural Earth（https://www.naturalearthdata.com/ 、日本の見方の国境の版）を加工して作成（パブリックドメイン）
 

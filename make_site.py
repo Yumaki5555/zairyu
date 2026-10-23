@@ -13,6 +13,7 @@
 #     nat-<国籍>.html       国籍・地域ごと（在留資格とその移り変わり・都道府県の地図・市区町村）
 #   グラフの部品（円グラフ・棒グラフ・表の切り替え、地図、いくつかの線の折れ線、選んで見る表）は site_assets/app.js、見た目は site_assets/style.css
 #     sokuho.html           法務省・半期速報（報道発表の数。確定統計とは分けて示す。数は site/data/sokuho.json）
+#     fuho.html・kika.html  不法残留者数・帰化の数（在留外国人統計とは別の統計。数は データ/不法残留/・データ/帰化/。グラフも表もページに書く）
 #     dash.html             ダッシュボード（絞り込み・地図・推移・内訳・ランキング・比較。数は make_dash_data.py が作る site/data/*.json）
 #   地図の形は site_assets/map/*.json（make_map.py で国土地理院「地球地図日本」から、world.json は make_world_map.py で Natural Earth から作る）。site/assets/ に写す
 #   （ページに書いた数から JavaScript でグラフを作る。JavaScript が動かなくても表は見える）。
@@ -359,12 +360,21 @@ def wbr(s):
     return esc(s).replace("・", "・<wbr>")
 
 
-def cross_table(nat_items, xd, n=8):
+def xm_link(pref="", muni="", nats=()):
+    """トップページの「グラフの画像を作る」を、国籍ごとの主な在留資格・この地域・この国籍・地域を選んだ状態で開くリンク（xmaker.js の preset）"""
+    q = [("xm", "cross"), ("pref", pref), ("muni", muni), ("nat", ",".join(nats))]
+    return "index.html?" + "&".join(f"{k}={quote(v)}" for k, v in q if v) + "#xmaker"
+
+
+def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
     """国籍・地域ごとの主な在留資格：上位の国籍・地域それぞれの、多い在留資格3つの割合を積み上げ横棒で（棒の全体＝その国籍・地域の人数＝100%。
-    3つ以外は色を付けず「上位3つ以外」）。区分の中の名前と割合は、入る幅のときだけ（style.css）。棒の下に人数と割合を必ず書く。元の表は「表で見る」"""
-    rows, trs, used, other = "", "", [], []
+    3つ以外は色を付けず「上位3つ以外」）。区分の中の名前と割合は、入る幅のときだけ（style.css）。棒の下に人数と割合を必ず書く。元の表は「表で見る」。
+    画像を保存（share.js の cross）と、国籍・地域を選んで画像を作る入口（xm：トップページの「グラフの画像を作る」へのリンク）は app.js が付ける。
+    mark：目立たせる国籍・地域（その国籍・地域のページ）。在留資格の「その他」は名前のある在留資格ではないので、上位3つに入れない（画像づくりと同じ）"""
+    rows, trs, used, other, bars = "", "", [], [], []
     for name, tot, link in nat_items[:n]:
-        vs = sorted(xd.get(name, {}).items(), key=lambda x: -x[1])[:3]
+        vs = sorted(((v, c) for v, c in xd.get(name, {}).items() if v != "その他" and c), key=lambda x: -x[1])[:3]
+        bars.append({"name": name, "total": tot, "segs": [{"name": v, "v": c} for v, c in vs]})
         segs, items, aria = "", "", []
         for v, c in vs:
             k, short, p = VISA_COLOR.get(v, "x"), GRAPH_NAME.get(v, v), c / tot * 100
@@ -377,7 +387,7 @@ def cross_table(nat_items, xd, n=8):
         if rest >= 0.05:
             segs += f'<span class="xs xr nl6" style="width:{rest:.3f}%" title="{esc(name)}：上位3つ以外の在留資格（{rest:.0f}%）"><span class="xl">上位3つ以外 {rest:.0f}%</span></span>'
         nm = f'<a href="{esc(link)}">{esc(name)}</a>' if link else esc(name)
-        rows += (f'<li class="xrow"><div class="xhd"><span class="xnm">{nm}</span><span class="xtot">{num(tot)}人</span></div>'
+        rows += (f'<li class="xrow{" xme" if name == mark else ""}"><div class="xhd"><span class="xnm">{nm}</span><span class="xtot">{num(tot)}人</span></div>'
                  f'<div class="xbar" aria-hidden="true">{segs}</div><ul class="xdet">{items}</ul></li>')
         trs += f"<tr><td>{nm}</td><td class='n'>{num(tot)}</td><td>{'、'.join(f'{esc(v)} {num(c)}人（{c / tot * 100:.0f}%）' for v, c in vs)}</td></tr>"
     names = {k: v for v, k in VISA_COLOR.items()}
@@ -386,22 +396,29 @@ def cross_table(nat_items, xd, n=8):
     if other:
         legend += f'<li><span class="xsw vc-x"></span><span>そのほかの在留資格<wbr>（{wbr("・".join(other))}。しま模様）</span></li>'
     legend += '<li><span class="xsw xr"></span><span>上位3つ以外の在留資格<wbr>（色なし）</span></li>'
-    return (f'<div class="xwrap"><p class="xintro">各国籍・地域の中で、人数の多い在留資格上位3つの割合を示しています。棒の全体（100%）が、その国籍・地域の人数です。'
+    data = {"bars": bars, "area": area, "when": LATEST, "mark": mark, "xm": xm}
+    return (f'<div class="xwrap viz" data-viz="cross"><p class="xintro">各国籍・地域の中で、人数の多い在留資格上位3つの割合を示しています。棒の全体（100%）が、その国籍・地域の人数です。'
             f'在留資格の色は、どの国籍・地域でも同じです。</p><ul class="xlegend" aria-label="色の見方">{legend}</ul><ol class="xlist">{rows}</ol>'
             "<details><summary>表で見る</summary><div class='scroll'><table class='t'><tr><th>国籍・地域</th><th class='n'>人数</th>"
-            f"<th>多い在留資格（その国籍・地域の中の割合）</th></tr>{trs}</table></div></details></div>")
+            f"<th>多い在留資格（その国籍・地域の中の割合）</th></tr>{trs}</table></div></details>"
+            f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "14"
+CSS_VER = "16"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
-       ("dash", "dash.html", "ダッシュボード"), ("sokuho", "sokuho.html", "半期速報"), ("about", "about.html", "このサイトについて"))
+       ("dash", "dash.html", "ダッシュボード"), ("sokuho", "sokuho.html", "半期速報"), ("fuho", "fuho.html", "不法残留"), ("kika", "kika.html", "帰化"),
+       ("about", "about.html", "このサイトについて"))
 CUR = ' aria-current="page"'
 
 
-def page(title, crumbs, body, desc, css=(), js=(), active=None):
-    """ページの外がわ（ヘッダー・メニュー・いまいる所・下の出典）。active：メニューのうち、このページが入るもの（NAV の鍵）"""
+def page(title, crumbs, body, desc, css=(), js=(), active=None, src=None):
+    """ページの外がわ（ヘッダー・メニュー・いまいる所・下の出典）。active：メニューのうち、このページが入るもの（NAV の鍵）。
+    src：在留外国人統計ではない数のページ（不法残留・帰化）の、下に書く出典の文"""
+    foot = (f"出典：{src}。数は国の発表のまま示しています。良い・悪いの判断はしていません。" if src else
+            "出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」・Natural Earth（世界地図）を加工して作成。\n"
+            f'数は国の発表のまま示しています。良い・悪いの判断はしていません。データは{when_label(LATEST)}まで（それより新しい数は<a href="sokuho.html">半期速報</a>）。')
     nav = "".join(f'<a href="{h}"{CUR if k == active else ""}>{t}</a>' for k, h, t in NAV)
     fnav = "".join(f'<a href="{h}">{t}</a>' for k, h, t in NAV)
     crumb = ""
@@ -421,8 +438,7 @@ def page(title, crumbs, body, desc, css=(), js=(), active=None):
 {crumb}
 <main id="main">{body}</main>
 <footer><p class="fname">{esc(SITE_NAME)}</p><nav aria-label="サイトのメニュー（ページの下）">{fnav}</nav>
-<p>出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」・Natural Earth（世界地図）を加工して作成。
-数は国の発表のまま示しています。良い・悪いの判断はしていません。データは{when_label(LATEST)}まで（それより新しい数は<a href="sokuho.html">半期速報</a>）。ページを作った日 {date.today():%Y年%m月%d日}。</p></footer>
+<p>{foot}ページを作った日 {date.today():%Y年%m月%d日}。</p></footer>
 <script src="assets/app.js?v={CSS_VER}" defer></script>{"".join(f'<script src="assets/{j}?v={CSS_VER}" defer></script>' for j in js)}
 </body></html>
 """
@@ -777,7 +793,8 @@ def top_page(d):
 <section id="japan" aria-labelledby="japan-h"><h2 id="japan-h" style="margin-top:22px">日本全体の在留外国人</h2>
 {meta_line("日本全体", '<span>もっと新しい数（速報）：<a href="sokuho.html">半期速報</a></span>')}
 {kpis(now, s, "日本全体")}</section>
-{jump([("trend", "移り変わり"), ("map", "都道府県の地図"), ("nat", "国籍・地域"), ("visa", "在留資格"), ("prefs", "都道府県の一覧"), ("ten", "10年間の増減"), ("dash", "ダッシュボード")])}
+{jump([("cross", "国籍ごとの在留資格"), ("trend", "移り変わり"), ("map", "都道府県の地図"), ("nat", "国籍・地域"), ("visa", "在留資格"), ("prefs", "都道府県の一覧"), ("ten", "10年間の増減"), ("dash", "ダッシュボード")])}
+<section class="card" id="cross"><h2>国籍・地域ごとの主な在留資格</h2><p class="cardmeta">対象：全国の人数の多い10の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table(ni, xd, 10, xm=xm_link())}</section>
 <section class="card" id="trend"><h2>在留外国人の数の移り変わり（1959年〜{LATEST[:4]}年）</h2>{line_chart(s, "在留外国人の数の移り変わり", "全国")}</section>
 <section class="card" id="map"><h2>都道府県ごとの数（日本の地図）</h2><p class="cardmeta">対象：全国の47都道府県　集計時点：{when_label(LATEST)}</p>{japan_map(options)}</section>
 <div class="cols">
@@ -792,7 +809,6 @@ def top_page(d):
 {ten_nat}
 {ten_visa}
 </div>
-<section class="card" id="cross"><h2>国籍・地域ごとの主な在留資格</h2><p class="cardmeta">対象：全国の人数の多い10の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table(ni, xd, 10)}</section>
 <section class="card" id="dash"><h2>条件を選んで、もっと詳しく調べる（ダッシュボード）</h2>{DASH_MENU}</section>
 {NOTES}"""
     return page("日本全体", [("日本全体", None)], body, f"{when_label(LATEST)}の在留外国人は{num(now)}人。国籍・在留資格・都道府県・市区町村ごとの数と移り変わり。",
@@ -1032,7 +1048,8 @@ def nat_index_page(d):
     body = f"""<h1>国籍から探す</h1>
 {meta_line(f"日本に住む外国人（{len(ranked)}の国籍・地域）")}
 <p class="lead">国籍・地域の名前を押すと、その国籍・地域の人の在留資格や、住んでいる都道府県・市区町村が見られます。アジア・アフリカなどの地域区分で絞ることもできます。</p>
-{jump([("heat", "色で見る（世界地図・在留資格・年ごと）"), ("regions", "地域区分ごとの人数"), ("list", "国籍・地域の一覧")])}
+{jump([("cross", "国籍ごとの在留資格"), ("heat", "色で見る（世界地図・在留資格・年ごと）"), ("regions", "地域区分ごとの人数"), ("list", "国籍・地域の一覧")])}
+<section class="card" id="cross"><h2>国籍・地域ごとの主な在留資格</h2><p class="cardmeta">対象：全国の人数の多い10の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table([(n, v, href(nat_file(n))) for n, v in ranked], {n: d.nat_visa.get((LATEST, n), {}) for n, _ in ranked[:10]}, 10, xm=xm_link())}</section>
 <section class="card" id="heat"><h2>地域区分ごとの人数を色で見る</h2>
 <p class="cardmeta">色が濃いほど人数（割合）が多いことを表します。上のボタンで「世界地図」「在留資格の割合」「年ごとの人数」を切り替えられます。地域区分の名前を押すと、下の一覧がその区分の国・地域だけになります。</p>
 {region_heat(d, ranked)}</section>
@@ -1076,10 +1093,17 @@ def nat_page(d, n, rank):
     hidden_note = ("（外国人が10人以下の市町村は国籍が公表されていないので、市区町村の合計は全国の数より少なくなります）")
     first_pref = max(PREFS, key=lambda p: pv[p])
     st, sub = region_of(n)
+    # 国籍・地域ごとの主な在留資格：この国籍・地域と、全国で人数の多いほかの7つ（人数の多い順。この国籍・地域の行は色で目立たせる）
+    ranked = sorted(((x, ser[LATEST]) for x, ser in d.nat_series.items() if ser.get(LATEST)), key=lambda t: -t[1])
+    others = [x for x, _ in ranked if x != n][:7]
+    xn = [t for t in ranked if t[0] == n or t[0] in others]
+    xitems = [(x, c, None if x == n else href(nat_file(x))) for x, c in xn]
     body = f"""<h1>{esc(n)}の人</h1>
 {meta_line(f"日本に住む、国籍・地域が「{n}」の人（全国）", f'<span>地域区分：{region_link(sub)}{"" if sub == st else "（" + esc(st) + "）"}</span>')}
 {kpis(now, s, f"国籍・地域のうち {rank}番目に多い", f"{n}の人")}
-{jump([("trend", "移り変わり"), ("visa", "在留資格"), ("visa-trend", "在留資格の移り変わり"), ("prefs", "住んでいる都道府県"), ("munis", "住んでいる市区町村")])}
+{jump([("cross", "主な在留資格をくらべる"), ("trend", "移り変わり"), ("visa", "在留資格"), ("visa-trend", "在留資格の移り変わり"), ("prefs", "住んでいる都道府県"), ("munis", "住んでいる市区町村")])}
+<section class="card" id="cross"><h2>{esc(n)}の人の主な在留資格（ほかの国籍・地域とくらべる）</h2><p class="cardmeta">対象：全国の{esc(n)}の人と、人数の多いほかの7つの国籍・地域　集計時点：{when_label(LATEST)}</p>
+{cross_table(xitems, {x: d.nat_visa.get((LATEST, x), {}) for x, _ in xn}, len(xitems), mark=n, xm=xm_link(nats=[x for x, _ in xn]))}</section>
 <section class="card" id="trend"><h2>{esc(n)}の人の数の移り変わり</h2>{line_chart(dict(sorted(s.items())), f"{n}の人の数の移り変わり", "全国", n)}
 {"<p class='note'>2015年6月末までは「韓国・朝鮮」として1つに数えられていたため、この国籍・地域だけの数はそれより前にはありません。</p>" if n in ("韓国", "朝鮮") else ""}</section>
 <section class="card" id="visa"><h2>{esc(n)}の人の在留資格</h2><p class="cardmeta">対象：全国の{esc(n)}の人　集計時点：{when_label(LATEST)}</p>{breakdown(f"{n}の人の在留資格", vi, now, "在留資格", "全国", "visa", n)}</section>
@@ -1194,17 +1218,17 @@ def pref_page(d, pref):
     body = f"""<h1>{pref}に住む外国人の数</h1>
 {meta_line(pref)}
 {kpis(now, s, f"47都道府県のうち {rank}番目に多い")}
-{jump([("trend", "移り変わり"), ("nat", "国籍・地域"), ("visa", "在留資格"), ("map", "市区町村の地図"), ("munis", "市区町村の一覧"), ("by-nat", "国籍・地域から見た市区町村")])}
+{jump([("trend", "移り変わり"), ("nat", "国籍・地域"), ("visa", "在留資格"), ("cross", "国籍ごとの在留資格"), ("map", "市区町村の地図"), ("munis", "市区町村の一覧"), ("by-nat", "国籍・地域から見た市区町村")])}
 <section class="card" id="trend"><h2>{pref}の在留外国人の数の移り変わり</h2>{line_chart(s, f"{pref}の在留外国人の数の移り変わり", pref)}</section>
 <div class="cols">
 <section class="card" id="nat"><h2>国籍・地域の内わけ</h2><p class="cardmeta">対象：{pref}　集計時点：{when_label(LATEST)}</p>{breakdown(f"{pref}の国籍・地域の内わけ", ni, now, "国籍・地域", pref, "nat")}</section>
 <section class="card" id="visa"><h2>在留資格の内わけ</h2><p class="cardmeta">対象：{pref}　集計時点：{when_label(LATEST)}</p>{breakdown(f"{pref}の在留資格の内わけ", vi, now, "在留資格", pref, "visa")}</section>
 </div>
+<section class="card" id="cross"><h2>国籍・地域ごとの主な在留資格</h2><p class="cardmeta">対象：{pref}の人数の多い8の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table(ni, d.pref_x[pref], 8, pref, xm=xm_link(pref))}</section>
 <section class="card" id="map"><h2>{pref}の市区町村ごとの数（地図）</h2><p class="cardmeta">対象：{pref}の市区町村　集計時点：{when_label(LATEST)}</p>{mmap}</section>
 <section class="card" id="munis"><h2>{pref}の市区町村の一覧</h2><p class="cardmeta">集計時点：{when_label(LATEST)}。順位は人数の多い順。名前を押すと、その市区町村のページへ進みます。</p>
 {tbl(mhead, rows, sorts_for(2, 3, 4, 1), "市区町村の名前で探す", "", 20, "muni-list")}</section>
 <section class="card" id="by-nat"><h2>国籍・地域から見た市区町村</h2><p class="cardmeta">集計時点：{when_label(LATEST)}　国籍・地域を選ぶと、その人の多い市区町村の順になります。</p>{pick_by_nat(["総数"] + top_nats, prow)}</section>
-<section class="card" id="cross"><h2>国籍・地域ごとの主な在留資格</h2><p class="cardmeta">対象：{pref}の人数の多い8の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table(ni, d.pref_x[pref])}</section>
 {related([(dash_link(v="area", pref=pref), f"{pref}をダッシュボードで詳しく見る", "人口に占める割合・5年・10年の増減・移り変わり"),
           (dash_link(v="rank", rt="muni", pref=pref, rm="rate5"), f"{pref}の市区町村を増え方で並べる", "ダッシュボードのランキング（5年間の増加率など）"),
           (href(nat_file(first_nat)) if first_nat else "nat-index.html", f"{first_nat}の人のページ" if first_nat else "国籍から探す", f"{pref}でいちばん多い国籍・地域" if first_nat else "国籍・地域の一覧"),
@@ -1214,7 +1238,7 @@ def pref_page(d, pref):
                 f"{pref}の在留外国人は{when_label(LATEST)}に{num(now)}人。国籍・在留資格・市区町村ごとの数。", active="area")
 
 
-def muni_body(d, title, pref, s, ni, vi, xd, rank_text, extra="", links=()):
+def muni_body(d, title, pref, s, ni, vi, xd, rank_text, extra="", links=(), key=""):
     now = s.get(LATEST, 0)
     hidden = any(n == HIDDEN_LABEL for n, _, _ in ni)
     parts = [("trend", "移り変わり"), ("nat", "国籍・地域"), ("visa", "在留資格")] + ([] if hidden else [("cross", "国籍ごとの在留資格")]) + \
@@ -1230,7 +1254,7 @@ def muni_body(d, title, pref, s, ni, vi, xd, rank_text, extra="", links=()):
 <section class="card" id="nat"><h2>国籍・地域の内わけ</h2><p class="cardmeta">対象：{esc(title)}　集計時点：{when_label(LATEST)}</p>{breakdown(f"{title}の国籍・地域の内わけ", ni, now, "国籍・地域", title, "nat")}</section>
 <section class="card" id="visa"><h2>在留資格の内わけ</h2><p class="cardmeta">対象：{esc(title)}　集計時点：{when_label(LATEST)}</p>{breakdown(f"{title}の在留資格の内わけ", vi, now, "在留資格", title, "visa")}</section>
 </div>
-{"" if hidden else f"<section class='card' id='cross'><h2>国籍・地域ごとの主な在留資格</h2><p class='cardmeta'>対象：{esc(title)}の人数の多い6の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table(ni, xd, 6)}</section>"}
+{"" if hidden else f"<section class='card' id='cross'><h2>国籍・地域ごとの主な在留資格</h2><p class='cardmeta'>対象：{esc(title)}の人数の多い6の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table(ni, xd, 6, title, xm=xm_link(pref, key))}</section>"}
 {extra}{related(links)}{NOTES}"""
 
 
@@ -1262,7 +1286,7 @@ def muni_page(d, code, rank_in):
         crumbs.append((city, href(f"city-{city}.html")))
     crumbs.append((name, None))
     title = f"{pref}{name}"
-    body = muni_body(d, title, pref, s, ni, vi, d.muni_x.get(code, {}), rank_in, links=muni_links(d, pref, title, code, ni, city))
+    body = muni_body(d, title, pref, s, ni, vi, d.muni_x.get(code, {}), rank_in, links=muni_links(d, pref, title, code, ni, city), key=code)
     return page(title, crumbs, body, f"{title}の在留外国人は{when_label(LATEST)}に{num(s.get(LATEST, 0))}人。国籍・在留資格ごとの数。", active="area")
 
 
@@ -1285,7 +1309,7 @@ def city_page(d, key, rank_in):
     head = [("順位", True), ("区", False), ("人数", True), ("1年前から", True), ("増減の割合", True)]
     extra = (f"<section class='card' id='wards'><h2>{esc(city)}の区の一覧</h2><p class='cardmeta'>集計時点：{when_label(LATEST)}。区の名前を押すと、その区のページへ進みます。</p>"
              + tbl(head, rows, sorts_for(2, 3, 4, 1), "", "", 30, "ward-list") + "</section>")
-    body = muni_body(d, f"{pref}{city}", pref, s, ni, vi, xd, rank_in, extra, muni_links(d, pref, f"{pref}{city}", "city:" + city, ni))
+    body = muni_body(d, f"{pref}{city}", pref, s, ni, vi, xd, rank_in, extra, muni_links(d, pref, f"{pref}{city}", "city:" + city, ni), key="city:" + city)
     return page(f"{pref}{city}", [("日本全体", "index.html"), ("地域から探す", "area-index.html"), (pref, PREF_FILE[pref]), (city, None)], body,
                 f"{pref}{city}の在留外国人は{when_label(LATEST)}に{num(s.get(LATEST, 0))}人。国籍・在留資格・区ごとの数。", active="area")
 
@@ -1330,6 +1354,389 @@ def sokuho_page():
     return page("法務省・半期速報", [("日本全体", "index.html"), ("法務省・半期速報", None)], body,
                 "法務省（出入国在留管理庁）の半期速報「在留外国人数について」の国籍・在留資格・都道府県別の数と移り変わり。",
                 css=("dash.css",), js=("share.js", "dash.js", "sokuho.js"), active="sokuho")
+
+
+# ---------------------------------------------------------------- 不法残留・帰化（在留外国人統計とは別の統計）
+# 数は データ/不法残留/（make_fuho.py が法務省の報道発表の Excel から作る）と データ/帰化/（make_kika.py が法務省民事局の PDF から作る）。
+# グラフも表もページに書く（JavaScript がなくても見える）。点にマウスを合わせると数が出る（SVG の title）。元の数は「表で見る」
+# 画像を保存（share.js）は、図の数・タイトル・出典（FUHO_ORG など。画像では後ろに「を加工して作成」が付く）・ハッシュタグをページの JSON から読む（app.js の data-viz="static"）
+FUHO_ORG = "出入国在留管理庁「本邦における不法残留者数について」（報道発表）"
+KIKA_ORG = "法務省民事局「帰化許可申請者数等の推移」"
+FUHO_SRC, KIKA_SRC = FUHO_ORG + "を加工して作成", KIKA_ORG + "を加工して作成"
+FUHO_SAVE, KIKA_SAVE = {"src": FUHO_ORG, "tag": "#不法残留"}, {"src": KIKA_ORG, "tag": "#帰化"}
+
+
+def save_box(inner, save, chart):
+    """図に「画像を保存」を付ける（app.js が JSON を読んでボタンを足す）。save：{"title", "src", "tag", "note"（画像のいちばん下の注記。なくてもよい）}、
+    chart：share.js の図の数"""
+    save = dict(save)
+    if save.get("note"):
+        chart["markNote"] = save.pop("note")
+    return f'<div class="viz" data-viz="static">{inner}<script type="application/json">{jdump({**save, "chart": chart})}</script></div>'
+
+
+def day_label(w):
+    """2026-07-01 → 2026年7月1日"""
+    y, m, d = w.split("-")
+    return f"{y}年{int(m)}月{int(d)}日"
+
+
+def day_x(w):
+    y, m, _ = w.split("-")
+    return int(y) + (int(m) - 1) / 12
+
+
+def static_lines(series, title, ticks, head="時点", save=None):
+    """いくつかの線の折れ線（ページに書く SVG）。series：[{"name", "cls"（色 1〜7・o）, "pts": [(x, 人数, 時点の名前)]}]、ticks：[(x, 目もりの字)]。
+    線が2つ以上なら、線の名前と最後の数を下に書く（色だけに頼らない）。
+    パソコン用（横長）とスマホ用（縦長・目もりは間引く。目もりの字は style.css でスマホのとき大きくなる）の2つを書き、画面の幅で切り替える（style.css の .slw・.sln）"""
+    xs = [p[0] for s in series for p in s["pts"]]
+    x0, x1 = min(xs), max(xs)
+    top = max(p[1] for s in series for p in s["pts"]) * 1.05 or 1
+    ystep = nice_step(top / 5)
+    nt = int(-(-top // ystep))
+    ymax = ystep * nt
+
+    def svg_of(W, H, L, R, T, B, gap, dot):
+        def X(x):
+            return L + (x - x0) / ((x1 - x0) or 1) * (W - L - R)
+
+        def Y(y):
+            return T + (1 - y / ymax) * (H - T - B)
+        every = max(1, -(-len(ticks) * gap // (W - L - R)))  # 目もりの字が重ならないように間引く（いちばん新しい側を残す）
+        g = [f'<svg class="chart lines" viewBox="0 0 {W} {H}" role="img" aria-label="{esc(title)}">']
+        for k in range(nt + 1):
+            g.append(f'<line class="grid" x1="{L}" x2="{W - R}" y1="{Y(ystep * k):.1f}" y2="{Y(ystep * k):.1f}"/>'
+                     f'<text class="ax" x="{L - 6}" y="{Y(ystep * k) + 4:.1f}" text-anchor="end">{man(int(ystep * k))}</text>')
+        g += [f'<text class="ax" x="{X(x):.1f}" y="{H - 10}" text-anchor="middle">{esc(lab)}</text>'
+              for i, (x, lab) in enumerate(ticks) if (len(ticks) - 1 - i) % every == 0]
+        for s in series:
+            d = " ".join(f"{'M' if i == 0 else 'L'}{X(x):.1f},{Y(v):.1f}" for i, (x, v, _) in enumerate(s["pts"]))
+            g.append(f'<path class="ln s-{s["cls"]}" d="{d}"/>')
+            r = dot if len(s["pts"]) <= 30 else dot * 0.7  # 点の多い線（毎年の数など）は小さい点
+            g += [f'<circle class="pt s-{s["cls"]}" cx="{X(x):.1f}" cy="{Y(v):.1f}" r="{r:g}"><title>{esc(s["name"])}（{esc(w)}）：{num(v)}人</title></circle>'
+                  for x, v, w in s["pts"]]
+        return "".join(g) + "</svg>"
+    chart = (f'<div class="slw">{svg_of(720, 320, 64, 20, 14, 34, 60, 3.5)}</div>'
+             f'<div class="sln">{svg_of(480, 400, 104, 28, 16, 44, 80, 5)}</div>')
+    if save:  # 画像を保存：時点の名前（2026年7月1日・2025年）と横の位置（年の目もりが整数の所）は share.js の labels・at
+        pos = sorted({w: x for s in series for x, _, w in s["pts"]}.items(), key=lambda a: a[1])
+        per = [w for w, _ in pos]
+        chart = save_box(chart, save, {
+            "kind": "line", "per": per, "labels": per, "at": [x for _, x in pos], "index": False, "area": "全国", "when": per[-1], "from": per[0],
+            "whenText": f"{per[0]}〜{per[-1]}",
+            "series": [{"name": s["name"], "cls": s["cls"], "vals": [None if m.get(w) is None else int(m[w]) for w in per]}
+                       for s, m in zip(series, [{w: v for _, v, w in s["pts"]} for s in series])]})
+    legend = ""
+    if len(series) > 1:
+        legend = ('<ul class="legend" style="max-width:420px">' + "".join(f'<li><span class="sw sw-{s["cls"]}"></span><span>{esc(s["name"])}</span>'
+                                                  f'<span class="v">{num(s["pts"][-1][1])}人</span></li>' for s in series) + "</ul>"
+                  f'<p class="hint">名前の横の数は、いちばん新しい時点（{esc(series[0]["pts"][-1][2])}）の数です。</p>')
+    order = sorted({w: x for s in series for x, _, w in s["pts"]}.items(), key=lambda a: a[1])
+    vals = [{w: v for _, v, w in s["pts"]} for s in series]
+    th = "".join(f"<th class='n'>{esc(s['name'])}</th>" for s in series)
+    rows = "".join(f"<tr><td>{esc(w)}</td>" + "".join(f"<td class='n'>{num(m[w]) if w in m else '—'}</td>" for m in vals) + "</tr>" for w, _ in order)
+    return (chart + legend + '<p class="hint">点にマウスを合わせると、その時点の数が出ます。</p>'
+            f"<details><summary>グラフの元の数を表で見る</summary><div class='scroll'><table class='t'><tr><th>{esc(head)}</th>{th}</tr>{rows}</table></div></details>")
+
+
+def static_hbars(items, total, save=None, image="rank", when=""):
+    """横棒（ページに書く）。items：[(名前, 人数, まとめた行か)]。割合は total に対する割合。
+    save があれば「画像を保存」：image="rank" は多い順のランキング（まとめた行「その他」は入れない）、"pie" は円グラフ（「その他」も入れる）。when：時点の名前"""
+    mx = max(v for _, v, _ in items) or 1
+    out = '<ul class="hbars">' + "".join(
+        f'<li><span class="nm">{esc(n)}</span><span class="track"><span class="fill{" o" if o else ""}" style="width:{v / mx * 100:.1f}%"></span></span>'
+        f'<span class="v">{num(v)}人</span><span class="p">{v / total * 100:.1f}%</span></li>' for n, v, o in items) + "</ul>"
+    if not save:
+        return out
+    if image == "rank":
+        chart = {"kind": "rank", "rows": [[n, v] for n, v, o in items if not o][:10], "metric": "人数", "area": "全国", "what": "全国の国籍・地域", "whenText": when}
+    else:
+        chart = {"kind": "pie", "parts": [{"name": n, "v": v, "cls": "o" if o else str(i + 1)} for i, (n, v, o) in enumerate(items)], "total": int(total),
+                 "area": "全国", "whenText": when}
+    return save_box(out, save, chart)
+
+
+def diff_text(now, before):
+    if before is None:
+        return "—"
+    return f"{signed(now - before)}（{pct_signed(now - before, before)}）" if before else signed(now - before)
+
+
+def ymd_text(s):
+    """2026-10-16 → 2026年10月16日"""
+    return day_label(s) if isinstance(s, str) and s.count("-") == 2 else ""
+
+
+def fuho_page():
+    folder = os.path.join(DATA, "不法残留")
+    t = pd.read_csv(os.path.join(folder, "推移.csv")).sort_values(["発表の時点", "時点"])
+    t["種別"] = t["種別"].fillna("")
+    cross = pd.read_csv(os.path.join(folder, "国籍_在留資格.csv"))
+    new = pd.read_csv(os.path.join(folder, "新規.csv"))
+    new["種別"] = new["種別"].fillna("")
+    last = t["発表の時点"].max()
+    lt = t[t["発表の時点"] == last]  # いちばん新しい発表（その時点と、前の4時点の列）
+
+    def series(kind, key, sex="総数"):
+        """同じ時点の数は、どの発表でも同じ（make_fuho.py で確かめた。国籍・地域の「その他」は発表ごとに中身が違うので、ここでは使わない）"""
+        col = "国籍・地域" if kind == "国籍・地域別" else "在留資格"
+        r = t[(t["表"] == kind) & (t[col] == key) & (t["性別"] == sex)]
+        return dict(sorted(r.groupby("時点")["人数"].last().items()))
+
+    def latest(kind, key, sex="総数", when=last):
+        """いちばん新しい発表の数（「その他」も、その発表の中ではそろっている）"""
+        col = "国籍・地域" if kind == "国籍・地域別" else "在留資格"
+        r = lt[(lt["表"] == kind) & (lt[col] == key) & (lt["性別"] == sex) & (lt["時点"] == when)]
+        return int(r["人数"].iloc[0]) if len(r) else None
+
+    total = series("国籍・地域別", "総数")
+    whens = list(total)
+    prev = whens[-2]
+    ago = f"{int(last[:4]) - 1}{last[4:]}"
+    now = total[last]
+    pub = lt.iloc[0]
+
+    def tile(label, w):
+        b = total.get(w)
+        if b is None:
+            return ""
+        return (f'<div class="kpi"><div class="lab">{label}（{day_label(w)}）から</div><div class="mid">{signed(now - b)}人</div>'
+                f'<div class="lab">増減の割合 {pct_signed(now - b, b)}（{num(b)}人から）</div></div>')
+    kpi = (f'<div class="kpis"><div class="kpi"><div class="lab">{day_label(last)}現在の不法残留者数</div><div class="big">{num(now)}人</div>'
+           f'<div class="lab">男 {num(latest("国籍・地域別", "総数", "男"))}人・女 {num(latest("国籍・地域別", "総数", "女"))}人</div></div>'
+           f'{tile("半年前", prev)}{tile("1年前", ago)}</div>')
+    years = range(int(whens[0][:4]), int(last[:4]) + 1)
+    ticks = [(y, str(y)) for y in years]
+    chart_total = static_lines([{"name": "不法残留者数", "cls": "1", "pts": [(day_x(w), v, day_label(w)) for w, v in total.items()]}],
+                               "不法残留者数の移り変わり", ticks, save={**FUHO_SAVE, "title": "全国｜不法残留者数の移り変わり"})
+
+    # 国籍・地域（いちばん新しい発表の上位10と「その他」）
+    nr = cross[(cross["時点"] == last) & (cross["在留資格"] == "総数") & (cross["国籍・地域"] != "総数")]
+    nats = list(nr["国籍・地域"])  # 発表の順（人数の多い順。「その他」は最後）
+    nat_now = dict(zip(nr["国籍・地域"], nr["人数"]))
+    nat_bars = static_hbars([(n, int(nat_now[n]), n == "その他") for n in nats], now, when=f"{day_label(last)}現在",
+                            save={**FUHO_SAVE, "title": "全国｜不法残留者の国籍・地域別人数（上位10）", "note": "国の発表に名前の出ている上位10か国・地域です。"})
+    nat_trs = "".join(
+        f"<tr><td>{esc(n)}</td><td class='n'>{num(nat_now[n])}</td><td class='n'>{nat_now[n] / now * 100:.1f}%</td>"
+        f"<td class='n'>{diff_text(nat_now[n], latest('国籍・地域別', n, when=prev))}</td>"
+        f"<td class='n'>{num(latest('国籍・地域別', n, '男'))}</td><td class='n'>{num(latest('国籍・地域別', n, '女'))}</td></tr>" for n in nats)
+    nat_table = (f"<div class='scroll'><table class='t'><thead><tr><th>国籍・地域</th><th class='n'>人数</th><th class='n'>割合</th>"
+                 f"<th class='n'>半年前から</th><th class='n'>男</th><th class='n'>女</th></tr></thead><tbody>{nat_trs}"
+                 f"<tr><td><b>総数</b></td><td class='n'><b>{num(now)}</b></td><td class='n'>100.0%</td><td class='n'>{diff_text(now, total[prev])}</td>"
+                 f"<td class='n'>{num(latest('国籍・地域別', '総数', '男'))}</td><td class='n'>{num(latest('国籍・地域別', '総数', '女'))}</td></tr></tbody></table></div>")
+    top_nats = [n for n in nats if n != "その他"][:7]
+    chart_nat = static_lines([{"name": n, "cls": str(i + 1), "pts": [(day_x(w), v, day_label(w)) for w, v in series("国籍・地域別", n).items()]}
+                              for i, n in enumerate(top_nats)], "国籍・地域別の不法残留者数の移り変わり", ticks,
+                             save={**FUHO_SAVE, "title": "全国｜不法残留者の国籍・地域別の移り変わり（上位7）"})
+
+    # 在留資格（不法残留になったときの在留資格）
+    vr = lt[(lt["表"] == "在留資格別") & (lt["時点"] == last) & (lt["在留資格"] != "総数")]
+    visas = [v for v, k in zip(vr["在留資格"], vr["種別"]) if not k]
+    vnow = dict(zip(vr["在留資格"], vr["人数"]))
+    visa_note = "在留資格は、不法残留になったときにもっていた在留資格です。"
+    visa_bars = static_hbars([(v, int(vnow[v]), v == "その他") for v in visas], now, image="pie", when=f"{day_label(last)}現在",
+                             save={**FUHO_SAVE, "title": "全国｜不法残留者の在留資格別構成", "note": visa_note})
+    visa_trs = ""
+    for v, k in zip(vr["在留資格"], vr["種別"]):
+        name = f"<span class='sub'>うち {esc(v)}</span>" if k else esc(v)
+        visa_trs += (f"<tr><td>{name}</td><td class='n'>{num(vnow[v])}</td><td class='n'>{vnow[v] / now * 100:.1f}%</td>"
+                     f"<td class='n'>{diff_text(vnow[v], latest('在留資格別', v, when=prev))}</td></tr>")
+    visa_table = (f"<div class='scroll'><table class='t'><thead><tr><th>在留資格</th><th class='n'>人数</th><th class='n'>割合</th><th class='n'>半年前から</th></tr></thead>"
+                  f"<tbody>{visa_trs}<tr><td><b>総数</b></td><td class='n'><b>{num(now)}</b></td><td class='n'>100.0%</td>"
+                  f"<td class='n'>{diff_text(now, total[prev])}</td></tr></tbody></table></div>")
+    chart_visa = static_lines([{"name": v, "cls": "o" if v == "その他" else str(i + 1), "pts": [(day_x(w), x, day_label(w)) for w, x in series("在留資格別", v).items()]}
+                               for i, v in enumerate(visas)], "在留資格別の不法残留者数の移り変わり", ticks,
+                              save={**FUHO_SAVE, "title": "全国｜不法残留者の在留資格別の移り変わり", "note": visa_note})
+
+    # 国籍・地域 × 在留資格
+    cx = cross[cross["時点"] == last]
+    cell = {(a, b): int(n) for a, b, n in zip(cx["国籍・地域"], cx["在留資格"], cx["人数"])}
+    cols = ["総数"] + visas
+    cross_trs = "".join(f"<tr><td>{'<b>総数</b>' if a == '総数' else esc(a)}</td>" +
+                        "".join(f"<td class='n'>{num(cell[(a, b)])}</td>" for b in cols) + "</tr>" for a in nats + ["総数"])
+    cross_table = (f"<div class='scroll'><table class='t'><thead><tr><th>国籍・地域</th>" + "".join(f"<th class='n'>{esc(b)}</th>" for b in cols) +
+                   f"</tr></thead><tbody>{cross_trs}</tbody></table></div>")
+
+    # 新規不法残留者数（2026年1月1日の発表から）
+    def new_block(w):
+        r = new[new["時点"] == w]
+        out = ""
+        for kind, head in (("国籍・地域別", "国籍・地域"), ("在留資格別", "在留資格")):
+            q = r[r["表"] == kind]
+            p = {(a, k): int(n) for a, k, n in zip(q["名前"], q["区分"], q["人数"])}
+            sub = dict(zip(q["名前"], q["種別"]))
+            names = list(dict.fromkeys(q["名前"]))
+            names = [a for a in names if a != "総数"] + ["総数"]
+            label = lambda a: "<b>総数</b>" if a == "総数" else (f"<span class='sub'>うち {esc(a)}</span>" if sub.get(a) else esc(a))
+            share = lambda a: f"{p[(a, '新規')] / p[(a, 'その時点の数')] * 100:.1f}%" if p[(a, "その時点の数")] else "—"
+            trs = "".join(f"<tr><td>{label(a)}</td><td class='n'>{num(p[(a, '新規')])}</td><td class='n'>{num(p[(a, 'その時点の数')])}</td>"
+                          f"<td class='n'>{share(a)}</td><td class='n'>{num(p[(a, '前の時点の数')])}</td><td class='n'>{num(p[(a, '減少')])}</td></tr>" for a in names)
+            out += (f"<h3>{head}別</h3><div class='scroll'><table class='t'><thead><tr><th>{head}</th><th class='n'>新規</th>"
+                    f"<th class='n'>{day_label(w)}の数</th><th class='n'>そのうち新規の割合</th><th class='n'>前の時点の数</th><th class='n'>減少</th></tr></thead>"
+                    f"<tbody>{trs}</tbody></table></div>")
+        return out
+    new_whens = sorted(new["時点"].unique())
+    n_total = new[(new["時点"] == last) & (new["表"] == "国籍・地域別") & (new["名前"] == "総数")].set_index("区分")["人数"]
+    new_sec = ""
+    if last in new_whens:
+        before = [w for w in whens if w < last][-1]
+        new_sec = f"""<section class="card" id="new"><h2>新しく分かった不法残留者（新規）</h2>
+<p>{day_label(before)}のあとに新しく分かり、{day_label(last)}も不法残留している人（国の発表では「新規不法残留者」）は <b>{num(n_total["新規"])}人</b>で、
+{day_label(last)}の不法残留者数の{n_total["新規"] / n_total["その時点の数"] * 100:.1f}%です。
+{day_label(before)}にいた{num(n_total["前の時点の数"])}人のうち、{num(n_total["減少"])}人は数から外れています（国の発表では「減少」。送還された人・出国命令で出国した人・在留特別許可を受けた人など）。</p>
+<p class="note">国籍・地域と在留資格は、新規の人の多い順に国の発表に出ているものです（上の表の上位10とは顔ぶれが違うので、「その他」の中身も違います）。
+「出国期間」は、在留資格を取り消されたあと、出国のために認められた期間のことです。</p>
+{new_block(last)}
+{"".join(f"<details><summary>{day_label(w)}の発表の新規を見る</summary>{new_block(w)}</details>" for w in new_whens if w != last)}
+<p class="note">新規の数は、{day_label(new_whens[0])}の発表から出ています。</p></section>"""
+
+    pubs = t.drop_duplicates("発表の時点")[["発表の時点", "公表日", "発表のページ"]].sort_values("発表の時点", ascending=False).values.tolist()
+    pub_list = "".join(f'<li><a href="{esc(u)}">{day_label(w)}現在</a>（公表 {ymd_text(p)}）</li>' for w, p, u in pubs)
+    body = f"""<h1>不法残留者数</h1>
+<p class="lead">在留期間が過ぎたあとも日本から出国していない外国人の数です（国の発表のことばで「不法残留者」）。出入国在留管理庁が毎年1月1日と7月1日の数を発表しています。
+<a href="index.html">在留外国人の数</a>（在留外国人統計）とは別の統計で、在留外国人の数には入っていません。</p>
+<p class="meta"><span>対象：<b>日本全体</b></span><span>時点：<b>{day_label(last)}現在</b>（{ymd_text(pub["公表日"])}公表の発表）</span></p>
+{jump([("trend", "移り変わり"), ("nat", "国籍・地域別"), ("visa", "在留資格別"), ("cross", "国籍・地域×在留資格")] + ([("new", "新規")] if new_sec else []) + [("notes", "注意と出典")])}
+{kpi}
+<section class="card" id="trend"><h2>不法残留者数の移り変わり</h2>
+{chart_total}
+<p class="note">{whens[0][:4]}〜2020年は、毎年1月1日の数です（発表の表にある時点）。2021年からは1月1日と7月1日の年2回です。
+それより前の数は、発表の資料ではグラフの絵だけで表がないため、ここには入れていません（発表のグラフは1990年からで、いちばん多いのは1993年5月1日の298,646人）。</p></section>
+<section class="card" id="nat"><h2>国籍・地域別（{day_label(last)}現在）</h2>
+<p class="note">国の発表に名前の出ている上位10か国・地域と、それ以外をまとめた「その他」です。割合は不法残留者数（{num(now)}人）に対する割合です。</p>
+{nat_bars}
+{nat_table}
+<h3>上位7か国・地域の移り変わり</h3>
+{chart_nat}</section>
+<section class="card" id="visa"><h2>在留資格別（{day_label(last)}現在）</h2>
+<p class="note">在留資格は、不法残留になったときにもっていた在留資格です。「留学」には、昔の在留資格「就学」（2010年7月より前）だった人も入ります。
+「その他」は、ここに名前の出ていない在留資格を合わせた数です。</p>
+{visa_bars}
+{visa_table}
+<h3>移り変わり</h3>
+{chart_visa}</section>
+<section class="card" id="cross"><h2>国籍・地域 × 在留資格（{day_label(last)}現在）</h2>
+<p class="note">技能実習の号ごとの内わけは、GitHub の表（データ/不法残留/国籍_在留資格.csv）にあります。</p>
+{cross_table}</section>
+{new_sec}
+<section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
+<li>出典：{FUHO_SRC}。</li>
+<li>不法残留者は、入管法第24条の不法残留の規定に当たる人です。国が出入国の記録と退去強制の手続きの情報などから出した<b>概数</b>です。</li>
+<li>時点は1月1日と7月1日です。在留外国人統計（6月末・12月末）とは時点も数え方も違うので、そのまま足したり割ったりできません。</li>
+<li>国籍・地域は、発表ごとの上位10か国・地域だけです。上位の顔ぶれは発表ごとに変わるので、「その他」に入っている国は発表によって違います。</li>
+<li>同じ時点の数は、どの発表でも同じでした（あとから直された数はありません）。取り込むときに、内わけの合計が総数と合うかも確かめています。</li>
+<li>表（1行に1つの数の CSV）は GitHub の「データ/不法残留/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
+</ul>
+<h3>取り込んだ発表</h3><ul>{pub_list}</ul></section>
+{related([("kika.html", "帰化", "帰化の申請・許可の数"), ("sokuho.html", "半期速報", "在留外国人の新しい数"), ("visa-index.html", "在留資格から探す", "在留外国人の在留資格別の人数"),
+          ("about.html", "このサイトについて", "使っているデータと注意")])}"""
+    return page("不法残留者数", [("日本全体", "index.html"), ("不法残留者数", None)], body,
+                "出入国在留管理庁が発表している不法残留者数の移り変わりと、国籍・地域別・在留資格別の数。", active="fuho", src=FUHO_SRC)
+
+
+def kika_page():
+    folder = os.path.join(DATA, "帰化")
+    t = pd.read_csv(os.path.join(folder, "帰化の推移.csv"), dtype={"年": str})
+    byn = pd.read_csv(os.path.join(folder, "国籍別帰化許可者数.csv"), dtype={"順位": str})
+    nat = pd.read_csv(os.path.join(folder, "国籍取得と離脱.csv"))
+    yearly = t[t["年"].str.isdigit()]
+    s = defaultdict(dict)  # (項目, 国籍・地域) → {年: 人数}
+    for y, item, n, v in zip(yearly["年"], yearly["項目"], yearly["国籍・地域"], yearly["人数"]):
+        s[(item, n)][int(y)] = int(v)
+    ok, ap, ng = s[("帰化許可者数", "総数")], s[("帰化許可申請者数", "総数")], s[("帰化不許可者数", "総数")]
+    last = max(ok)
+    total_all = int(t[(t["項目"] == "帰化許可者数") & (t["国籍・地域"] == "総数")]["人数"].sum())
+    first = min(ok)
+
+    def tile(label, m, big=False):
+        now, b = m[last], m.get(last - 1)
+        ch = f"前の年から {signed(now - b)}人（{pct_signed(now - b, b)}）" if b else ""
+        return (f'<div class="kpi"><div class="lab">{last}年の{label}</div><div class="{"big" if big else "mid"}">{num(now)}人</div>'
+                f'<div class="lab">{ch}</div></div>')
+    kpi = f'<div class="kpis">{tile("帰化許可者数", ok, True)}{tile("帰化許可申請者数", ap)}{tile("帰化不許可者数", ng)}</div>'
+    ticks = [(y, str(y)) for y in range((first + 9) // 10 * 10, last + 1, 10)]
+    pts = lambda m: [(y, v, f"{y}年") for y, v in sorted(m.items())]
+    chart_main = static_lines([{"name": "帰化許可申請者数", "cls": "1", "pts": pts(ap)}, {"name": "帰化許可者数", "cls": "2", "pts": pts(ok)},
+                               {"name": "帰化不許可者数", "cls": "3", "pts": pts(ng)}], "帰化の申請・許可・不許可の数の移り変わり", ticks, head="年",
+                              save={**KIKA_SAVE, "title": "全国｜帰化の申請・許可・不許可の人数の移り変わり",
+                                    "note": "それぞれ、その年（1月〜12月）にあった数です。その年に申請した人がその年に許可・不許可になったとは限りません。"})
+    chart_nat = static_lines([{"name": n, "cls": c, "pts": pts(s[("帰化許可者数", n)])} for n, c in (("韓国・朝鮮", "1"), ("中国", "2"), ("その他", "o"))],
+                             "国籍別の帰化許可者数の移り変わり", ticks, head="年",
+                             save={**KIKA_SAVE, "title": "全国｜帰化許可者の国籍別の移り変わり", "note": "国籍は、法務省の表の「韓国・朝鮮」「中国」「その他」の3つです。"})
+
+    # 毎年の表（新しい年から）。1952年4月28日〜1966年はまとめた数、1952年4月27日以前は合計だけ
+    cols = [("帰化許可申請者数", "総数"), ("帰化許可者数", "総数"), ("帰化許可者数", "韓国・朝鮮"), ("帰化許可者数", "中国"), ("帰化許可者数", "その他"), ("帰化不許可者数", "総数")]
+    cell = {(y, i, n): int(v) for y, i, n, v in zip(t["年"], t["項目"], t["国籍・地域"], t["人数"])}
+    era = {"令和": 2018, "平成": 1988, "昭和": 1925}
+    # まとめた期間の行の名前は、表の書き方（昭和27年(4月28日)～昭和41年）を西暦に（1952年4月28日～1966年）
+    seireki = lambda s: re.sub(r"\((\d+月\d+日)\)", r"\1", re.sub(r"(令和|平成|昭和)(\d+)年", lambda m: f"{era[m.group(1)] + int(m.group(2))}年", s))
+    labels = {y: seireki(s) for y, s in zip(t["年"], t["年の書き方"])}
+    order = sorted([y for y in labels if y.isdigit()], key=int, reverse=True) + [y for y in labels if not y.isdigit()]
+    trs = "".join(f"<tr><td>{esc(y + '年' if y.isdigit() else labels[y])}</td>" +
+                  "".join(f"<td class='n'>{num(cell[(y, i, n)]) if (y, i, n) in cell else '—'}</td>" for i, n in cols) + "</tr>" for y in order)
+    year_table = ("<div class='scroll'><table class='t'><thead><tr><th>年</th><th class='n'>申請者数</th><th class='n'>許可者数</th>"
+                  "<th class='n'>うち韓国・朝鮮</th><th class='n'>うち中国</th><th class='n'>うちその他</th><th class='n'>不許可者数</th></tr></thead>"
+                  f"<tbody>{trs}</tbody></table></div>")
+
+    # 国籍別（最近の3年の上位10）
+    ys = sorted(byn["年"].unique())
+    rank = {(int(y), r): (n, int(v)) for y, r, n, v in zip(byn["年"], byn["順位"].fillna(""), byn["国籍・地域"], byn["人数"])}
+    rest = {(int(y), n): int(v) for y, r, n, v in zip(byn["年"], byn["順位"].fillna(""), byn["国籍・地域"], byn["人数"]) if not r}
+    rk = sorted({r for _, r in rank if r}, key=int)
+    rank_trs = "".join(f"<tr><td class='n'>{r}</td>" + "".join(f"<td>{esc(rank[(y, r)][0])}</td><td class='n'>{num(rank[(y, r)][1])}</td>" for y in ys) + "</tr>" for r in rk)
+    rank_trs += "".join(f"<tr><td></td>" + "".join(f"<td>{n}</td><td class='n'>{num(rest[(y, n)])}</td>" for y in ys) + "</tr>" for n in ("その他", "総数"))
+    rank_table = ("<div class='scroll'><table class='t'><thead><tr><th class='n'>順位</th>" + "".join(f"<th colspan='2'>{y}年</th>" for y in ys) +
+                  f"</tr></thead><tbody>{rank_trs}</tbody></table></div>")
+    ly = ys[-1]
+    rank_bars = static_hbars([rank[(ly, r)] + (False,) for r in rk] + [("その他", rest[(ly, "その他")], True)], rest[(ly, "総数")], when=f"{ly}年",
+                             save={**KIKA_SAVE, "title": "全国｜帰化許可者の国籍・地域別人数（上位10）"})
+
+    # 国籍の取得（届け出）と離脱
+    nt = nat.pivot_table(index="年", columns="項目", values="人数", aggfunc="first")
+    nat_trs = "".join(f"<tr><td>{y}年</td><td class='n'>{num(r['国籍取得者数'])}</td><td class='n'>{num(r['国籍離脱者数'])}</td></tr>" for y, r in nt.sort_index(ascending=False).iterrows())
+    nat_table = ("<div class='scroll'><table class='t'><thead><tr><th>年</th><th class='n'>国籍取得者数</th><th class='n'>国籍離脱者数</th></tr></thead>"
+                 f"<tbody>{nat_trs}</tbody></table></div>")
+
+    body = f"""<h1>帰化の数</h1>
+<p class="lead">帰化は、外国の国籍の人が法務大臣の許可を受けて日本の国籍を取ることです。法務省民事局が発表している、毎年（1月〜12月）の帰化の申請・許可・不許可の人数です。
+帰化して日本の国籍になった人は、<a href="index.html">在留外国人の数</a>には入りません。</p>
+<p class="meta"><span>対象：<b>日本全体</b></span><span>期間：<b>1952年〜{last}年</b>（毎年1月〜12月の人数。{first - 1}年まではまとめた数）</span></p>
+{jump([("trend", "移り変わり"), ("nat", "国籍別"), ("years", "毎年の数"), ("acq", "国籍の取得と離脱"), ("notes", "注意と出典")])}
+{kpi}
+<section class="card" id="trend"><h2>申請・許可・不許可の数の移り変わり</h2>
+{chart_main}
+<p class="note">帰化許可者数は{first}年から、申請者数は{min(ap)}年から、不許可者数は{min(ng)}年からの数です。
+1952年4月28日〜{first - 1}年はまとめた数だけなので、グラフには入れていません（下の「毎年の数」の表にあります）。
+1952年からの帰化許可者数を合わせると {num(total_all)}人です（1952年4月27日以前の333人を含む）。</p>
+<p class="note">申請者数・許可者数・不許可者数は、それぞれその年にあった数です。その年に申請した人がその年に許可・不許可になったとは限らないので、許可者数÷申請者数は「許可される割合」にはなりません。</p></section>
+<section class="card" id="nat"><h2>国籍別の帰化許可者数</h2>
+<h3>{ly}年の上位10か国・地域</h3>
+<p class="note">割合は、{ly}年の帰化許可者数（{num(rest[(ly, "総数")])}人）に対する割合です。</p>
+{rank_bars}
+<h3>最近の3年の上位10か国・地域</h3>
+{rank_table}
+<h3>韓国・朝鮮、中国、その他の移り変わり</h3>
+<p class="note">毎年の数の表は、国籍を「韓国・朝鮮」「中国」「その他」の3つに分けています。それより細かい国籍の数は、最近の3年分だけ発表されています。</p>
+{chart_nat}</section>
+<section class="card" id="years"><h2>毎年の数</h2>
+<p class="note">「—」は、その年の数がない（発表の表にない）所です。</p>
+{year_table}</section>
+<section class="card" id="acq"><h2>国籍の取得（届け出）と離脱</h2>
+<p class="note">帰化とは別の数です。国籍取得者数は、国籍法第3条・第17条などにもとづいて、届け出で日本の国籍を取った人の数です。
+国籍離脱者数は、国籍法第13条にもとづいて日本の国籍をはなれた人の数です。最近の10年分が発表されています。</p>
+{nat_table}</section>
+<section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
+<li>出典：{KIKA_SRC}（<a href="https://www.moj.go.jp/MINJI/toukei_t_minj03.html">https://www.moj.go.jp/MINJI/toukei_t_minj03.html</a>）。</li>
+<li>どれも暦年（1月〜12月）の人数です。</li>
+<li>2010年の帰化許可者数は、法務省の注記のとおり、官報の正誤（中国2人）を反映した数です。</li>
+<li>取り込むときに、どの年も 許可者数の合計＝韓国・朝鮮＋中国＋その他 になっているか、累計が毎年の数の和と同じか、国籍別の表と毎年の表が同じ数かを確かめています。</li>
+<li>表（1行に1つの数の CSV）は GitHub の「データ/帰化/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
+</ul></section>
+{related([("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("nat-index.html", "国籍から探す", "在留外国人の国籍・地域別の人数"),
+          ("about.html", "このサイトについて", "使っているデータと注意")])}"""
+    return page("帰化の数", [("日本全体", "index.html"), ("帰化の数", None)], body,
+                "法務省民事局が発表している帰化の申請・許可・不許可の人数の移り変わりと、国籍別の帰化許可者数。", active="kika", src=KIKA_SRC)
 
 
 REGIONS = [("北海道・東北", PREFS[0:7]), ("関東", PREFS[7:14]), ("中部", PREFS[14:23]), ("近畿", PREFS[23:30]), ("中国", PREFS[30:35]),
@@ -1423,7 +1830,9 @@ def about_page(d):
 読み取れなかったマスの一部は、表の合計から求めた数です（どのマスかは GitHub の表の「直した所」にあります）</li>
 <li>どちらも政府統計の総合窓口（e-Stat）で公開されているものです</li>
 <li>外国人の割合の分母：総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」（日本人住民と外国人住民の合計、各年1月1日現在。2014年から）。12月末の在留外国人の数を、翌年1月1日の人口で割っています</li>
-<li><a href="sokuho.html">半期速報</a>：出入国在留管理庁の報道発表「〇年〇月末現在における在留外国人数について」（令和2年末から）。確定統計とは別に示しています</li></ul></section>
+<li><a href="sokuho.html">半期速報</a>：出入国在留管理庁の報道発表「〇年〇月末現在における在留外国人数について」（令和2年末から）。確定統計とは別に示しています</li>
+<li><a href="fuho.html">不法残留者数</a>：出入国在留管理庁の報道発表「本邦における不法残留者数について」（2021年1月1日現在の発表から）。在留外国人統計とは別の統計です</li>
+<li><a href="kika.html">帰化の数</a>：法務省民事局「帰化許可申請者数等の推移」（1952年から）。在留外国人統計とは別の統計です</li></ul></section>
 <section class="card note"><h2>数を見るときの注意</h2><ul>
 <li><b>2011年までと2012年からで数え方が違います。</b>2011年までは「外国人登録をした人」（短い期間の滞在の人なども入る）、2012年12月末からは「中長期在留者と特別永住者」です。つなげて増え方を見るときは注意してください。</li>
 <li>市区町村ごとの数は、2023年6月末までは主な国籍だけ、2023年12月末からは全部の国籍が公表されています。</li>
@@ -1469,7 +1878,7 @@ def main():
     for key in d.cities:  # 政令市の数を先に作り、国の表の合計が0人だった時点（CITY_ZERO）を「このサイトについて」に書く
         city_series(d, key)
     pages = {"index.html": top_page(d), "nat-index.html": nat_index_page(d), "area-index.html": area_index_page(d), "visa-index.html": visa_index_page(d),
-             "about.html": about_page(d), "dash.html": dash_page(), "sokuho.html": sokuho_page()}
+             "about.html": about_page(d), "dash.html": dash_page(), "sokuho.html": sokuho_page(), "fuho.html": fuho_page(), "kika.html": kika_page()}
     for p in PREFS:
         pages[PREF_FILE[p]] = pref_page(d, p)
     for p in PREFS:  # 市区町村：都道府県の中の順位（政令市は区の合計で1つ）

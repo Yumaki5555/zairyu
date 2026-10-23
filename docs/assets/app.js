@@ -703,6 +703,14 @@
     if (!d) { return; }
     vtools(box).appendChild(saveButton(function () { return { chart: d.chart, meta: { nat: [], visa: [] }, src: SRC_STAT, autoTitle: d.title }; }));
   });
+  // ---- ページに書いた図（不法残留・帰化のページの折れ線・横棒。make_site.py の static_lines・static_hbars）：画像を保存のボタンを足す。
+  //   在留外国人統計ではない数なので、出典・時点の書き方（labels・whenText）・ハッシュタグは、ページの JSON のまま使う
+  document.querySelectorAll('.viz[data-viz="static"]').forEach(function (box) {
+    var d = data(box);
+    if (!d) { return; }
+    if (d.chart.kind === 'rank') { d.chart.f = function (v) { return fmt(v) + '人'; }; } // 数の書き方（JSON には関数を書けない）
+    vtools(box).appendChild(saveButton(function () { return { chart: d.chart, meta: { nat: [], visa: [] }, src: d.src, autoTitle: d.title, tag: d.tag }; }));
+  });
   // 世界地図・在留資格の割合・年ごとの人数をボタンで切り替える（国籍から探す）。はじめはページの最初のもの（世界地図）。選んだものは次に開いたときのために残す
   // （残す名前は、はじめを世界地図に変えたときに -2 にした。前に「年ごとの人数」を見ていた人も、まず世界地図になるように）
   var HEATKEY = 'kazu-zairyu-heat-2';
@@ -726,6 +734,16 @@
     sw.insertBefore(lab, sw.firstChild);
     var k0 = null; try { k0 = localStorage.getItem(HEATKEY); } catch (e) { /* 読めなくても動く */ }
     show(k0 || panes[0].dataset.k);
+  });
+
+  // ---- 国籍・地域ごとの主な在留資格（積み上げ横棒）：画像を保存のボタン（ページにある国籍・地域の分）と、
+  //   国籍・地域を選んで画像を作る入口（トップページの「グラフの画像を作る」を、この地域・国籍・地域を選んだ状態で開く）
+  document.querySelectorAll('.viz[data-viz="cross"]').forEach(function (box) {
+    var d = data(box);
+    if (!d) { return; }
+    var t = vtools(box);
+    t.appendChild(saveButton(function () { return { chart: { kind: 'cross', bars: d.bars, area: d.area, when: d.when, mark: d.mark }, meta: { nat: [], visa: [] }, src: SRC_STAT }; }));
+    if (d.xm) { var a = mk('a', 'dbtn dbtn-sub xmlink', '国籍・地域を選んで画像を作る'); a.href = d.xm; t.appendChild(a); }
   });
 
   // ---- 国籍・地域ごとの主な在留資格（積み上げ横棒。棒はページに書いてある）・色のマス目：区分・マスを押すと（マウスを合わせると）、元の名前・人数・割合が出る

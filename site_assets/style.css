@@ -55,7 +55,7 @@ header.top .in { position: relative; max-width: 960px; margin: 0 auto; display: 
                  padding: 4px max(16px, env(safe-area-inset-right)) 4px max(16px, env(safe-area-inset-left)); }
 header.top a.home { color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; white-space: nowrap; margin-right: auto; padding: 6px 0; }
 nav.menu { display: flex; flex-wrap: wrap; gap: 2px; }
-nav.menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 10px; border-radius: 8px; color: var(--text); text-decoration: none;
+nav.menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 6px; border-radius: 8px; color: var(--text); text-decoration: none; /* 8つの項目が1行に入るように（不法残留・帰化を足したとき） */
              font-size: 15px; font-weight: 600; white-space: nowrap; }
 nav.menu a:hover { background: var(--btn-soft); }
 nav.menu a[aria-current="page"] { background: var(--btn); color: var(--btn-ink); }
@@ -157,6 +157,15 @@ section.xm { border: 2px solid var(--btn); padding: 18px; }
 a.xm-off { pointer-events: none; opacity: .45; }
 .xm-more { margin: 12px 0 0; font-size: 15px; }
 .xm-sortlab { display: block; margin: 10px 0 4px; } /* 増減の棒の並び順 */
+.xm-kinds button:last-child:nth-child(odd) { grid-column: 1 / -1; } /* 5つ目（国籍ごとの主な在留資格）は横いっぱい */
+/* 国籍ごとの主な在留資格：入れる国籍・地域（押すと外れる）・足す欄・多い順に戻す */
+.xm-xn { margin-top: 10px; }
+.xm-xn > .dlab { display: block; margin-bottom: 4px; }
+.xm-chips button { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px 6px 14px; }
+.xm-chips button span { font-size: 18px; line-height: 1; opacity: .85; }
+.xm-pick.xm-chips button:hover { background: var(--btn); filter: brightness(1.1); }
+.xm-xn .dctl { margin-top: 8px; }
+.xm-reset { margin-top: 8px; }
 @media (max-width: 860px) { .xm-grid { grid-template-columns: minmax(0, 1fr); } .xm-out { position: static; } }
 @media (max-width: 420px) {
   section.xm { padding: 14px 12px; }
@@ -352,6 +361,9 @@ svg.lines .ln.s-5 { stroke: var(--c5); } svg.lines .ln.s-6 { stroke: var(--c6); 
 svg.lines .pt.s-1 { fill: var(--c1); } svg.lines .pt.s-2 { fill: var(--c2); } svg.lines .pt.s-3 { fill: var(--c3); } svg.lines .pt.s-4 { fill: var(--c4); }
 svg.lines .pt.s-5 { fill: var(--c5); } svg.lines .pt.s-6 { fill: var(--c6); } svg.lines .pt.s-7 { fill: var(--c7); } svg.lines .pt.s-o { fill: var(--co); }
 svg.lines .cross { stroke: var(--sub); stroke-width: 1; stroke-dasharray: 3 3; }
+/* ページに書いた折れ線（不法残留・帰化のページ。make_site.py の static_lines）：パソコン用（横長）とスマホ用（縦長）を幅で切り替える */
+.sln { display: none; }
+@media (max-width: 600px) { .slw { display: none; } .sln { display: block; } }
 .lines-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .lines-legend .lgb { font: inherit; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; min-height: 40px;
                      border: 1px solid var(--line); border-radius: 20px; background: var(--card); color: var(--text); cursor: pointer; }
@@ -549,6 +561,7 @@ ul.xdet { grid-area: det; list-style: none; margin: 0; padding: 0; display: flex
 ul.xdet li { display: inline-flex; align-items: center; gap: 6px; }
 .xdet .xv { font-weight: 600; }
 .xdet .xc { color: var(--sub); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.xrow.xme { background: var(--btn-soft); border-radius: 8px; padding-left: 10px; padding-right: 10px; } /* その国籍・地域のページでは、その行を目立たせる */
 /* スマホ（狭いとき）：国籍・地域の名前と人数 → 棒 → 内わけ（1行に1つ）の順に縦に並べる */
 @container (max-width: 560px) {
   .xrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hd" "bar" "det"; row-gap: 8px; padding: 14px 0; }
