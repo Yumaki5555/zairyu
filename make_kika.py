@@ -3,12 +3,12 @@
 #
 #   読むもの（元データ/帰化_出どころ一覧.csv で、表題ごとにいちばん新しく落としたもの）
 #     「帰化許可申請者数、帰化許可者数及び帰化不許可者数の推移」の PDF … 文字の位置で、行（年）と列（項目）を読む
-#     「国籍別帰化許可者数」の PDF … 最近の3年の上位10か国と「その他」「総数」
+#     「国籍別帰化許可者数」の PDF … 最近の3年の上位10か国と「その他」「総数」。前の年の版（download_kika.py が保存版を落とす）も読み、2019年から
 #     ページの中の「過去１０年間の国籍取得者数の推移」「過去１０年間の国籍離脱者数の推移」の表
 #   書き出す表（データ/帰化/）
 #     帰化の推移.csv        列：年・年の書き方（表のまま）・項目・国籍・地域・人数・出どころ
 #                           年は西暦。昭和27年4月28日〜昭和41年はまとめた数（年は「1952-1966」）、昭和27年4月27日以前は「-1952」
-#     国籍別帰化許可者数.csv 列：年・順位・国籍・地域・人数・出どころ
+#     国籍別帰化許可者数.csv 列：年・順位・国籍・地域・人数・出どころ・保存版のURL（2019年から。前の年の分はインターネット・アーカイブの保存版の PDF）
 #     国籍取得と離脱.csv    列：年・項目・人数・出どころ（帰化とは別の、届け出による国籍の取得と、国籍の離脱）
 #   確かめ: データ/帰化/確かめ.csv
 #     帰化許可者数の合計＝韓国・朝鮮＋中国＋その他、累計＝毎年の合計の和、国籍別の表の数＝推移の表の数
@@ -101,26 +101,35 @@ def label_year(label):
 
 
 def read_by_nat(path):
+    """「国籍別帰化許可者数」の PDF → [{年, 順位, 国籍・地域, 人数}]。版によって形が違う（順位の列が左に1つの版と、年ごとに1つある版。
+    年ごとの版では、同じ人数は同じ順位）ので、行ごとに左から読む：名前の字のすぐあとの数＝人数、名前の前にある数＝順位。
+    人数は、左の年の列から順に、見出しの年に当てる"""
     words = pymupdf.open(path)[0].get_text("words")
-    years = sorted(((w[0] + w[2]) / 2, int(m.group(1))) for w in words if (m := re.match(r"^\((\d{4})\)$", norm(w[4]))))
-    if len(years) < 2:
+    heads = sorted((w[0], int(m.group(1))) for w in words if (m := re.match(r"^\((\d{4})\)$", norm(w[4]))))
+    if len(heads) < 2:
         raise ValueError("年の見出しが見つかりません")
+    years = [y for _, y in heads]
     head_y = max(w[3] for w in words if re.match(r"^\(\d{4}\)$", norm(w[4])))
-    cuts = [(a[0] + b[0]) / 2 for a, b in zip(years, years[1:])]  # 年の列の間の線
-    col = lambda w: sum(c < (w[0] + w[2]) / 2 for c in cuts)
     body = [w for w in words if w[1] > head_y]
-    left = years[0][0] - (cuts[0] - years[0][0])  # いちばん左の年の列の左の線。その左は順位の列
-    ranks = [w for w in body if NUM.match(w[4]) and w[2] < left]
-    nums = [w for w in body if NUM.match(w[4]) and w[0] > left]
+    names = [w for w in body if not NUM.match(w[4])]
     out = []
-    for y, ws in lines(nums):
-        rank = next((int(w[4]) for w in ranks if abs((w[1] + w[3]) / 2 - y) < 5), "")
-        for w in ws:
-            k = col(w)
-            # 名前：同じ年の列の、数より左の文字（2行に分かれた「バングラデ／シュ」も。行の高さは50ほどあるので上下18まで）
-            parts = [v for v in body if not NUM.match(v[4]) and col(v) == k and v[2] <= w[0] and abs((v[1] + v[3]) / 2 - y) <= 18]
-            name = "".join(norm(v[4]) for v in sorted(parts, key=lambda v: (round(v[1]), v[0])))
-            out.append({"年": years[k][1], "順位": rank, "国籍・地域": name, "人数": int(w[4].replace(",", ""))})
+    for y, ws in lines([w for w in body if NUM.match(w[4])]):
+        # この行の名前の字（2行に分かれた「バングラデ／シュ」「アメリカ／合衆国」も。行の高さは50ほどあるので上下18まで）
+        near = [v for v in names if abs((v[1] + v[3]) / 2 - y) <= 18]
+        rank, x_end, k = "", None, 0
+        for w in sorted(ws, key=lambda w: w[0]):
+            seg = [v for v in near if (x_end is None or v[0] >= x_end - 0.5) and v[2] <= w[0] + 0.5]
+            x_end = w[2]
+            if not seg:  # 名前の前の数は順位（次の人数に付く。順位の列が1つの版では、その行のどの年にも付く）
+                rank = int(w[4])
+                continue
+            name = "".join(norm(v[4]) for v in sorted(seg, key=lambda v: (round(v[1]), v[0])))
+            if k >= len(years):
+                raise ValueError(f"年の列より多い数があります（{name}）")
+            out.append({"年": years[k], "順位": "" if name in ("その他", "総数") else rank, "国籍・地域": name, "人数": int(w[4].replace(",", ""))})
+            k += 1
+        if k != len(years):
+            raise ValueError(f"人数が {k} 個しかない行があります（{len(years)} 個のはず）")
     return out
 
 
@@ -149,7 +158,7 @@ def check(rows, what, a, b):
 def main():
     with open(LIST_CSV, encoding="utf-8-sig", newline="") as f:
         src = list(csv.DictReader(f))
-    s_trend, s_nat, s_page = latest(src, "帰化許可申請者数、帰化許可者数"), latest(src, "国籍別帰化許可者数"), latest(src, "（ページ）")
+    s_trend, s_page = latest(src, "帰化許可申請者数、帰化許可者数"), latest(src, "（ページ）")
     checks = []
 
     trend = []
@@ -173,9 +182,25 @@ def main():
     years = sorted(int(y) for y in t["年"] if y.isdigit())
     check(checks, f"1年ごとの行が抜けずに並んでいる（{years[0]}〜{years[-1]}年）", len(set(years)), years[-1] - years[0] + 1)
 
-    nat = read_by_nat(os.path.join(SRC, s_nat["ファイル名"]))
-    for r in nat:
-        r["出どころ"] = s_nat["資料のURL"]
+    # 国籍別：今のページの PDF と、前の年の版（インターネット・アーカイブの保存版）。同じ年が2つ以上の版にあれば、新しい版の数を使い、違いを確かめに書く
+    versions = []
+    for s in (r for r in src if "国籍別帰化許可者数" in r["表題"]):
+        rows = read_by_nat(os.path.join(SRC, s["ファイル名"]))
+        versions.append((max(r["年"] for r in rows), s, rows))
+    versions.sort(key=lambda v: v[0])
+    chosen = {}
+    for _, s, rows in versions:
+        for y in sorted({r["年"] for r in rows}):
+            chosen[y] = (s, [r for r in rows if r["年"] == y])
+    for y in sorted(chosen):
+        use = {r["国籍・地域"]: r["人数"] for r in chosen[y][1]}
+        for _, s, rows in versions:
+            other = {r["国籍・地域"]: r["人数"] for r in rows if r["年"] == y}
+            if s is not chosen[y][0] and other and other != use:
+                diff = "、".join(f"{n} {other.get(n, 'なし')}→{use.get(n, 'なし')}" for n in sorted(set(use) | set(other)) if other.get(n) != use.get(n))
+                checks.append({"確かめたこと": f"国籍別 {y}年：版によって違う数（{s['ファイル名']} → 使った版 {chosen[y][0]['ファイル名']}：{diff}）",
+                               "左": "", "右": "", "結果": "版によって違う（新しい版を使う）"})
+    nat = [{**r, "出どころ": s["資料のURL"], "保存版のURL": s.get("保存版のURL") or ""} for y in sorted(chosen) for s, rows in [chosen[y]] for r in rows]
     n = pd.DataFrame(nat)
     for y, g in n.groupby("年"):
         tot = g[g["国籍・地域"] == "総数"]["人数"].sum()
@@ -193,7 +218,10 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     for name, rows in (("帰化の推移.csv", trend), ("国籍別帰化許可者数.csv", nat), ("国籍取得と離脱.csv", page), ("確かめ.csv", checks)):
         pd.DataFrame(rows).to_csv(os.path.join(OUT, name), index=False, encoding="utf-8-sig")
-    bad = [c for c in checks if c["結果"] != "合う"]
+    bad = [c for c in checks if c["結果"] == "合わない"]
+    for c in checks:
+        if c["結果"].startswith("版によって"):
+            print("  ", c["確かめたこと"])
     print(f"帰化の推移 {len(trend)} 行（{years[0]}〜{years[-1]}年）、国籍別 {len(nat)} 行、国籍取得と離脱 {len(page)} 行")
     print(f"確かめ {len(checks)} 件：合わない {len(bad)} 件 → {os.path.relpath(OUT, BASE)}")
     for c in bad:

@@ -8,6 +8,8 @@
 #   落とす先: 元データ/帰化/ （ページは「ページ_<落とした日>.html」）
 #   出どころの一覧: 元データ/帰化_出どころ一覧.csv（表題・ページの URL・ファイル名・資料の URL・大きさ・落とした日）
 #   PDF は毎年、新しい番号の PDF に差しかわる。もう落とした番号の PDF は落とし直さない（前の年の PDF も残る）
+#   前の年の「国籍別帰化許可者数」の PDF（2019〜2022年の上位10がのっている版）は、今のページにはもうないので、
+#   インターネット・アーカイブ（web.archive.org）に保存された同じ PDF を落とす（ARCHIVED。出どころ一覧の「保存版のURL」）
 import csv
 import html
 import os
@@ -24,6 +26,9 @@ OUT = os.path.join(BASE, "元データ", "帰化")
 LIST_CSV = os.path.join(BASE, "元データ", "帰化_出どころ一覧.csv")
 PAGE = "https://www.moj.go.jp/MINJI/toukei_t_minj03.html"
 UA = {"User-Agent": "Mozilla/5.0"}
+# 前の年の「国籍別帰化許可者数」の PDF：(法務省の資料の番号, インターネット・アーカイブの保存の日時, のっている年)
+ARCHIVED = [("001343141", "20210316160356", "2019〜2020年"), ("001392230", "20230325105658", "2020〜2022年"),
+            ("001414947", "20240510234210", "2021〜2023年"), ("001439500", "20250714061640", "2022〜2024年")]
 
 
 def get(url):
@@ -68,8 +73,20 @@ def main():
         time.sleep(1)
     if found < 2:
         sys.exit(f"ページの PDF が {found} 個しか見つかりません（ページの作りが変わったかもしれません）")
+    for num, ts, years in ARCHIVED:
+        url = f"https://www.moj.go.jp/content/{num}.pdf"
+        if url in old:
+            continue
+        saved = f"https://web.archive.org/web/{ts}id_/{url}"
+        fn = f"{num}.pdf"
+        with open(os.path.join(OUT, fn), "wb") as f:
+            f.write(get(saved))
+        print(f"落としました {fn}（保存版、{years}）")
+        rows.append({"表題": f"国籍別帰化許可者数（{years}。インターネット・アーカイブの保存版）", "ページのURL": PAGE, "ファイル名": fn, "資料のURL": url,
+                     "大きさ": os.path.getsize(os.path.join(OUT, fn)), "落とした日": today, "保存版のURL": saved})
+        time.sleep(1)
     with open(LIST_CSV, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        w = csv.DictWriter(f, fieldnames=list(dict.fromkeys(k for r in rows for k in r)), restval="")
         w.writeheader()
         w.writerows(rows)
     print(f"資料 {len(rows)} → {os.path.relpath(LIST_CSV, BASE)}")

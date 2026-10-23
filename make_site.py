@@ -1686,17 +1686,18 @@ def kika_page():
                   "<th class='n'>うち韓国・朝鮮</th><th class='n'>うち中国</th><th class='n'>うちその他</th><th class='n'>不許可者数</th></tr></thead>"
                   f"<tbody>{trs}</tbody></table></div>")
 
-    # 国籍別（最近の3年の上位10）
+    # 国籍別（2019年からの上位10。2019〜2022年は前の版の保存版から）。同じ人数は同じ順位（2019年は8位が2つ）なので、表は上から何番目かで並べる
     ys = sorted(byn["年"].unique())
-    rank = {(int(y), r): (n, int(v)) for y, r, n, v in zip(byn["年"], byn["順位"].fillna(""), byn["国籍・地域"], byn["人数"])}
+    ranked = {int(y): [(r, n, int(v)) for r, n, v in zip(g["順位"].fillna(""), g["国籍・地域"], g["人数"]) if r] for y, g in byn.groupby("年")}
     rest = {(int(y), n): int(v) for y, r, n, v in zip(byn["年"], byn["順位"].fillna(""), byn["国籍・地域"], byn["人数"]) if not r}
-    rk = sorted({r for _, r in rank if r}, key=int)
-    rank_trs = "".join(f"<tr><td class='n'>{r}</td>" + "".join(f"<td>{esc(rank[(y, r)][0])}</td><td class='n'>{num(rank[(y, r)][1])}</td>" for y in ys) + "</tr>" for r in rk)
-    rank_trs += "".join(f"<tr><td></td>" + "".join(f"<td>{n}</td><td class='n'>{num(rest[(y, n)])}</td>" for y in ys) + "</tr>" for n in ("その他", "総数"))
-    rank_table = ("<div class='scroll'><table class='t'><thead><tr><th class='n'>順位</th>" + "".join(f"<th colspan='2'>{y}年</th>" for y in ys) +
+    rank_trs = "".join("<tr>" + "".join(f"<td class='n'>{ranked[y][k][0]}</td><td>{esc(ranked[y][k][1])}</td><td class='n'>{num(ranked[y][k][2])}</td>"
+                                        if k < len(ranked[y]) else "<td></td><td></td><td></td>" for y in ys) + "</tr>"
+                       for k in range(max(len(v) for v in ranked.values())))
+    rank_trs += "".join(f"<tr>" + "".join(f"<td></td><td>{n}</td><td class='n'>{num(rest[(y, n)])}</td>" for y in ys) + "</tr>" for n in ("その他", "総数"))
+    rank_table = ("<div class='scroll'><table class='t'><thead><tr>" + "".join(f"<th colspan='3'>{y}年</th>" for y in ys) +
                   f"</tr></thead><tbody>{rank_trs}</tbody></table></div>")
     ly = ys[-1]
-    rank_bars = static_hbars([rank[(ly, r)] + (False,) for r in rk] + [("その他", rest[(ly, "その他")], True)], rest[(ly, "総数")], when=f"{ly}年",
+    rank_bars = static_hbars([(n, v, False) for _, n, v in ranked[ly]] + [("その他", rest[(ly, "その他")], True)], rest[(ly, "総数")], when=f"{ly}年",
                              save={**KIKA_SAVE, "title": "全国｜帰化許可者の国籍・地域別人数（上位10）"})
 
     # 国籍の取得（届け出）と離脱
@@ -1726,10 +1727,10 @@ def kika_page():
 <h3>{ly}年の上位10か国・地域</h3>
 <p class="note">割合は、{ly}年の帰化許可者数（{num(rest[(ly, "総数")])}人）に対する割合です。</p>
 {rank_bars}
-<h3>最近の3年の上位10か国・地域</h3>
+<h3>{ys[0]}年からの上位10か国・地域</h3>
 {rank_table}
 <h3>韓国・朝鮮、中国、その他の移り変わり</h3>
-<p class="note">毎年の数の表は、国籍を「韓国・朝鮮」「中国」「その他」の3つに分けています。それより細かい国籍の数は、最近の3年分だけ発表されています。</p>
+<p class="note">毎年の数の表は、国籍を「韓国・朝鮮」「中国」「その他」の3つに分けています。それより細かい国籍の数（上位10）は、{ys[0]}年からの分だけです（{ys[0]}〜2022年は、法務省のページの前の版をインターネット・アーカイブの保存版から読んだもの）。</p>
 {chart_nat}</section>
 <section class="card" id="years"><h2>毎年の数</h2>
 <p class="note">「—」は、その年の数がない（発表の表にない）所です。</p>
@@ -1742,6 +1743,8 @@ def kika_page():
 <li>出典：{KIKA_SRC}（<a href="https://www.moj.go.jp/MINJI/toukei_t_minj03.html">https://www.moj.go.jp/MINJI/toukei_t_minj03.html</a>）。</li>
 <li>どれも暦年（1月〜12月）の人数です。</li>
 <li>2010年の帰化許可者数は、法務省の注記のとおり、官報の正誤（中国2人）を反映した数です。</li>
+<li>国籍別の上位10の{ys[0]}〜2022年は、法務省のページに前にのっていた PDF を、インターネット・アーカイブ（web.archive.org）に保存された版から読んだものです。
+同じ年が2つ以上の版にあるときは、新しい版の数を使っています（2023年の「その他」は、前の版では956人、新しい版では892人。新しい版は、上位10と足すと総数と合います）。</li>
 <li>取り込むときに、どの年も 許可者数の合計＝韓国・朝鮮＋中国＋その他 になっているか、累計が毎年の数の和と同じか、国籍別の表と毎年の表が同じ数かを確かめています。</li>
 <li>表（1行に1つの数の CSV）は GitHub の「データ/帰化/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
 </ul></section>

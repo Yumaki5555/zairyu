@@ -186,7 +186,7 @@ def fuho():
 def kika():
     """帰化のページ（kika.html・kika.js）の数。Y：1年ごとの数のある年（1967年〜）。s：帰化許可申請者数・帰化許可者数・帰化不許可者数と、
     帰化許可者数の内わけ（韓国・朝鮮／中国／その他）の年ごとの数（ない年は null）。agg：まとめた期間の数（1952年4月28日〜1966年など）。
-    top：国籍別の上位10（最近の3年）。acq：国籍取得者数・国籍離脱者数（最近の10年）"""
+    top：国籍別の上位10（2019年から。前の年の分は、インターネット・アーカイブに保存された法務省の前の版の PDF。topSaved はその年）。acq：国籍取得者数・国籍離脱者数（最近の10年）"""
     folder = os.path.join(DATA, "帰化")
     t = pd.read_csv(os.path.join(folder, "帰化の推移.csv"), dtype={"年": str})
     byn = pd.read_csv(os.path.join(folder, "国籍別帰化許可者数.csv"), dtype={"順位": str})
@@ -207,10 +207,12 @@ def kika():
         ranked = g[g["順位"].fillna("").str.isdigit()].sort_values("順位", key=lambda c: c.astype(int))
         rest = dict(zip(g.loc[~g["順位"].fillna("").str.isdigit(), "国籍・地域"], g.loc[~g["順位"].fillna("").str.isdigit(), "人数"]))
         top[str(y)] = {"rows": [[n, int(v)] for n, v in zip(ranked["国籍・地域"], ranked["人数"])], "other": int(rest["その他"]), "total": int(rest["総数"])}
+    saved = sorted(byn.loc[byn["保存版のURL"].fillna("") != "", "年"].unique())  # 前の版（インターネット・アーカイブの保存版）から読んだ年
     a = acq.pivot_table(index="年", columns="項目", values="人数", aggfunc="first").sort_index()
     srcs = pd.read_csv(os.path.join(BASE, "元データ", "帰化_出どころ一覧.csv"))
     url = lambda word: srcs.loc[srcs["表題"].str.contains(word), "資料のURL"].iat[-1]
     return {"Y": Y, "s": s, "agg": [agg[k] for k in sorted(agg, key=lambda k: k.replace("-", "0"))], "top": top,
+            "topSaved": f"{saved[0]}〜{saved[-1]}" if len(saved) > 1 else "".join(str(y) for y in saved),
             "acq": {"Y": [int(y) for y in a.index], **{c: [int(v) for v in a[c]] for c in a.columns}},
             "page": "https://www.moj.go.jp/MINJI/toukei_t_minj03.html", "pdfTrend": url("帰化許可申請者数、帰化許可者数"), "pdfNat": url("国籍別帰化許可者数")}
 
