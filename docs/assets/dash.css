@@ -132,3 +132,76 @@ table.srank td.up { color: #1f7a4f; } table.srank td.down { color: #b4441a; }
 .srcs a { margin-right: 10px; display: inline-block; padding: 4px 0; }
 @media (max-width: 600px) { .dfilter .dwide { flex: 1 1 100%; } .stab { display: flex; width: 100%; } .stab button { flex: 1 1 0; padding: 6px 6px; } }
 @media (max-width: 360px) { .dfilter .dctl { flex: 1 1 100%; } .dfilter .dctl select { width: 100%; } }
+
+/* 帰化のページ（kika.js）：上から ① これまでの累計 ② 国籍別 ③ 毎年の推移 ④ くわしい数。字は大きめ、欄の間をあける */
+.kctl { align-items: center; }
+.kctl .kctlhelp { margin: 0; font-size: 15px; color: var(--sub); flex: 1 1 14em; }
+#kika-view .ksec { padding: 20px 22px; margin: 20px 0; scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
+#notes { scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
+#kika-view .ksec > h2 { font-size: 25px; line-height: 1.4; margin: 0 0 12px; }
+#kika-view .ksec h3 { font-size: 19px; margin: 18px 0 8px; }
+#kika-view .ksec .dhelp { font-size: 16px; line-height: 1.7; }
+#kika-view .ksec .stotal { font-size: 18px; }
+#kika-view .ksec .stotal b { font-size: 22px; }
+#kika-view .ksec .stotal .sub { display: block; font-size: 15px; color: var(--sub); }
+.khero { border: 2px solid var(--btn-line); }
+.khero .klab { font-size: 18px; color: var(--sub); margin: 0; }
+.khero .kbig { font-size: 60px; font-weight: 800; line-height: 1.1; margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
+.kbig small, .kyear small, ul.krank .v small { font-size: .5em; font-weight: 700; margin-left: 3px; }
+.kyear { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 12px 0; margin: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.kyear > b { font-size: 32px; font-variant-numeric: tabular-nums; }
+.kyear .kch { font-size: 17px; }
+.kwarn { font-size: 16px; background: var(--bg); border-radius: 8px; padding: 10px 14px; margin: 10px 0 4px; }
+.kbox { font-size: 16px; line-height: 1.7; background: var(--bg); border-left: 4px solid var(--mark); border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 8px 0 12px; }
+.kviews { margin: 10px 0 6px; }
+.kviews button { white-space: normal; text-align: left; font-size: 16px; }
+.kup { text-align: right; margin: 16px 0 0; font-size: 15px; }
+.kup a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
+details.kfold { border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; margin: 12px 0; }
+details.kfold > summary { font-size: 17px; padding: 12px 0; min-height: 48px; display: flex; align-items: center; gap: 8px; list-style: none; }
+details.kfold > summary::-webkit-details-marker { display: none; }
+details.kfold > summary::before { content: "＋"; display: inline-flex; justify-content: center; align-items: center; flex: 0 0 auto; width: 26px; height: 26px;
+                                   border-radius: 50%; border: 1px solid var(--btn-line); background: var(--btn-soft); color: var(--btn); font-weight: 700; }
+details.kfold[open] > summary::before { content: "−"; }
+details.kfold[open] > summary { border-bottom: 1px solid var(--line); }
+.kfoldin { padding: 8px 0 14px; }
+.kwrap table.t td.n { white-space: pre-line; } /* 増減と増減率を2行に（kika.js の申請・許可・不許可の表） */
+.dline:empty { min-height: 340px; } /* 描くまでの間に高さが縮んで、見ている所がずれないように */
+/* 国籍の横棒：順位・名前・棒・人数・割合を1行に。人数と割合はそのまま書く */
+ul.krank { list-style: none; margin: 8px 0 10px; padding: 0; font-size: 17px; }
+ul.krank li { display: grid; grid-template-columns: 2.6em minmax(7em, 30%) minmax(0, 1fr) auto 3.8em; gap: 4px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+ul.krank .rk { color: var(--sub); text-align: right; font-variant-numeric: tabular-nums; font-size: 15px; }
+ul.krank .rk small { font-size: 12px; }
+ul.krank .nm { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+ul.krank .nm .sub { display: block; font-weight: 400; font-size: 14px; color: var(--sub); }
+ul.krank .track { height: 20px; background: var(--sz); border-radius: 0 4px 4px 0; }
+ul.krank .fill { display: block; height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px; }
+ul.krank .fill.c4 { background: var(--c4); } ul.krank .fill.c5 { background: var(--c5); } ul.krank .fill.co { background: var(--co); }
+ul.krank li.rest .nm, ul.krank li.none .nm { font-weight: 400; }
+ul.krank li.rest .fill { background: var(--co); }
+ul.krank li.none .fill { background: none; outline: 2px dashed var(--sub); outline-offset: -2px; min-width: 6px; }
+ul.krank .v { text-align: right; font-weight: 700; font-size: 19px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+ul.krank .p { text-align: right; color: var(--sub); font-size: 15px; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  #kika-view .ksec { padding: 16px 14px; margin: 16px 0; }
+  #kika-view .ksec > h2 { font-size: 22px; }
+  .khero .kbig { font-size: 46px; }
+  .kyear > b { font-size: 28px; }
+  .kviews button { flex: 1 1 100%; }
+  /* 上の「対象の年」は1行に（画面の上に残るので、低くして見出しを隠さない） */
+  .kctl { flex-wrap: nowrap; padding: 6px 10px; gap: 8px; }
+  .kctl .kctlhelp { display: none; }
+  .kctl > .dctl:first-child { flex: 1 1 auto; }
+  .kctl > .dctl:first-child select { width: 100%; }
+  .kctl .dacts { flex: 0 0 auto; }
+  /* たたんだ欄の表は、なるべく横にずらさずに入るよう、字と間を少し詰める */
+  details.kfold { padding: 0 10px; }
+  #kika-view table.t { font-size: 14px; }
+  #kika-view table.t th, #kika-view table.t td { padding: 6px 4px; }
+  #kika-view table.t th { font-size: 13px; }
+  #kika-view table.t td:not(.n) { min-width: 4.5em; }
+  /* スマホ：1段目に「順位・名前・人数・割合」、2段目に棒 */
+  ul.krank li { grid-template-columns: 2.2em minmax(0, 1fr) auto 3.4em; grid-template-areas: "rk nm v p" ". tr tr tr"; gap: 4px 8px; }
+  ul.krank .rk { grid-area: rk; } ul.krank .nm { grid-area: nm; } ul.krank .v { grid-area: v; } ul.krank .p { grid-area: p; }
+  ul.krank .track { grid-area: tr; height: 12px; }
+}

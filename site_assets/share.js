@@ -344,8 +344,10 @@
     var fs, rkW, valW, nameAll, gap, one = null;
     // 増減・増加の数を並べるときは、増減の棒と同じ色（増加＝緑・減少＝赤）。人数は青
     var sgn = rows.some(function (r) { return r[1] < 0; }) || /増/.test(ch.metric || ''), barC = function (v) { return sgn ? (v < 0 ? C.down : C.up) : C.s['1']; };
+    // 順位の字：ch.ranks（同じ人数は同じ順位。帰化の国籍別など）があればそれ。ch.noRank のときは書かない（足した数が一部だけで、順位を付けられないもの）
+    var rkT = function (i) { return ch.noRank ? '' : String(ch.ranks ? ch.ranks[i] : i + 1); };
     function widths(f) { // 順位は小さく（FLOOR より小さくはしない）、数は名前より大きく太く（1600×900 で 名前 34px・数 41px ほど。行の高さで決まる）
-      ctx.font = font(atLeast(f * 0.8)); rkW = measure(ctx, String(rows.length)); ctx.font = font(f * 1.2, true); valW = maxW(ctx, vals);
+      ctx.font = font(atLeast(f * 0.8)); rkW = ch.noRank ? 0 : measure(ctx, String(rows.length)); ctx.font = font(f * 1.2, true); valW = maxW(ctx, vals);
       ctx.font = font(f, true); nameAll = maxW(ctx, names); gap = 0.8 * f;
     }
     // 1行に「順位・名前・棒・数」を並べられる字の大きさを探す
@@ -364,7 +366,7 @@
         bw = Math.abs(r[1]) / max * one.barW;
         ctx.fillRect(x + rkW + gap + one.nameW + gap, top + lh * 0.24, Math.max(2, bw), lh * 0.52);
         ctx.textBaseline = 'middle'; ctx.font = font(atLeast(fs * 0.8));
-        ctx.textAlign = 'right'; ctx.fillStyle = C.sub; ctx.fillText(String(i + 1), x + rkW, cy);
+        ctx.textAlign = 'right'; ctx.fillStyle = C.sub; ctx.fillText(rkT(i), x + rkW, cy);
         var nmF = fit1(ctx, r[0], one.nameW, fs, true, fs * 0.6); ctx.font = font(nmF.size, true); ctx.textAlign = 'left'; ctx.fillStyle = C.text; ctx.fillText(nmF.text, x + rkW + gap, cy); // 長い名前だけ小さく
         ctx.font = font(fs * 1.2, true); ctx.textAlign = 'right'; ctx.fillText(vals[i], x + w, cy);
       } else { // 狭いとき：1段目に「順位・名前・数」、2段目に棒
@@ -373,7 +375,7 @@
         while (f2 > FLOOR && rkW + gap + valW + gap + 3 * f2 > w) { f2 -= 0.05 * u; widths(f2); }
         var ty = top + lh * 0.3;
         ctx.textBaseline = 'middle'; ctx.font = font(atLeast(f2 * 0.8));
-        ctx.textAlign = 'right'; ctx.fillStyle = C.sub; ctx.fillText(String(i + 1), x + rkW, ty);
+        ctx.textAlign = 'right'; ctx.fillStyle = C.sub; ctx.fillText(rkT(i), x + rkW, ty);
         var nmF2 = fit1(ctx, r[0], w - rkW - valW - 2 * gap, f2, true, f2 * 0.6); ctx.font = font(nmF2.size, true); ctx.textAlign = 'left'; ctx.fillStyle = C.text; ctx.fillText(nmF2.text, x + rkW + gap, ty);
         ctx.font = font(f2 * 1.2, true); ctx.textAlign = 'right'; ctx.fillText(clip(ctx, vals[i], w - rkW - gap), x + w, ty);
         bw = Math.abs(r[1]) / max * (w - rkW - gap);
@@ -859,6 +861,7 @@
     return cur.title || '';
   }
   function keyNumbers(ch) {
+    if (ch.keys) { return ch.keys; } // ページが決めた大事な数（帰化の累計の線：はじめと終わりの差ではなく、累計とその年の数）
     if (ch.kind === 'line' && ch.series.length === 1 && !ch.index) {
       var fl = firstLast(ch.series[0]);
       if (fl.fi < 0) { return []; }
@@ -868,7 +871,7 @@
     }
     // 円グラフ・ランキング・地図の大事な数は、投稿文だけに書く（画像では、グラフの中の数と同じになるので書かない。2026年10月 作った人の指示）
     if (ch.kind === 'pie') { return [['合計', fmt(ch.total) + '人'], ['いちばん多い', ch.parts[0].name + ' ' + (ch.parts[0].v / ch.total * 100).toFixed(1) + '%']]; }
-    if (ch.kind === 'rank' && ch.rows.length) { return [['1位', ch.rows[0][0]], [metricT(ch.metric), ch.f(ch.rows[0][1])]]; }
+    if (ch.kind === 'rank' && ch.rows.length) { return [[ch.noRank ? 'いちばん多い' : '1位', ch.rows[0][0]], [metricT(ch.metric), ch.f(ch.rows[0][1])]]; }
     if (ch.kind === 'map' && ch.sorted.length) { return [['いちばん多い', ch.sorted[0][0]], [metricT(ch.metric), ch.sorted[0][1] == null ? '—' : ch.f(ch.sorted[0][1])]]; }
     return [];
   }

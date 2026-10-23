@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "17"
+CSS_VER = "18"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -478,9 +478,10 @@ def meta_line(target, extra=""):
     return (f'<p class="meta"><span>対象：<b>{esc(target)}</b></span><span>集計時点：<b>{when_label(LATEST)}</b>（確定した統計）</span>{extra}</p>')
 
 
-def jump(items):
-    """このページの内容（ページの中を移動するリンク）。items：[(id, 名前)]"""
-    return ('<nav class="jump" aria-label="このページの内容"><span class="jl">このページの内容：</span>' +
+def jump(items, nid=""):
+    """このページの内容（ページの中を移動するリンク）。items：[(id, 名前)]、nid：この目次の id（「上に戻る」のリンク先）"""
+    attr = f' id="{nid}"' if nid else ""
+    return (f'<nav class="jump"{attr} aria-label="このページの内容"><span class="jl">このページの内容：</span>' +
             "".join(f'<a href="#{i}">{esc(t)}</a>' for i, t in items) + "</nav>")
 
 
@@ -1655,13 +1656,8 @@ def kika_page():
     last = max(ok)
     total_all = int(t[(t["項目"] == "帰化許可者数") & (t["国籍・地域"] == "総数")]["人数"].sum())
     first = min(ok)
-
-    def tile(label, m, big=False):
-        now, b = m[last], m.get(last - 1)
-        ch = f"前の年から {signed(now - b)}人（{pct_signed(now - b, b)}）" if b else ""
-        return (f'<div class="kpi"><div class="lab">{last}年の{label}</div><div class="{"big" if big else "mid"}">{num(now)}人</div>'
-                f'<div class="lab">{ch}</div></div>')
-    kpi = f'<div class="kpis">{tile("帰化許可者数", ok, True)}{tile("帰化許可申請者数", ap)}{tile("帰化不許可者数", ng)}</div>'
+    tot_row = lambda key: int(t[(t["年"] == key) & (t["項目"] == "帰化許可者数") & (t["国籍・地域"] == "総数")]["人数"].iloc[0])
+    pre, agg = tot_row("-1952"), tot_row("1952-1966")  # 1952年4月27日以前（合計だけ）、1952年4月28日〜1966年（まとめた数）
     ticks = [(y, str(y)) for y in range((first + 9) // 10 * 10, last + 1, 10)]
     pts = lambda m: [(y, v, f"{y}年") for y, v in sorted(m.items())]
     chart_main = static_lines([{"name": "帰化許可申請者数", "cls": "1", "pts": pts(ap)}, {"name": "帰化許可者数", "cls": "2", "pts": pts(ok)},
@@ -1706,52 +1702,66 @@ def kika_page():
     nat_table = ("<div class='scroll'><table class='t'><thead><tr><th>年</th><th class='n'>国籍取得者数</th><th class='n'>国籍離脱者数</th></tr></thead>"
                  f"<tbody>{nat_trs}</tbody></table></div>")
 
+    # 見せる順（大事なものから）：① これまでの累計 → ② 国籍別 → ③ 毎年の推移 → ④ くわしい数（たたむ）→ ⑤ 出典と注意（たたむ）。
+    # ①〜④ は kika.js が対象の年に合わせて作る。JavaScript が動かないときは、同じ順で{last}年までの数を noscript に書いておく（目次のリンク先の id も同じ）
+    chart_ok = static_lines([{"name": "帰化許可者数", "cls": "2", "pts": pts(ok)}], "帰化許可者数の移り変わり", ticks, head="年",
+                            save={**KIKA_SAVE, "title": "全国｜帰化許可者数の移り変わり", "note": "その年（1月〜12月）に帰化を許可された人数です。"})
+    up = '<p class="kup"><a href="#toc">↑ 上に戻る（目次）</a></p>'
     body = f"""<h1>帰化の数</h1>
-<p class="lead">帰化は、外国の国籍の人が法務大臣の許可を受けて日本の国籍を取ることです。法務省民事局が発表している、毎年（1月〜12月）の帰化の申請・許可・不許可の人数です。
+<p class="lead">帰化は、外国の国籍の人が法務大臣の許可を受けて日本の国籍を取ることです。法務省民事局が発表している、毎年（1月〜12月）の帰化の人数をまとめました。
 帰化して日本の国籍になった人は、<a href="index.html">在留外国人の数</a>には入りません。</p>
 <p class="meta"><span>対象：<b>日本全体</b></span><span>期間：<b>1952年〜{last}年</b>（毎年1月〜12月の人数。{first - 1}年まではまとめた数）</span></p>
-{jump([("year", "その年の数"), ("trend", "移り変わり"), ("cum", "国籍別の累計"), ("top", "国籍別上位10"), ("acq", "国籍の取得と離脱"), ("years", "毎年の数"), ("notes", "注意と出典")])}
-{kpi}
-<p class="dintro">年を選ぶと、その年の申請・許可・不許可の数と許可者の国籍が変わります。移り変わりでは、比べるもの（申請・許可・不許可、許可者の国籍）と期間を選べます。
-国籍別の累計は、数え始めの年から選んだ年までを足した数です。
-選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。どの図も「画像を保存」で X投稿用の画像にできます。</p>
+{jump([("total", "① これまでの累計"), ("nat", "② 国籍別"), ("trend", "③ 毎年の推移"), ("more", "④ くわしい数"), ("notes", "⑤ 出典と注意")], nid="toc")}
+<p class="dintro">「対象の年」を変えると、その年までの累計と、その年の数に変わります。選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。どの図も「画像を保存」で X投稿用の画像にできます。</p>
 <div id="kika"><div id="kika-ctl"></div><div id="kika-view"><p class="dhelp">読み込み中…</p></div></div>
-<noscript><p class="note">選んで見る部分は JavaScript を使います。下は、発表の数をまとめたものです。</p>
-<section class="card" id="trend"><h2>申請・許可・不許可の数の移り変わり</h2>
-{chart_main}
-<p class="note">帰化許可者数は{first}年から、申請者数は{min(ap)}年から、不許可者数は{min(ng)}年からの数です。
-1952年4月28日〜{first - 1}年はまとめた数だけなので、グラフには入れていません（下の「毎年の数」の表にあります）。
-1952年からの帰化許可者数を合わせると {num(total_all)}人です（1952年4月27日以前の333人を含む）。</p>
-<p class="note">申請者数・許可者数・不許可者数は、それぞれその年にあった数です。その年に申請した人がその年に許可・不許可になったとは限らないので、許可者数÷申請者数は「許可される割合」にはなりません。</p></section>
-<section class="card" id="nat"><h2>国籍別の帰化許可者数</h2>
+<noscript><p class="note">選んで見る部分は JavaScript を使います。下は、{last}年までの発表の数をまとめたものです。</p>
+<section class="card" id="total"><h2>日本では、これまで何人が帰化した？</h2>
+<p>1952年〜{last}年に帰化を許可された人の累計：<b class="kbig">{num(total_all)}人</b></p>
+<p class="note">1952年4月27日以前の{num(pre)}人を含みます。{last}年の帰化許可者数は{num(ok[last])}人（前の年から {signed(ok[last] - ok[last - 1])}人）。
+過去に帰化を許可された人数を足し合わせた数で、いま生きている人や、いま日本に住んでいる人の数ではありません。</p>{up}</section>
+<section class="card" id="nat"><h2>どの国籍の人が帰化した？</h2>
 <h3>{ly}年の上位10か国・地域</h3>
-<p class="note">割合は、{ly}年の帰化許可者数（{num(rest[(ly, "総数")])}人）に対する割合です。</p>
+<p class="note">割合は、{ly}年の帰化許可者数（{num(rest[(ly, "総数")])}人）に対する割合です。発表は上位10か国・地域だけで、ほかは「その他」にまとめられています。</p>
 {rank_bars}
 <h3>{ys[0]}年からの上位10か国・地域</h3>
 {rank_table}
 <h3>韓国・朝鮮、中国、その他の移り変わり</h3>
 <p class="note">毎年の数の表は、国籍を「韓国・朝鮮」「中国」「その他」の3つに分けています。それより細かい国籍の数（上位10）は、{ys[0]}年からの分だけです（{ys[0]}〜2022年は、法務省のページの前の版をインターネット・アーカイブの保存版から読んだもの）。</p>
-{chart_nat}</section>
-<section class="card" id="years"><h2>毎年の数</h2>
+{chart_nat}{up}</section>
+<section class="card" id="trend"><h2>毎年、何人が帰化している？</h2>
+{chart_ok}
+<p class="note">1952年4月28日〜{first - 1}年はまとめた数（{num(agg)}人）だけなので、グラフには入れていません。</p>{up}</section>
+<section class="card" id="more"><h2>くわしい数</h2>
+<h3>申請・許可・不許可の数の移り変わり</h3>
+{chart_main}
+<p class="note">申請者数は{min(ap)}年から、不許可者数は{min(ng)}年からの数です。それぞれその年にあった数で、その年に申請した人がその年に許可・不許可になったとは限らないので、許可者数÷申請者数は「許可される割合」にはなりません。</p>
+<h3>毎年の数</h3>
 <p class="note">「—」は、その年の数がない（発表の表にない）所です。</p>
-{year_table}</section>
-<section class="card" id="acq"><h2>国籍の取得（届け出）と離脱</h2>
+{year_table}
+<h3>国籍の取得（届け出）と離脱</h3>
 <p class="note">帰化とは別の数です。国籍取得者数は、国籍法第3条・第17条などにもとづいて、届け出で日本の国籍を取った人の数です。
 国籍離脱者数は、国籍法第13条にもとづいて日本の国籍をはなれた人の数です。最近の10年分が発表されています。</p>
-{nat_table}</section></noscript>
-<section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
+{nat_table}{up}</section></noscript>
+<section class="card" id="notes"><h2>出典と、数を見るときの注意</h2>
+<details class="kfold"><summary>出典と注意を開く</summary><ul class="note">
 <li>出典：{KIKA_SRC}（<a href="https://www.moj.go.jp/MINJI/toukei_t_minj03.html">https://www.moj.go.jp/MINJI/toukei_t_minj03.html</a>）。</li>
 <li>どれも暦年（1月〜12月）の人数です。</li>
+<li>発表の数は、範囲が3つあります。このページでは混ぜずに示しています。
+<b>毎年の合計</b>：帰化許可者数は1952年から（1952年4月27日以前は合計だけ、1952年4月28日〜{first - 1}年はまとめた数、{first}年から毎年）。申請者数は{min(ap)}年から、不許可者数は{min(ng)}年から。
+<b>国籍の3区分</b>（韓国・朝鮮／中国／その他）：1952年4月28日から。1952年4月27日以前の{num(pre)}人は区分がないので、どの国籍にも入れていません。
+<b>くわしい国籍</b>：{ys[0]}年から、毎年の上位10か国・地域だけ。</li>
+<li>累計（{num(total_all)}人など）は、過去に帰化を許可された人数を足し合わせた数です。いま生きている人や、いま日本に住んでいる人の数ではありません。</li>
+<li>くわしい国籍をいくつかの年で足した数は、各年の上位10にのった人数だけを足した「掲載分」です。上位10に入らなかった年の人数は分からないので足していません（0人として扱ってはいません）。そのため順位は付けていません。</li>
 <li>2010年の帰化許可者数は、法務省の注記のとおり、官報の正誤（中国2人）を反映した数です。</li>
 <li>国籍別の上位10の{ys[0]}〜2022年は、法務省のページに前にのっていた PDF を、インターネット・アーカイブ（web.archive.org）に保存された版から読んだものです。
 同じ年が2つ以上の版にあるときは、新しい版の数を使っています（2023年の「その他」は、前の版では956人、新しい版では892人。新しい版は、上位10と足すと総数と合います）。</li>
 <li>取り込むときに、どの年も 許可者数の合計＝韓国・朝鮮＋中国＋その他 になっているか、累計が毎年の数の和と同じか、国籍別の表と毎年の表が同じ数かを確かめています。</li>
 <li>表（1行に1つの数の CSV）は GitHub の「データ/帰化/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
-</ul></section>
+</ul></details>{up}</section>
 {related([("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("nat-index.html", "国籍から探す", "在留外国人の国籍・地域別の人数"),
           ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("帰化の数", [("日本全体", "index.html"), ("帰化の数", None)], body,
-                "法務省民事局が発表している帰化の申請・許可・不許可の人数の移り変わりと、国籍別の帰化許可者数。", css=("dash.css",), js=("share.js", "dash.js", "kika.js"),
+                f"1952年〜{last}年に帰化を許可された人は合わせて{num(total_all)}人（法務省民事局の発表）。国籍別の帰化許可者数と、毎年の移り変わり。", css=("dash.css",), js=("share.js", "dash.js", "kika.js"),
                 active="kika", src=KIKA_SRC)
 
 
