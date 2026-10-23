@@ -201,7 +201,7 @@ def kika():
     for y, label, item, nat, v in zip(t["年"], t["年の書き方"], t["項目"], t["国籍・地域"], t["人数"]):
         if not y.isdigit():
             name = re.sub(r"\((\d+月\d+日)\)", r"\1", re.sub(r"(令和|平成|昭和)(\d+)年", lambda m: f"{era[m.group(1)] + int(m.group(2))}年", label))
-            agg.setdefault(y, {"label": name})[item if nat == "総数" else nat] = int(v)
+            agg.setdefault(y, {"key": y, "label": name})[item if nat == "総数" else nat] = int(v)  # key：-1952（4月27日以前）・1952-1966
     top = {}
     for y, g in byn.groupby("年"):
         ranked = g[g["順位"].fillna("").str.isdigit()].sort_values("順位", key=lambda c: c.astype(int))

@@ -13,7 +13,7 @@
   var NOTE = 'それぞれ、その年（1月〜12月）にあった数です。その年に申請した人がその年に許可・不許可になったとは限りません。';
   var ITEMS = ['帰化許可申請者数', '帰化許可者数', '帰化不許可者数'], NATS = ['韓国・朝鮮', '中国', 'その他'];
   var NAME = { '韓国・朝鮮': '帰化許可者のうち韓国・朝鮮', '中国': '帰化許可者のうち中国', 'その他': '帰化許可者のうちその他' };
-  var DEF = { y: '', pick: [], from: '', to: '', idx: '' };
+  var DEF = { y: '', pick: [], from: '', to: '', idx: '', cs: '' }; // cs：累計の数え始めの年（空＝1952年の記録の始めから）
   var S = JSON.parse(JSON.stringify(DEF));
 
   function readHash() { var q = new URLSearchParams(location.hash.slice(1)); Object.keys(S).forEach(function (k) { var v = q.get(k); if (v != null) { S[k] = k === 'pick' ? v.split(',').filter(Boolean) : v; } }); }
@@ -114,7 +114,62 @@
     return c;
   }
 
-  // ③ 国籍別の上位10（最近の3年だけ発表されている）
+  // ③ 帰化許可者数の国籍別の累計。国籍は法務省の毎年の表の「韓国・朝鮮」「中国」「その他」の3つ（くわしい国籍は最近の3年しかないので、昔からの累計は作れない）。
+  //   1952年から数えるときは、1952年4月28日〜1966年をまとめた数を1966年の点に入れ、合計には国籍の内わけのない1952年4月27日以前の333人も入れる（法務省の累計と同じ）
+  function cumCard() {
+    var end = +S.y, pre = D.agg.filter(function (a) { return a.key === '-1952'; })[0], agg = D.agg.filter(function (a) { return a.key === '1952-1966'; })[0];
+    var fromStart = !S.cs || D.Y.indexOf(+S.cs) < 0, s0 = fromStart ? D.Y[0] : Math.min(+S.cs, end);
+    var years = D.Y.filter(function (y) { return y >= s0 && y <= end; }), per = (fromStart ? [D.Y[0] - 1] : []).concat(years);
+    function run(key) { var acc = fromStart ? agg[key] || 0 : 0, out = fromStart ? [acc] : []; years.forEach(function (y) { acc += v(key, y) || 0; out.push(acc); }); return out; }
+    var tot = run('帰化許可者数').map(function (x) { return fromStart ? x + pre['帰化許可者数'] : x; });
+    var series = [{ name: '合計', vals: tot, cls: '2' }].concat(NATS.map(function (n, k) { return { name: n, vals: run(n), cls: n === 'その他' ? 'o' : String(ITEMS.length + k + 1) }; }));
+    var since = fromStart ? '1952年' : s0 + '年', last = per.length - 1;
+    var c = card('cum', since + 'から' + end + '年までの帰化許可者数の累計（国籍別）');
+    var row = el('div', 'dctlrow'), l = el('label', 'dctl'), s = el('select');
+    [['', '1952年（記録の始め）から']].concat(D.Y.filter(function (y) { return y <= end; }).map(function (y) { return [String(y), y + '年から']; })).forEach(function (o) { var op = el('option'); op.value = o[0]; op.textContent = o[1]; s.appendChild(op); });
+    s.value = fromStart ? '' : String(s0); s.addEventListener('change', function () { set({ cs: s.value }); });
+    l.appendChild(el('span', 'dlab', '数え始め')); l.appendChild(s); row.appendChild(l);
+    row.appendChild(el('p', 'dhelp', esc('数え終わりは、上で選んだ年（' + end + '年）です。')));
+    c.appendChild(row);
+    var sum3 = series.slice(1).reduce(function (a, x) { return a + x.vals[last]; }, 0);
+    c.appendChild(el('p', 'stotal', esc(since + 'から' + end + '年までの帰化許可者数の累計') + ' <b>' + fmt(tot[last]) + '人</b>'));
+    c.appendChild(el('p', 'dhelp', esc(series.slice(1).map(function (x) { return x.name + ' ' + fmt(x.vals[last]) + '人（' + (x.vals[last] / sum3 * 100).toFixed(1) + '%）'; }).join('、') +
+      (fromStart ? '、国籍の内わけのない1952年4月27日以前 ' + fmt(pre['帰化許可者数']) + '人。割合は、国籍の分かる' + fmt(sum3) + '人に対する割合です。' : '。'))));
+    var lab = function (i) { return fromStart && i === 0 ? '1966年まで（1952年4月28日からの合計）' : per[i] + '年まで'; };
+    c.appendChild(Z.lineChart(per.map(String), series, { title: '帰化許可者数の国籍別の累計', at: per, lab: lab }));
+    c.appendChild(el('p', 'dhelp', esc('国籍は、法務省の毎年の表の「韓国・朝鮮」「中国」「その他」の3つです（ネパール・ブラジルなどのくわしい国籍は最近の3年分しか発表されていないので、昔からの累計は作れません）。' +
+      (fromStart ? '1952年から数えるときの最初の点（1966年）は、1952年4月28日〜1966年をまとめた数です。合計には、国籍の内わけのない1952年4月27日以前の' + fmt(pre['帰化許可者数']) + '人も入れています（法務省の累計と同じ数になります）。' : ''))));
+    var parts = series.slice(1).map(function (x) { return { name: x.name, v: x.vals[last], cls: x.cls }; });
+    c.appendChild(el('h3', null, esc(since + 'から' + end + '年までの累計の国籍')));
+    c.appendChild(Z.pieChart(parts, sum3, since + 'から' + end + '年までの累計の国籍'));
+    c.appendChild(Z.details('累計を表で見る', Z.tableEl(['年', '合計'].concat(NATS), per.map(function (y, i) { return [lab(i)].concat(series.map(function (x) { return fmt(x.vals[i]); })); }).reverse(), 1)));
+    // 最近の3年の国ごとの合計（3年とも上位10に入った国・地域だけ。入らなかった年は数がないので足せない）
+    var ys = Object.keys(D.top).sort(), names = D.top[ys[0]].rows.map(function (r) { return r[0]; });
+    var full = names.filter(function (n) { return ys.every(function (y) { return D.top[y].rows.some(function (r) { return r[0] === n; }); }); });
+    var part = [].concat.apply([], ys.map(function (y) { return D.top[y].rows.map(function (r) { return r[0]; }); })).filter(function (n, i, a) { return a.indexOf(n) === i && full.indexOf(n) < 0; });
+    var three = full.map(function (n) { return [n, ys.reduce(function (a, y) { return a + D.top[y].rows.filter(function (r) { return r[0] === n; })[0][1]; }, 0)]; }).sort(function (a, b) { return b[1] - a[1]; });
+    var all3 = ys.reduce(function (a, y) { return a + D.top[y].total; }, 0);
+    c.appendChild(el('h3', null, esc(ys[0] + '〜' + ys[ys.length - 1] + '年の3年間の合計（国籍・地域別）')));
+    c.appendChild(el('p', 'dhelp', esc('くわしい国籍が分かる最近の3年分を足した数です（3年間の帰化許可者数は合わせて' + fmt(all3) + '人）。3年とも上位10に入った国籍・地域だけです。' +
+      (part.length ? part.join('・') + 'は上位10に入らなかった年があり、その年の数が分からないので入れていません。' : ''))));
+    c.appendChild(Z.barList(three.map(function (r) { return [r[0], r[1], ys.map(function (y) { return y + '年 ' + fmt(D.top[y].rows.filter(function (q) { return q[0] === r[0]; })[0][1]); }).join('・')]; }), all3, { rank: true }));
+    c.appendChild(srcLine());
+    var whenText = since + '〜' + end + '年の累計', note = '国籍は、法務省の毎年の表の「韓国・朝鮮」「中国」「その他」の3つです。';
+    var chart = { kind: 'line', per: per.map(String), labels: per.map(function (y) { return y + '年まで'; }), at: per, series: series.map(function (x) { return { name: x.name, vals: x.vals, cls: x.cls }; }),
+      index: false, area: '全国', when: String(end), from: String(per[0]), whenText: whenText };
+    var pie = { kind: 'pie', parts: parts, total: sum3, area: '全国', when: String(end), whenText: whenText };
+    var rank3 = { kind: 'rank', rows: three.slice(0, 10), f: function (x) { return fmt(x) + '人'; }, metric: '人数', area: '全国', when: ys[ys.length - 1], what: '全国の国籍・地域', whenText: ys[0] + '〜' + ys[ys.length - 1] + '年の合計' };
+    var t = el('div', 'dtools');
+    if (window.KZX) {
+      window.KZX.buttons(t, function () { return cur(chart, '全国｜帰化許可者の国籍別累計の移り変わり', note + (fromStart ? '1966年の点は1952年4月28日からの合計。合計には国籍の内わけのない1952年4月27日以前の333人も入れています。' : '')); });
+      var t2 = el('div', 'dtools'); window.KZX.buttons(t2, function () { return cur(pie, '全国｜帰化許可者の国籍別累計の構成', note + (fromStart ? '国籍の内わけのない1952年4月27日以前の333人は入れていません。' : '')); });
+      var t3 = el('div', 'dtools'); window.KZX.buttons(t3, function () { return cur(rank3, '全国｜帰化許可者の国籍・地域別人数（3年間の合計）', '3年とも上位10に入った国籍・地域だけです。'); });
+      t.appendChild(el('span', 'dhelp', '↑累計の折れ線の画像　↓累計の円グラフの画像　↓↓3年間の合計の画像')); c.appendChild(t); c.appendChild(t2); c.appendChild(t3);
+    }
+    return c;
+  }
+
+  // ④ 国籍別の上位10（最近の3年だけ発表されている）
   function topCard() {
     var ys = Object.keys(D.top).sort(), y = S.y, has = ys.indexOf(y) >= 0, show = has ? y : ys[ys.length - 1];
     var c = card('top', show + '年の国籍・地域別の帰化許可者数（上位10）');
@@ -142,7 +197,7 @@
     return c;
   }
 
-  // ④ 国籍の取得（届け出）と離脱（帰化とは別の数。最近の10年）
+  // ⑤ 国籍の取得（届け出）と離脱（帰化とは別の数。最近の10年）
   function acqCard() {
     var a = D.acq, c = card('acq', '国籍の取得（届け出）と離脱の移り変わり');
     c.appendChild(el('p', 'dhelp', '帰化とは別の数です。国籍取得者数は、国籍法第3条・第17条などにもとづいて、届け出で日本の国籍を取った人の数です。国籍離脱者数は、国籍法第13条にもとづいて日本の国籍をはなれた人の数です。最近の10年分が発表されています。'));
@@ -156,7 +211,7 @@
     return c;
   }
 
-  // ⑤ 毎年の数（表）
+  // ⑥ 毎年の数（表）
   function tableCard() {
     var c = card('years', '毎年の数（表）');
     var rows = D.Y.slice().reverse().map(function (y) { return [y + '年'].concat(ITEMS.concat(NATS).map(function (k) { var x = v(k, y); return x == null ? null : fmt(x); })); });
@@ -175,7 +230,7 @@
     ctl.replaceChildren(controls());
     nowBox.replaceChildren(nowLine());
     var out = el('div');
-    [yearCard, lineCard, topCard, acqCard, tableCard].forEach(function (f) { try { out.appendChild(f()); } catch (e) { console.error(e); out.appendChild(Z.nodata('この部分を表示できませんでした')); } });
+    [yearCard, lineCard, cumCard, topCard, acqCard, tableCard].forEach(function (f) { try { out.appendChild(f()); } catch (e) { console.error(e); out.appendChild(Z.nodata('この部分を表示できませんでした')); } });
     box.replaceChildren(out);
   }
   fetch('data/kika.json').then(function (r) { return r.json(); }).then(function (j) { D = j; readHash(); render(); },
