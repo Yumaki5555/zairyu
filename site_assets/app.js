@@ -430,8 +430,7 @@
           var sorted = Object.keys(opt.values).filter(function (k) { return opt.values[k] > 0; }).sort(function (a, b) { return opt.values[b] - opt.values[a]; })
             .slice(0, 10).map(function (k) { return [areaName(d, k), opt.values[k]]; });
           res({ chart: { kind: 'map', shape: shape, cls: cls, legend: box._legend, sorted: sorted, f: function (v) { return fmt(v) + '人'; }, metric: '人数',
-            when: d.when, area: d.area, level: d.level }, meta: { nat: w.nat, visa: w.visa }, src: SRC_STAT + (d.level === 'world' ? '、Natural Earth（地図の形）' : ''),
-            autoTitle: (d.level === 'muni' ? d.area + 'の市区町村別　' : d.level === 'world' ? '国籍・地域別　' : '都道府県別　') + w.who + 'の数（' + wl(d.when) + '）' });
+            when: d.when, area: d.area, level: d.level }, meta: { nat: w.nat, visa: w.visa }, src: SRC_STAT + (d.level === 'world' ? '、Natural Earth（地図の形）' : '') }); // タイトルは share.js が作る（例：全国｜ベトナム人の都道府県別人数）
         });
       });
     }));
@@ -556,8 +555,8 @@
       var ds = lineSet(box), hidden = box._hidden || {}, cls = function (i, s) { return s.other ? 'o' : String(i + 1); };
       var series = ds.series.map(function (s, i) { return { name: s.name, vals: s.values, cls: cls(i, s) }; }).filter(function (s) { return !hidden[s.name]; });
       var per = ds.whens.map(function (y) { return y + '-12'; });
-      return { chart: { kind: 'line', per: per, series: series, index: false, area: d.area, when: per[per.length - 1], from: per[0] },
-        meta: { nat: ds.nat ? [ds.nat] : [], visa: [] }, src: SRC_STAT, autoTitle: d.area + 'の' + (ds.nat ? ds.nat + 'の人' : '在留外国人') + 'の在留資格の移り変わり' };
+      return { chart: { kind: 'line', per: per, series: series, index: false, area: d.area, when: per[per.length - 1], from: per[0], dim: 'visa' }, // タイトル：全国｜ベトナム人の在留資格別の移り変わり
+        meta: { nat: ds.nat ? [ds.nat] : [], visa: [] }, src: SRC_STAT };
     }));
     t.insertAdjacentElement('afterend', mk('p', 'vnow'));
     var sel = box.querySelector('.lines-ctl select');

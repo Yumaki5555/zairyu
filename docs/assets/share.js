@@ -21,6 +21,10 @@
     m: { b0: '#fde9d7', b1: '#fbcfa6', b2: '#f7ae70', b3: '#f08a3e', b4: '#d76a1f', b5: '#ac4f12', b6: '#7c360b', 'b-z': '#eef0f3', 'b-n': '#f6f7f9', 'b-u': '#f6f7f9',
       d1: '#cfe1f6', d2: '#8fb8e8', d3: '#4a86cf' } };
   var basket = []; // まとめた図（複数の図を1枚にするとき）
+  // 画像の字の大きさ（2026年10月 作った人の指示。1600×900 のときの px。ほかの大きさの画像は幅に合わせる）：
+  // タイトル 44・タイトルの下の時点 24・名前 24（太字）・数 23・大事な数 29（太字）・小さい字 22・目もり 19・出典と注記 18
+  var TYPE = { title: 44, sub: 24, name: 24, value: 23, big: 29, small: 22, tick: 19, note: 18 };
+  function px(key, u) { return TYPE[key] * u / 25; }
   function fmt(n) { return Number(n).toLocaleString('ja-JP'); }
   function wl(w) { var p = w.split('-'); return p[0] + '年' + (+p[1]) + '月末'; }
   function font(px, bold) { return (bold ? '700 ' : '400 ') + Math.max(1, Math.round(px)) + 'px ' + FONT; }
@@ -121,19 +125,19 @@
   }
   // 凡例を下に並べる（1列か2列）。items：[{cls, text}]、head：上に書く見出し（時点と単位）。高さを返し、draw(x, y) で描く
   function legendBelow(ctx, items, w, maxH, u, head) {
-    var hh = head ? 1.9 * u : 0, n = items.length;
+    var hh = head ? px('tick', u) * 1.9 : 0, n = items.length;
     // 広ければ2列。狭くても、1列では高さに入らないときは2列にする（図をつぶさないように）
     var cols = n > 1 && (w >= 34 * u || (w >= 20 * u && n * 1.2 * u > maxH - hh)) ? 2 : 1, rows = Math.ceil(n / cols);
-    var rowH = Math.max(1.2 * u, Math.min(2.5 * u, (maxH - hh) / rows)), fs = Math.min(1.5 * u, rowH * 0.62), colW = (w - (cols - 1) * 1.6 * u) / cols;
+    var rowH = Math.max(px('tick', u) * 1.3, Math.min(px('value', u) * 2, (maxH - hh) / rows)), fs = Math.min(px('value', u), rowH * 0.62), colW = (w - (cols - 1) * 1.6 * u) / cols;
     return { h: hh + rows * rowH, draw: function (x, y) {
       if (head) {
-        var f0 = fit1(ctx, head, w, Math.min(1.35 * u, fs), false, 0.9 * u);
+        var f0 = fit1(ctx, head, w, px('tick', u), false, 0.7 * u);
         ctx.fillStyle = C.sub; ctx.font = font(f0.size); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(f0.text, x, y); y += hh;
       }
       items.forEach(function (it, i) {
         var cx = x + (i % cols) * (colW + 1.6 * u), cy = y + Math.floor(i / cols) * rowH + rowH / 2, s = Math.min(1.1 * u, rowH * 0.55);
         ctx.fillStyle = color(it.cls); ctx.fillRect(cx, cy - s / 2, s, s);
-        var f = fit1(ctx, it.text, colW - s - 0.8 * u, fs, false, Math.max(0.9 * u, fs * 0.75));
+        var f = fit1(ctx, it.text, colW - s - 0.8 * u, fs, false, Math.min(fs, 0.55 * u)); // 数を「…」で切らないよう、狭いとき（まとめた図）は小さくする
         ctx.fillStyle = C.text; ctx.font = font(f.size); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(f.text, cx + s + 0.6 * u, cy);
       });
     } };
@@ -143,7 +147,7 @@
   function drawLine(ctx, ch, x, y, w, h, u) {
     var series = ch.series.filter(function (s) { return s.vals.some(function (v) { return v != null; }); }).slice(0, 8); // 画面と同じ線（多い7つと「その他」）
     if (!series.length) { noData(ctx, x, y, w, h, u); return; }
-    var multi = series.length > 1, fa = 1.6 * u, last = ch.per.length - 1;
+    var multi = series.length > 1, fa = px('tick', u), last = ch.per.length - 1;
     var xs = ch.per.map(wx), x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     var cxm = wx('2012-12') - 0.25, mark = x0 < cxm && cxm <= x1;
     // 凡例の数：いちばん新しい時点の数。時点と単位は凡例の見出しにまとめて書く（その時点の数がない線だけ、数のある最後の時点を添える）
@@ -157,18 +161,18 @@
     // 凡例（線が2本以上）：広ければ右、狭ければ下。右のときは、名前と数がちょうど入る幅にする（すき間を空けない。図の幅の4割まで）
     var legRight = multi && w >= 42 * u, legW = 0, leg = null, lg = null;
     if (legRight) {
-      var hf = 1.35 * u, n = series.length, vals = series.map(valText);
-      var lh = Math.min(3 * u, (h - 2 * hf * 1.3 - 0.8 * u) / n), nf = Math.min(1.7 * u, lh * 0.62), sw = Math.min(1.2 * u, nf);
+      var hf = px('tick', u), n = series.length, vals = series.map(valText);
+      var lh = Math.min(px('name', u) * 2.1, (h - 2 * hf * 1.3 - 0.8 * u) / n), nf = Math.min(px('name', u), lh * 0.62), vf = Math.min(px('value', u), lh * 0.6), sw = nf * 0.8;
       ctx.font = font(nf, true); var nmW = maxW(ctx, series.map(function (s) { return s.name; }));
-      ctx.font = font(nf); var vlW = maxW(ctx, vals);
+      ctx.font = font(vf); var vlW = maxW(ctx, vals);
       var rowW = sw + 0.6 * u + nmW + 1.2 * u + vlW;
       ctx.font = font(hf); var hl = measure(ctx, head) <= rowW ? [head] : head.split('　');
       legW = Math.min(w * 0.4, Math.max(rowW, maxW(ctx, hl))); rowW = Math.min(rowW, legW);
       var headH = hl.length * hf * 1.3 + 0.8 * u;
-      lg = { hl: hl, hf: hf, headH: headH, lh: lh, nf: nf, sw: sw, rowW: rowW, vals: vals, vlW: vlW, top: y + Math.max(0, (h - headH - n * lh) / 2) };
+      lg = { hl: hl, hf: hf, headH: headH, lh: lh, nf: nf, vf: vf, sw: sw, rowW: rowW, vals: vals, vlW: vlW, top: y + Math.max(0, (h - headH - n * lh) / 2) };
     }
     if (multi && !legRight) { leg = legendBelow(ctx, series.map(function (s) { return { cls: s.cls, text: s.name + '　' + valText(s) }; }), w, h * 0.34, u, head.replace('　', '（') + (head.indexOf('　') >= 0 ? '）' : '')); }
-    var T = y + (mark ? 2.4 * u : 0.9 * u), B = y + h - 2.5 * u - (leg ? leg.h + 0.6 * u : 0);
+    var T = y + (mark ? fa * 2 : fa * 0.6), B = y + h - fa * 2 - (leg ? leg.h + 0.6 * u : 0);
     var all = []; series.forEach(function (s) { s.vals.forEach(function (v) { if (v != null) { all.push(v); } }); });
     var nt = Math.max(2, Math.min(5, Math.floor((B - T) / (3 * u))));
     var lo = Math.min(0, Math.min.apply(null, all)), hi = Math.max.apply(null, all), step = niceStep((hi - lo || 1) / nt);
@@ -193,7 +197,7 @@
     if (mark) { // 数え方が変わった所。字は図の上の余白に、入る向き・長さで
       var mx = X(cxm);
       ctx.strokeStyle = C.mark; ctx.lineWidth = Math.max(1, u * 0.1); ctx.setLineDash([u * 0.5, u * 0.4]); ctx.beginPath(); ctx.moveTo(mx, T); ctx.lineTo(mx, B); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = font(1.35 * u); ctx.fillStyle = C.mark; ctx.textBaseline = 'top';
+      ctx.font = font(fa); ctx.fillStyle = C.mark; ctx.textBaseline = 'top';
       [['2012年から数え方が変わった→', 'left'], ['←2011年まで 登録外国人統計', 'right'], ['数え方の変更→', 'left'], ['←数え方の変更', 'right']].some(function (o) {
         var room2 = o[1] === 'left' ? R - mx - 0.4 * u : mx - 0.4 * u - x;
         if (measure(ctx, o[0]) > room2) { return false; }
@@ -220,11 +224,11 @@
         var cy = ly + i * lg.lh + lg.lh / 2, tx = lx + lg.sw + 0.6 * u;
         ctx.fillStyle = color(s.cls); ctx.fillRect(lx, cy - lg.sw / 2, lg.sw, lg.sw);
         ctx.textBaseline = 'middle';
-        ctx.font = font(lg.nf); ctx.fillStyle = C.text; ctx.textAlign = 'right'; ctx.fillText(lg.vals[i], lx + lg.rowW, cy);
+        ctx.font = font(lg.vf); ctx.fillStyle = C.text; ctx.textAlign = 'right'; ctx.fillText(lg.vals[i], lx + lg.rowW, cy);
         ctx.font = font(lg.nf, true); ctx.textAlign = 'left'; ctx.fillText(clip(ctx, s.name, lg.rowW - lg.sw - 0.6 * u - lg.vlW - 1.2 * u), tx, cy);
       });
     }
-    if (leg) { leg.draw(x, B + 2.5 * u + 0.6 * u); }
+    if (leg) { leg.draw(x, B + fa * 2 + 0.6 * u); }
   }
 
   function drawPie(ctx, ch, x, y, w, h, u) {
@@ -236,7 +240,7 @@
     function plan(colW, fs) {
       ctx.font = font(fs); var pw = maxW(ctx, parts.map(pctText)), vw = maxW(ctx, parts.map(valText));
       ctx.font = font(fs, true); var nw = maxW(ctx, parts.map(function (p) { return p.name; }));
-      var sw = fs * 0.8, gap = fs * 0.7, room = colW - sw - gap - pw - gap, need = Math.min(nw, fs * 4.5);
+      var sw = fs * 0.8, gap = fs * 0.7, room = colW - sw - gap - pw - gap, need = nw; // 名前は「…」で切らない（入らなければ字を小さくする）
       var withVal = room - vw - gap >= need;
       if (withVal) { room -= vw + gap; }
       return { fs: fs, pw: pw, sw: sw, gap: gap, room: room, withVal: withVal, ok: room >= need, full: sw + gap + nw + gap + vw + gap + pw };
@@ -252,18 +256,18 @@
     }
     var side = w >= h * 1.2, D, pl, rowH, colW, cols = 1, lx, ly, pcx, pcy;
     if (side) { // 円は左、凡例は右。名前が全部入るように、円の大きさを決める（小さくても幅の3割）
-      rowH = Math.min(4 * u, h / n);
-      var need = plan(w, Math.min(2 * u, rowH * 0.5)).full;
-      D = Math.max(Math.min(h * 0.94, w * 0.42, w - need - 2.4 * u), Math.min(h * 0.94, w * 0.3)); lx = x + D + 2.4 * u; colW = x + w - lx;
-      pl = bestPlan(colW, Math.min(2 * u, rowH * 0.5), 1.2 * u);
+      rowH = Math.min(px('name', u) * 2.5, h / n);
+      var need = plan(w, Math.min(px('name', u), rowH * 0.5)).full;
+      D = Math.max(Math.min(h * 0.94, w * 0.5, w - need - 2.4 * u), Math.min(h * 0.94, w * 0.3)); lx = x + D + 2.4 * u; colW = x + w - lx;
+      pl = bestPlan(colW, Math.min(px('name', u), rowH * 0.5), px('tick', u));
       if (!pl.ok) { side = false; } else { pcx = x + D / 2; pcy = y + h / 2; ly = y + (h - n * rowH) / 2; }
     }
     if (!side) { // 円は上、凡例は下（1列か2列。人数まで入り、字が大きくなるほうにする）
       var tryCols = function (k) {
         var perCol = Math.ceil(n / k);
         // 凡例の字を読める大きさにするのを先にし、円は残りの高さで（小さくても 6.5u）
-        var rH = Math.max(1.05 * u, Math.min(2.6 * u, (h - 7.7 * u) / perCol)), cW = (w - (k - 1) * 1.6 * u) / k;
-        var p = bestPlan(cW, Math.min(2 * u, rH * 0.68), 0.95 * u), dd = Math.min(w * 0.8, h - perCol * rH - 1.2 * u);
+        var rH = Math.max(px('tick', u) * 1.3, Math.min(px('name', u) * 2, (h - 7.7 * u) / perCol)), cW = (w - (k - 1) * 1.6 * u) / k;
+        var p = bestPlan(cW, Math.min(px('name', u), rH * 0.68), px('tick', u) * 0.9), dd = Math.min(w * 0.8, h - perCol * rH - 1.2 * u);
         return { cols: k, rowH: rH, colW: cW, pl: p, D: dd, score: (p.ok ? 2 : 0) + (p.withVal ? 2 : 0) + p.fs / u + (dd >= 10 * u ? 1 : 0) };
       };
       var best = tryCols(1);
@@ -281,10 +285,10 @@
     });
     ctx.beginPath(); ctx.arc(pcx, pcy, ri, 0, 7); ctx.fillStyle = C.bg; ctx.fill();
     // 真ん中の合計：穴に入る大きさにする（入らなければ書かない。合計は大事な数の欄にもある）
-    var tt = fmt(total) + '人', room = ri * 2 * 0.84, tf = Math.min(3 * u, R * 0.3);
+    var tt = fmt(total) + '人', room = ri * 2 * 0.84, tf = Math.min(px('big', u) * 1.2, R * 0.3);
     ctx.font = font(tf, true);
     while (tf > 0.9 * u && measure(ctx, tt) > room) { tf -= 0.1 * u; ctx.font = font(tf, true); }
-    var lf = Math.min(1.6 * u, tf * 0.62);
+    var lf = Math.min(px('tick', u), tf * 0.62);
     if (measure(ctx, tt) <= room && tf + lf * 1.2 < ri * 1.6) {
       ctx.fillStyle = C.sub; ctx.font = font(lf); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('合計', pcx, pcy - 0.1 * u);
       ctx.fillStyle = C.text; ctx.font = font(tf, true); ctx.textBaseline = 'top'; ctx.fillText(tt, pcx, pcy + 0.1 * u);
@@ -301,35 +305,40 @@
     var lh = h / Math.max(rows.length, 5), vals = rows.map(function (r) { return ch.f(r[1]); }), names = rows.map(function (r) { return r[0]; });
     var max = Math.max.apply(null, rows.map(function (r) { return Math.abs(r[1]); }).concat([1e-9]));
     var fs, rkW, valW, nameAll, gap, one = null;
-    function widths(f) { ctx.font = font(f, true); rkW = measure(ctx, String(rows.length)); valW = maxW(ctx, vals); nameAll = maxW(ctx, names); gap = 0.8 * f; }
+    // 増減・増加の数を並べるときは、増減の棒と同じ色（増加＝緑・減少＝赤）。人数は青
+    var sgn = rows.some(function (r) { return r[1] < 0; }) || /増/.test(ch.metric || ''), barC = function (v) { return sgn ? (v < 0 ? C.down : C.up) : C.s['1']; };
+    function widths(f) { // 順位は小さく、数は名前より大きく太く（1600×900 で 名前 24px・数 29px）
+      ctx.font = font(f * 0.8); rkW = measure(ctx, String(rows.length)); ctx.font = font(f * 1.2, true); valW = maxW(ctx, vals);
+      ctx.font = font(f, true); nameAll = maxW(ctx, names); gap = 0.8 * f;
+    }
     // 1行に「順位・名前・棒・数」を並べられる字の大きさを探す
-    for (fs = Math.min(2.1 * u, lh * 0.5); fs >= 1.2 * u - 0.01; fs -= 0.1 * u) {
+    for (fs = Math.min(px('name', u), lh * 0.5); fs >= px('tick', u) - 0.01; fs -= 0.05 * u) {
       widths(fs);
       var nameW = Math.min(nameAll, (w - rkW - valW - 3 * gap) * 0.55), barW = w - rkW - nameW - valW - 3 * gap;
       if (nameW >= Math.min(nameAll, 5 * fs) && barW >= 3 * u) { one = { nameW: nameW, barW: barW }; break; }
     }
     rows.forEach(function (r, i) {
       var top = y + i * lh, bw;
-      ctx.fillStyle = r[1] < 0 ? C.m.d3 : C.s['1'];
+      ctx.fillStyle = barC(r[1]);
       if (one) {
         var cy = top + lh / 2;
         bw = Math.abs(r[1]) / max * one.barW;
         ctx.fillRect(x + rkW + gap + one.nameW + gap, top + lh * 0.24, Math.max(2, bw), lh * 0.52);
-        ctx.textBaseline = 'middle'; ctx.font = font(fs, true);
+        ctx.textBaseline = 'middle'; ctx.font = font(fs * 0.8);
         ctx.textAlign = 'right'; ctx.fillStyle = C.sub; ctx.fillText(String(i + 1), x + rkW, cy);
-        ctx.textAlign = 'left'; ctx.fillStyle = C.text; ctx.fillText(clip(ctx, r[0], one.nameW), x + rkW + gap, cy);
-        ctx.textAlign = 'right'; ctx.fillText(vals[i], x + w, cy);
+        ctx.font = font(fs, true); ctx.textAlign = 'left'; ctx.fillStyle = C.text; ctx.fillText(clip(ctx, r[0], one.nameW), x + rkW + gap, cy);
+        ctx.font = font(fs * 1.2, true); ctx.textAlign = 'right'; ctx.fillText(vals[i], x + w, cy);
       } else { // 狭いとき：1段目に「順位・名前・数」、2段目に棒
-        var f2 = Math.max(0.95 * u, Math.min(1.9 * u, lh * 0.4));
+        var f2 = Math.max(px('tick', u) * 0.9, Math.min(px('name', u), lh * 0.4));
         widths(f2);
-        while (f2 > 0.9 * u && rkW + gap + valW + gap + 3 * f2 > w) { f2 -= 0.1 * u; widths(f2); }
+        while (f2 > px('tick', u) * 0.8 && rkW + gap + valW + gap + 3 * f2 > w) { f2 -= 0.05 * u; widths(f2); }
         var ty = top + lh * 0.3;
-        ctx.textBaseline = 'middle'; ctx.font = font(f2, true);
+        ctx.textBaseline = 'middle'; ctx.font = font(f2 * 0.8);
         ctx.textAlign = 'right'; ctx.fillStyle = C.sub; ctx.fillText(String(i + 1), x + rkW, ty);
-        ctx.textAlign = 'left'; ctx.fillStyle = C.text; ctx.fillText(clip(ctx, r[0], w - rkW - valW - 2 * gap), x + rkW + gap, ty);
-        ctx.textAlign = 'right'; ctx.fillText(clip(ctx, vals[i], w - rkW - gap), x + w, ty);
+        ctx.font = font(f2, true); ctx.textAlign = 'left'; ctx.fillStyle = C.text; ctx.fillText(clip(ctx, r[0], w - rkW - valW - 2 * gap), x + rkW + gap, ty);
+        ctx.font = font(f2 * 1.2, true); ctx.textAlign = 'right'; ctx.fillText(clip(ctx, vals[i], w - rkW - gap), x + w, ty);
         bw = Math.abs(r[1]) / max * (w - rkW - gap);
-        ctx.fillStyle = r[1] < 0 ? C.m.d3 : C.s['1'];
+        ctx.fillStyle = barC(r[1]);
         ctx.fillRect(x + rkW + gap, top + lh * 0.6, Math.max(2, bw), lh * 0.24);
       }
     });
@@ -339,7 +348,7 @@
     var sh = ch.shape, items = ch.legend || [], top = (ch.sorted || []).slice(0, 5);
     var side = w >= h * 1.15 && w >= 34 * u, mw, mh, pan;
     if (side) { var lw = Math.min(w * 0.36, 26 * u); mw = w - lw - 2 * u; mh = h; pan = { x: x + w - lw, y: y, w: lw, h: h }; }
-    else { var bh = Math.min(h * 0.42, (Math.max(items.length + 1, top.length + 1)) * 2.4 * u); mw = w; mh = h - bh - 1 * u; pan = { x: x, y: y + mh + 1 * u, w: w, h: bh }; }
+    else { var bh = Math.min(h * 0.42, (Math.max(items.length + 1, top.length + 1)) * px('name', u) * 1.9); mw = w; mh = h - bh - 1 * u; pan = { x: x, y: y + mh + 1 * u, w: w, h: bh }; }
     var k = Math.min(mw / sh.w, mh / sh.h), ox = x + (mw - sh.w * k) / 2, oy = y + (mh - sh.h * k) / 2;
     ctx.save(); ctx.translate(ox, oy); ctx.scale(k, k);
     ctx.lineWidth = 1 / k * Math.max(1, u * 0.08);
@@ -353,12 +362,13 @@
     });
     ctx.restore();
     // 凡例（色の見方）と多い順。行の高さは、2つ合わせて入る高さにそろえる（凡例は幅があれば2列）
-    var hf = Math.min(1.6 * u, pan.h * 0.08), lcols = side && pan.w >= 18 * u && items.length > 4 ? 2 : 1;
+    var hf = Math.min(px('tick', u), pan.h * 0.08), lcols = side && pan.w >= 18 * u && items.length > 4 ? 2 : 1;
     var lrows = Math.ceil(items.length / lcols), rrows = top.length;
     var rows = side ? lrows + rrows : Math.max(lrows, rrows), heads = side ? 2 : 1;
-    var rh = Math.max(1.1 * u, Math.min(2.7 * u, (pan.h - heads * hf * 1.6 - (side ? 1.2 * u : 0)) / Math.max(rows, 1))), fs = Math.min(1.65 * u, rh * 0.64);
+    var rh = Math.max(px('tick', u) * 1.25, Math.min(px('name', u) * 1.9, (pan.h - heads * hf * 1.6 - (side ? 1.2 * u : 0)) / Math.max(rows, 1)));
+    var fs = Math.min(px('small', u), rh * 0.64), fr = Math.min(px('name', u), rh * 0.7); // 色の見方は小さい字、多い順は名前の大きさ
     function legend(px, py, pw) {
-      var a = fit1(ctx, '色の見方（' + (ch.metric || '') + '）', pw, hf, true, 0.9 * u);
+      var a = fit1(ctx, '色の見方（' + metricT(ch.metric) + '）', pw, hf, true, 0.7 * u);
       ctx.fillStyle = C.sub; ctx.font = font(a.size, true); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(a.text, px, py);
       var yy = py + hf * 1.6, cw = (pw - (lcols - 1) * 1.2 * u) / lcols;
       items.forEach(function (it, i) {
@@ -375,7 +385,7 @@
       var yy = py + hf * 1.6;
       top.forEach(function (r, i) {
         var cy = yy + i * rh + rh / 2, val = r[1] == null ? '—' : ch.f(r[1]), pre = (i + 1) + ' ';
-        ctx.font = font(fs, true); ctx.textBaseline = 'middle';
+        ctx.font = font(fr, true); ctx.textBaseline = 'middle';
         var vw = measure(ctx, val), preW = measure(ctx, pre);
         ctx.fillStyle = C.sub; ctx.textAlign = 'left'; ctx.fillText(pre, px, cy);
         ctx.fillStyle = C.text; ctx.fillText(clip(ctx, r[0], pw - preW - vw - 0.8 * u), px + preW, cy);
@@ -491,11 +501,11 @@
     });
     nr = rows.length;
     // 凡例の置き場所と大きさ
-    var side = w >= h * 1.6, head = '色の見方（' + ch.metric + '）', lf = (side ? 1.15 : 1.25) * u, sw = 1.1 * u, gw = w, gh = h, leg;
+    var side = w >= h * 1.6, head = '色の見方（' + ch.metric + '）', lf = px('tick', u), sw = px('tick', u), gw = w, gh = h, leg;
     if (side) {
       ctx.font = font(lf);
       var lgW = Math.min(w * 0.24, maxW(ctx, items.map(function (it) { return it[1]; })) + sw + 1.2 * u);
-      var hd = fitLines(ctx, head, lgW, lf, true, 3, 0.9 * u), nt = ch.markNote ? fitLines(ctx, ch.markNote, lgW, 1.05 * u, false, 5, 0.85 * u) : null;
+      var hd = fitLines(ctx, head, lgW, lf, true, 3, 0.7 * u), nt = null; // 数え方の変わり目の説明（markNote）は、画像のいちばん下の注記に書く
       gw = w - lgW - 2 * u;
       leg = { x: x + w - lgW, w: lgW, hd: hd, nt: nt };
     } else {
@@ -507,19 +517,19 @@
         if (lx + iw > w && lines[lines.length - 1].length) { lines.push([]); lx = 0; }
         lines[lines.length - 1].push({ it: it, x: lx }); lx += iw + 1.2 * u;
       });
-      var nf1 = ch.markNote ? fitLines(ctx, ch.markNote, w, 1.15 * u, false, 2, 0.9 * u) : null;
+      var nf1 = null;
       leg = { lines: lines, nt: nf1 };
-      gh = h - (lines.length * 1.9 * u + (nf1 ? nf1.lines.length * nf1.size * 1.3 + 0.3 * u : 0) + 0.8 * u);
+      gh = h - (lines.length * 1.9 * lf + (nf1 ? nf1.lines.length * nf1.size * 1.3 + 0.3 * u : 0) + 0.8 * u);
     }
     // 名前の列の幅（州の列＋地域区分の列）：まず列の名前を横に書くとして行の高さを見積もり、その字の大きさで測る。全体の32%まで
-    var rh0 = Math.min(2.4 * u, (gh - 1.8 * u) / nr), nf0 = Math.min(1.3 * u, rh0 * 0.62);
+    var rh0 = Math.min(2.4 * u, (gh - 1.8 * u) / nr), nf0 = Math.min(px('small', u), rh0 * 0.62);
     ctx.font = font(nf0, true);
     var stW = maxW(ctx, rows.map(function (r) { return r.st || ''; })) + 0.8 * u;
     var natural = Math.max(stW + maxW(ctx, rows.filter(function (r) { return !r.top; }).map(function (r) { return r.name; })),
       maxW(ctx, rows.filter(function (r) { return r.top; }).map(function (r) { return r.name; }))) + 0.8 * u;
     var nameW = Math.min(natural, gw * 0.32), subW = nameW - stW, cellW = (gw - nameW) / nc, cx0 = x + nameW;
     // 列の名前：横に入る大きさ（0.55u まで小さくする）。入らなければ縦書き（日本語）か90度回す（数）。高さは図の4分の1まで
-    var colF = 1.2 * u, mode = 'h', maxLen = Math.max.apply(null, cols.map(function (c) { return c.length; }));
+    var colF = px('tick', u), mode = 'h', maxLen = Math.max.apply(null, cols.map(function (c) { return c.length; }));
     ctx.font = font(colF, true); var cw = maxW(ctx, cols);
     if (cw > cellW * 0.92) { colF *= cellW * 0.92 / cw; }
     var wrapped = null;
@@ -540,7 +550,7 @@
     var nlines = wrapped ? Math.max.apply(null, wrapped.map(function (l) { return l.length; })) : 1;
     var headH = mode === 'v' ? maxLen * colF * 1.08 + 0.6 * u : mode === 'r' ? cw + 0.8 * u : nlines * colF * 1.15 + 0.35 * colF;
     var rh = Math.min(2.4 * u, (gh - headH) / nr), top = y + headH, gridH = nr * rh;
-    var nf = Math.min(1.3 * u, rh * 0.62), nmin = Math.max(0.55 * u, Math.min(0.85 * u, rh * 0.5));
+    var nf = Math.min(px('small', u), rh * 0.62), nmin = Math.max(0.55 * u, Math.min(0.85 * u, rh * 0.5));
     ctx.fillStyle = C.sub; ctx.font = font(colF, true);
     cols.forEach(function (c, i) {
       var mx = cx0 + (i + 0.5) * cellW;
@@ -566,7 +576,7 @@
       var f = fit1(ctx, text, mw, nf, bold, nmin); return { lines: [f.text], size: f.size };
     }
     // マスの字の大きさ：いちばん長い字が、マスの幅と高さに入る大きさ（小さすぎるときは書かない）
-    var texts = [].concat.apply([], rows.map(function (r) { return r.text; })), cf = Math.min(rh * 0.56, 1.25 * u);
+    var texts = [].concat.apply([], rows.map(function (r) { return r.text; })), cf = Math.min(rh * 0.56, px('tick', u));
     ctx.font = font(cf, true); var tw = maxW(ctx, texts);
     if (tw > cellW * 0.88) { cf *= cellW * 0.88 / tw; }
     var showText = cf >= 0.42 * u, pad = Math.max(1, 0.08 * u);
@@ -605,7 +615,7 @@
       ctx.fillStyle = C.sub; ctx.font = font(leg.hd.size, true); ctx.textBaseline = 'top';
       leg.hd.lines.forEach(function (l) { ctx.fillText(l, leg.x, ly); ly += leg.hd.size * 1.3; });
       ly += 0.5 * u;
-      var ih = Math.min(2.2 * u, (h - (ly - y) - (leg.nt ? leg.nt.lines.length * leg.nt.size * 1.35 + 1.2 * u : 0)) / items.length);
+      var ih = Math.min(lf * 2.2, (h - (ly - y) - (leg.nt ? leg.nt.lines.length * leg.nt.size * 1.35 + 1.2 * u : 0)) / items.length);
       items.forEach(function (it, i) {
         var cy = ly + (i + 0.5) * ih, f = fit1(ctx, it[1], leg.w - sw - 0.6 * u, lf, false, 0.85 * u);
         swatch(it[0], leg.x, cy);
@@ -620,12 +630,12 @@
     var by = top + gridH + 0.9 * u;
     ctx.textBaseline = 'middle';
     leg.lines.forEach(function (line, k) {
-      var cy = by + k * 1.9 * u + 0.8 * u;
+      var cy = by + k * 1.9 * lf + 0.8 * lf;
       if (k === 0) { ctx.fillStyle = C.sub; ctx.font = font(lf, true); ctx.fillText(head + '：', x, cy); }
       line.forEach(function (p) { swatch(p.it[0], x + p.x, cy); ctx.fillStyle = C.text; ctx.font = font(lf); ctx.fillText(p.it[1], x + p.x + sw + 0.4 * u, cy); });
     });
     if (leg.nt) {
-      var ny = by + leg.lines.length * 1.9 * u + 0.1 * u; ctx.fillStyle = C.sub; ctx.font = font(leg.nt.size); ctx.textBaseline = 'top';
+      var ny = by + leg.lines.length * 1.9 * lf + 0.1 * u; ctx.fillStyle = C.sub; ctx.font = font(leg.nt.size); ctx.textBaseline = 'top';
       leg.nt.lines.forEach(function (l) { ctx.fillText(l, x, ny); ny += leg.nt.size * 1.3; });
     }
   }
@@ -636,67 +646,95 @@
     var st = cur.meta || (window.KZD ? window.KZD.state() : { nat: [], visa: [] });
     return { nat: st.nat || [], visa: st.visa || [], src: cur.src || '出入国在留管理庁「在留外国人統計」', status: cur.status || '' };
   }
-  function who(m) { return (m.nat.length ? m.nat.join('・') + 'の人' : '') + (m.visa.length ? (m.nat.length ? '（' : '') + '在留資格「' + m.visa.join('・') + '」' + (m.nat.length ? '）' : '') : ''); }
+  // タイトルで使う短い呼び方（例：フィリピン人・在留資格「留学」）。「朝鮮」は国籍を表すものではない記載、「無国籍」は国籍がないので「〜人」にしない。
+  // 「〜共和国」「〜連邦」も「〜の人」
+  function person(x) { return x === '朝鮮' ? '朝鮮籍の人' : x === '無国籍' ? '無国籍の人' : /(共和国|連邦)$/.test(x) ? x + 'の人' : x + '人'; }
+  function whoT(m) {
+    if (!m.nat.length && !m.visa.length) { return '在留外国人'; }
+    var v = '在留資格「' + m.visa.join('・') + '」';
+    return m.nat.length ? m.nat.map(person).join('・') + (m.visa.length ? '（' + v + '）' : '') : v;
+  }
+  function metricT(s) { return String(s || '人数').replace('地域の人口に占める割合', '人口に占める割合'); }
   function firstLast(s) {
     var f = null, l = null, fi = -1, li = -1;
     s.vals.forEach(function (v, i) { if (v != null) { if (fi < 0) { f = v; fi = i; } l = v; li = i; } });
     return { f: f, l: l, fi: fi, li: li };
   }
+  // タイトル：「地域｜だれの・何ごとの・何」（例：全国｜在留外国人の国籍・地域別構成、新潟県上越市｜フィリピン人の在留資格別増減）。時点は下の行に書く
   function autoTitle(cur) {
     if (cur.autoTitle) { return cur.autoTitle; }
-    var ch = cur.chart, m = meta(cur), w = who(m) || '在留外国人';
+    var ch = cur.chart, m = meta(cur), w = ch.who || whoT(m), area = ch.area || '全国';
     if (ch.kind === 'line') {
-      if (ch.series.length === 1 && !ch.index) {
-        var fl = firstLast(ch.series[0]);
-        if (fl.fi >= 0 && fl.li > fl.fi) {
-          var yrs = Math.round(wx(ch.per[fl.li]) - wx(ch.per[fl.fi]));
-          return ch.area + 'の' + w + 'は' + yrs + '年間で何人' + (fl.l >= fl.f ? '増えた' : '減った') + '？';
-        }
-      }
-      // 線が何本か：選んだもの（地域・国籍・在留資格）を先に書き、何ごとに分けた線かを続ける。選んだものどうしを比べるときは「〜別」を付けない
-      var by = { nat: m.nat.length ? '' : '国籍・地域別の', visa: m.visa.length ? '' : '在留資格別の', area: '地域別の' }[ch.dim];
-      if (ch.series.length > 1 && by != null) { return (ch.dim === 'area' ? '' : ch.area + '　') + w + 'の' + by + '移り変わり'; }
-      return ch.area + '　' + (ch.series.length > 1 ? ch.series.map(function (s) { return s.name; }).slice(0, 3).join('・') + (ch.series.length > 3 ? 'など' : '') + 'の' : w + 'の') + '移り変わり';
+      var idx = ch.index ? '（指数）' : '';
+      if (ch.series.length === 1) { return area + '｜' + w + 'の移り変わり' + idx; }
+      // 線が何本か：何ごとに分けた線かを書く。選んだものどうしを比べるときは「〜別」を付けない。分け方が分からないときは線の名前を並べる
+      var by = { nat: m.nat.length ? '' : '国籍・地域別の', visa: m.visa.length ? '' : '在留資格別の', area: '地域別の', pref: '都道府県別の', nx: '国籍・地域×在留資格別の' }[ch.dim];
+      if (by != null) { return (ch.dim === 'area' ? '' : area + '｜') + w + 'の' + by + '移り変わり' + idx; }
+      return area + '｜' + ch.series.map(function (s) { return s.name; }).slice(0, 3).join('・') + (ch.series.length > 3 ? 'など' : '') + 'の移り変わり' + idx;
     }
-    if (ch.kind === 'pie') { return ch.area + '　' + (ch.dim === 'visa' ? (who(m) || '在留外国人') + 'の在留資格' : '在留外国人の国籍構成' + (m.visa.length ? '（' + m.visa.join('・') + '）' : '')); }
-    if (ch.kind === 'rank') { return (ch.what || ch.area) + '　' + (m.nat.length || m.visa.length ? w + 'の' : '') + ch.metric + 'ランキング'; }
-    if (ch.kind === 'map') { return (ch.level === 'muni' ? ch.area + 'の市区町村別' : '都道府県別') + '　' + w + 'の' + ch.metric; }
-    if (ch.kind === 'diff') { return (ch.area || '全国') + '｜' + (ch.who || '在留外国人') + 'の' + ch.what + '別増減'; } // 例：新潟県上越市｜フィリピン人の在留資格別増減（期間と並び順は下の行）
+    if (ch.kind === 'pie') {
+      if (ch.dim === 'visa') { return area + '｜' + (m.nat.length ? m.nat.map(person).join('・') : '在留外国人') + 'の在留資格別構成'; }
+      if (ch.dim === 'pref') { return area + '｜在留外国人の都道府県別構成'; }
+      return area + '｜' + (m.visa.length ? '在留資格「' + m.visa.join('・') + '」' : '在留外国人') + 'の国籍・地域別構成';
+    }
+    if (ch.kind === 'rank') { // what：「都道府県」「千葉県の市区町村」「全国の国籍・地域」「全国の国籍・地域（2025年12月末→2026年6月末）」など
+      var wm = /^(.+?)の((?:市区町村|都道府県|国籍・地域|在留資格).*)$/.exec(ch.what || ''), place = wm ? wm[1] : area;
+      return place + '｜' + w + 'の' + (wm ? wm[2] : ch.what || '').replace(/（[^）]*）$/, '') + '別' + metricT(ch.metric) + 'ランキング';
+    }
+    if (ch.kind === 'map') {
+      var by2 = ch.level === 'muni' ? '市区町村別' : ch.level === 'world' ? '国籍・地域別' : '都道府県別';
+      return (ch.level === 'muni' ? area : '全国') + '｜' + w + 'の' + by2 + (ch.from ? '増減' : metricT(ch.metric));
+    }
+    if (ch.kind === 'diff') { return area + '｜' + w + 'の' + ch.what + '別増減'; }
     return cur.title || '';
   }
   function keyNumbers(ch) {
     if (ch.kind === 'line' && ch.series.length === 1 && !ch.index) {
       var fl = firstLast(ch.series[0]);
       if (fl.fi < 0) { return []; }
-      var out = [[wl(ch.per[fl.fi]), fmt(fl.f) + '人'], [wl(ch.per[fl.li]), fmt(fl.l) + '人']];
-      if (fl.li > fl.fi) { out.push(['増減', signed(fl.l - fl.f) + '人' + (fl.f ? '（' + signed((fl.l - fl.f) / fl.f * 100, 1) + '%）' : '')]); }
+      var out = [[ymd(ch.per[fl.fi]), fmt(fl.f) + '人'], [ymd(ch.per[fl.li]), fmt(fl.l) + '人']];
+      if (fl.li > fl.fi) { out.push(['増減', diffT(fl.l - fl.f) + (fl.f ? '（' + rateT((fl.l - fl.f) / fl.f * 100) + '）' : '')]); }
       return out;
     }
     if (ch.kind === 'pie') { return [['合計', fmt(ch.total) + '人'], ['いちばん多い', ch.parts[0].name + ' ' + (ch.parts[0].v / ch.total * 100).toFixed(1) + '%']]; }
-    if (ch.kind === 'rank' && ch.rows.length) { return [['1位', ch.rows[0][0]], [ch.metric, ch.f(ch.rows[0][1])]]; }
-    if (ch.kind === 'map' && ch.sorted.length) { return [['いちばん多い', ch.sorted[0][0]], [ch.metric, ch.sorted[0][1] == null ? '—' : ch.f(ch.sorted[0][1])]]; }
+    if (ch.kind === 'rank' && ch.rows.length) { return [['1位', ch.rows[0][0]], [metricT(ch.metric), ch.f(ch.rows[0][1])]]; }
+    if (ch.kind === 'map' && ch.sorted.length) { return [['いちばん多い', ch.sorted[0][0]], [metricT(ch.metric), ch.sorted[0][1] == null ? '—' : ch.f(ch.sorted[0][1])]]; }
     return [];
   }
   function period(ch) { return ch.kind === 'diff' || (ch.kind === 'map' && ch.from) ? wl(ch.from) + ' → ' + wl(ch.when) : (ch.kind === 'line' || ch.kind === 'heat') && ch.from ? wl(ch.from) + '〜' + wl(ch.when) : wl(ch.when); }
+  // 画像のタイトルの下に書く時点（年末は「2025年末」）。半期速報の増加人数は、比べた2つの時点
+  function whenT(ch) {
+    if (ch.kind === 'diff' || (ch.kind === 'map' && ch.from)) { return ymd(ch.from) + ' → ' + ymd(ch.when); }
+    if ((ch.kind === 'line' || ch.kind === 'heat') && ch.from) { return ymd(ch.from) + '〜' + ymd(ch.when); }
+    var pm = /（(\d{4}年\d+月末)→(\d{4}年\d+月末)）$/.exec(ch.what || '');
+    if (pm) { return [pm[1], pm[2]].map(function (s) { return s.replace(/^(\d+)年12月末$/, '$1年末'); }).join(' → '); }
+    return ch.when ? ymd(ch.when) : '';
+  }
+  function firstWhen(ch) { return ch.from || (ch.per && ch.per[0]) || ch.when || ''; }
+  // 出典：2012年12月末からだけの図は「在留外国人統計」、それより前をふくむ図は「在留外国人統計（旧登録外国人統計）」（半期速報などは、そのまま）
+  function srcOf(src, from) {
+    var base = src.replace('（旧登録外国人統計）', '');
+    if (base.indexOf('出入国在留管理庁「在留外国人統計」') !== 0) { return src; }
+    return from && from < '2012-12' ? base.replace('「在留外国人統計」', '「在留外国人統計（旧登録外国人統計）」') : base;
+  }
   function postText(cur, title) {
     var ch = cur.chart, k = keyNumbers(ch).map(function (x) { return x[0] + '：' + x[1]; }).join('、');
     if (ch.kind === 'diff') { // 増減：今の並び順の上の3つ
       k = sortName(ch) + '：' + ch.rows.slice(0, 3).map(function (r, i) { return (i + 1) + '. ' + r[0] + ' ' + (r[1] == null ? '比較不可' : diffT(r[1]) + '（' + rateT(r[4]) + '）'); }).join('、');
     }
-    var src = ch.kind === 'diff' && ch.from >= '2012-12' ? meta(cur).src.replace('（旧登録外国人統計）', '') : meta(cur).src; // 画像の出典とそろえる
-    return title + '\n' + (k ? k + '\n' : '') + '統計時点：' + period(ch) + (meta(cur).status ? '（' + meta(cur).status + '）' : '') + '\n出典：' + src + '\n#在留外国人';
+    return title + '\n' + (k ? k + '\n' : '') + '統計時点：' + period(ch) + (meta(cur).status ? '（' + meta(cur).status + '）' : '') + '\n出典：' + srcOf(meta(cur).src, firstWhen(ch)) + '\n#在留外国人';
   }
 
   // ---- 1枚の画像を組み立てる。opts.site：右下にサイトの名前を入れる
+  // どの図も同じ形（2026年10月 作った人の指示。増減の棒にそろえた）：白い地に、上にタイトル（「地域｜…」）とその下に時点だけ。
+  // 「地域：」「国籍・地域：」「統計時点：」のラベルや飾りの線は入れない。出典と注記（技人国の説明・数え方の変わり目など）は、いちばん下にまとめる。
+  // 字の大きさは px()（1600×900 のとき タイトル 44px・時点 24px・名前 24px・数 23px・大事な数 34px・目もり 19px・出典と注記 18px）
   function compose(items, size, title, opts) {
     opts = opts || {};
     var vn = vnote([].concat.apply([], items.map(function (x) { return chartNames(x.chart); })));
     items = items.map(function (x) { return copy(x, { chart: shortChart(x.chart) }); });
     var W = size[1], H = size[2], cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-    var ctx = cv.getContext('2d'), u = H > W ? W / 56 : W / 64, pad = 2.6 * u;
-    // 増減の棒だけの画像：説明のラベル（地域：など）と飾りの線を入れず、字の大きさを決める（1600×900 のとき タイトル 44px・期間 24px・出典と注記 18px）
-    var clean = items.length === 1 && items[0].chart.kind === 'diff', k = u / 25;
-    if (clean) { pad = 44 * k; }
+    var ctx = cv.getContext('2d'), u = H > W ? W / 56 : W / 64, k = u / 25, pad = 44 * k;
     // 描いた字（あとで、その字の入った字のファイルを読み込む）と、字の置かれた四角（字が重なっていないかを確かめるため）
     var drawn = [], boxes = [], fill = ctx.fillText;
     ctx.fillText = function (t, a, b) {
@@ -705,68 +743,65 @@
       drawn.push(t); return fill.call(ctx, t, a, b);
     };
     ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
-    if (!clean) { ctx.fillStyle = C.accent; ctx.fillRect(0, 0, W, 0.5 * u); }
-    var cur = items[0], m = meta(cur), ch = cur.chart, y = clean ? pad : pad + 0.4 * u;
-    // タイトル（1行。グラフを大きくするため）
-    var t = clean ? fitOne(ctx, title || autoTitle(cur), W - 2 * pad, 44 * k, true, 36 * k) : fitOne(ctx, title || autoTitle(cur), W - 2 * pad, (W > H ? 2.9 : 3.3) * u, true, 1.7 * u);
+    var cur = items[0], m = meta(cur), ch = cur.chart, y = pad, one = items.length === 1;
+    // タイトル（1行。入らなければ小さくし、それでも入らなければ2行）
+    var t = fitOne(ctx, title || autoTitle(cur), W - 2 * pad, px('title', u), true, 36 * k);
     ctx.fillStyle = C.text; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     t.lines.forEach(function (l) { ctx.font = font(t.size, true); ctx.fillText(l, pad, y); y += t.size * 1.28; });
-    // 地域・国籍・在留資格・統計時点（増減の棒は、期間と並び順だけ：「2023年末 → 2025年末（2025年末の人数順）」）
-    var sub = clean ? ymd(ch.from) + ' → ' + ymd(ch.when) + (sortName(ch) ? '（' + sortName(ch) + '）' : '') :
-      '地域：' + (items.length > 1 ? items.map(function (x) { return x.chart.area; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join('・') : ch.area) +
-      '　国籍・地域：' + (m.nat.length ? m.nat.join('・') : 'すべて') + '　在留資格：' + (m.visa.length ? m.visa.join('・') : 'すべて') + '　統計時点：' + period(ch) + (m.status ? '（' + m.status + '）' : '');
-    var s2 = clean ? fitOne(ctx, sub, W - 2 * pad, 24 * k, false, 22 * k) :
-      fitOne(ctx, sub, W - 2 * pad, (W > H ? 1.35 : 1.5) * u, false, (W > H ? 1.15 : 1.25) * u); // タイトルより控えめの字で、なるべく1行に（縦に余裕のある形は、小さくしすぎず2行に）
-    ctx.fillStyle = C.sub; s2.lines.forEach(function (l) { ctx.font = font(s2.size); ctx.fillText(l, pad, y); y += s2.size * 1.35; });
-    y += clean ? 22 * k : 0.8 * u;
-    // 出典（とサイトの名前）：下から高さを決める。増減の棒は、出典の下に注記（技人国・比較不可・何件のうち何件か）をまとめる
-    var siteW = 0, siteF = clean ? 18 * k : 1.45 * u;
-    if (opts.site) { ctx.font = font(siteF, true); siteW = measure(ctx, SITE) + 2 * u; }
-    var foot = [];
-    if (clean) {
-      var shown = diffRows(ch, H - y - pad - 4 * 18 * k * 1.35 - 18 * k, u), cnt = ch.count || ch.rows.length;
-      ch.limit = shown; // 注記の「何件のうち何件」と、描く行の数をそろえる
-      var src = ch.from >= '2012-12' ? m.src.replace('（旧登録外国人統計）', '') : m.src; // 2012年12月末からの期間は在留外国人統計だけ
-      var dnote = [vn, ch.rows.slice(0, shown).some(function (r) { return r[1] == null; }) ? '比較不可は' + ymd(ch.from) + 'の数がないものです。' : '',
-        cnt > shown ? '全' + fmt(cnt) + '件のうち' + shown + '件を表示しています。' : ''].filter(Boolean).join('　');
-      foot.push(fitLines(ctx, '出典：' + src + 'を加工して作成', W - 2 * pad - siteW, 18 * k, false, 2, 17 * k));
-      if (dnote) { foot.push(fitLines(ctx, dnote, W - 2 * pad, 18 * k, false, 2, 17 * k)); }
-    } else {
-      foot.push(fitLines(ctx, '出典：' + m.src + 'を加工して作成' + (ch.pop ? '。人口：総務省「住民基本台帳に基づく人口」' : '') + (vn ? '　' + vn : ''), W - 2 * pad - siteW, 1.45 * u, false, 2, 1.05 * u));
+    // タイトルの下：時点だけ（増減の棒は並び順も。半期速報は「（速報）」）
+    var sub = one && ch.kind === 'diff' ? whenT(ch) + (sortName(ch) ? '（' + sortName(ch) + '）' : '') :
+      items.map(function (x) { return whenT(x.chart); }).filter(function (v, i, a) { return v && a.indexOf(v) === i; }).join('・') + (m.status ? '（' + m.status + '）' : '');
+    if (sub) {
+      var s2 = fitOne(ctx, sub, W - 2 * pad, px('sub', u), false, 22 * k);
+      ctx.fillStyle = C.sub; s2.lines.forEach(function (l) { ctx.font = font(s2.size); ctx.fillText(l, pad, y); y += s2.size * 1.35; });
     }
-    var footGap = clean ? 14 * k : 1.2 * u, footH = foot.reduce(function (s, f) { return s + f.lines.length * f.size * 1.35; }, 0) + (clean ? 18 * k : 1.4 * u), bottom = H - pad - footH;
-    // 大事な数（横長の地図は、地図と凡例を大きくするため出さない。いちばん多い所は「多い順」にある）
-    var keys = items.length === 1 && !(ch.kind === 'map' && W > H) ? keyNumbers(ch) : [];
-    var gx = pad, gy = y, gw = W - 2 * pad, gh = bottom - y;
+    y += 22 * k;
+    // 出典と注記：いちばん下にまとめる（サイトの名前は、選んだときだけ右下）
+    var siteW = 0, nf = px('note', u);
+    if (opts.site) { ctx.font = font(nf, true); siteW = measure(ctx, SITE) + 2 * u; }
+    var from = items.map(function (x) { return firstWhen(x.chart); }).sort()[0], pop = items.some(function (x) { return x.chart.pop; });
+    var srcs = items.map(function (x) { return srcOf(meta(x).src, from); }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var notes = [vn].concat(items.map(function (x) { return x.chart.markNote || ''; }));
+    if (one && ch.kind === 'diff') { // 増減の棒：比較不可の意味と、何件のうち何件を描いたか
+      var shown = diffRows(ch, H - y - pad - 4 * nf * 1.35 - 18 * k, u), cnt = ch.count || ch.rows.length;
+      ch.limit = shown; // 注記の「何件のうち何件」と、描く行の数をそろえる
+      notes.push(ch.rows.slice(0, shown).some(function (r) { return r[1] == null; }) ? '比較不可は' + ymd(ch.from) + 'の数がないものです。' : '');
+      notes.push(cnt > shown ? '全' + fmt(cnt) + '件のうち' + shown + '件を表示しています。' : '');
+    }
+    var foot = [fitLines(ctx, '出典：' + srcs.join('、') + (pop ? '、総務省「住民基本台帳に基づく人口」' : '') + 'を加工して作成', W - 2 * pad - siteW, nf, false, 2, 17 * k)];
+    notes = notes.filter(function (v, i, a) { return v && a.indexOf(v) === i; }).join('　');
+    if (notes) { foot.push(fitLines(ctx, notes, W - 2 * pad, nf, false, 3, 16 * k)); }
+    var footGap = 14 * k, footH = foot.reduce(function (s, f) { return s + f.lines.length * f.size * 1.35; }, 0) + 18 * k, bottom = H - pad - footH;
+    // 大事な数（横長の地図は、地図と凡例を大きくするため出さない。いちばん多い所は「多い順」にある）。色の付いた箱は使わず、細い灰色の線で区切る
+    var keys = one && !(ch.kind === 'map' && W > H) ? keyNumbers(ch) : [];
+    var gx = pad, gy = y, gw = W - 2 * pad, gh = bottom - y, kl = px('tick', u), kv = 34 * k;
     if (keys.length) {
+      ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1, k);
       if (W > H) { // 横長：右に縦に並べる
-        var kw = Math.min(gw * 0.3, 19 * u), kx = W - pad - kw, kh = Math.min(gh / keys.length, 9 * u);
+        var kw = Math.min(gw * 0.26, 400 * k), kx = W - pad - kw, kh = Math.min(gh / keys.length, 150 * k);
+        ctx.beginPath(); ctx.moveTo(kx - 20 * k, gy); ctx.lineTo(kx - 20 * k, gy + kh * keys.length); ctx.stroke();
         keys.forEach(function (k2, i) {
-          var ky = gy + i * kh, bh = kh - 0.5 * u, lf = Math.min(1.6 * u, bh * 0.22);
-          ctx.fillStyle = C.soft; roundRect(ctx, kx, ky + 0.25 * u, kw, bh, 0.8 * u); ctx.fill();
-          var a = fit1(ctx, k2[0], kw - 2.4 * u, lf, false, 0.9 * u);
-          ctx.fillStyle = C.sub; ctx.font = font(a.size); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(a.text, kx + 1.2 * u, ky + 0.25 * u + 0.8 * u);
-          var room = bh - 0.8 * u - a.size * 1.35 - 0.6 * u;
-          var b = fitLines(ctx, k2[1], kw - 2.4 * u, Math.min(2.9 * u, room), true, 2, 1.2 * u);
-          var vf = Math.min(b.size, room / (b.lines.length * 1.18));
-          if (vf < b.size) { b = fitLines(ctx, k2[1], kw - 2.4 * u, vf, true, 2, Math.min(vf, 1.2 * u)); }
+          var ky = gy + i * kh + 10 * k;
+          if (i) { ctx.beginPath(); ctx.moveTo(kx, ky - 10 * k); ctx.lineTo(kx + kw, ky - 10 * k); ctx.stroke(); }
+          var a = fit1(ctx, k2[0], kw, kl, false, 15 * k);
+          ctx.fillStyle = C.sub; ctx.font = font(a.size); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(a.text, kx, ky);
+          var room = kh - 20 * k - a.size * 1.4, b = fitLines(ctx, k2[1], kw, Math.min(kv, room / 1.2), true, 2, Math.min(22 * k, room / 2.4));
           ctx.fillStyle = C.text; ctx.font = font(b.size, true);
-          b.lines.forEach(function (l, j) { ctx.fillText(l, kx + 1.2 * u, ky + 0.25 * u + 0.8 * u + a.size * 1.35 + j * b.size * 1.18); });
+          b.lines.forEach(function (l, j) { ctx.fillText(l, kx, ky + a.size * 1.4 + j * b.size * 1.18); });
         });
-        gw -= kw + 2 * u;
+        gw -= kw + 44 * k;
       } else { // 正方形・縦長：上に横に並べる
-        var bw = (gw - (keys.length - 1) * u) / keys.length, bh2 = 6.6 * u;
+        var bw = (gw - (keys.length - 1) * 32 * k) / keys.length, bh2 = kl * 1.4 + kv * 1.25;
         keys.forEach(function (k2, i) {
-          var bx = gx + i * (bw + u);
-          ctx.fillStyle = C.soft; roundRect(ctx, bx, gy, bw, bh2, 0.8 * u); ctx.fill();
-          var a = fit1(ctx, k2[0], bw - 2 * u, 1.5 * u, false, 0.9 * u);
-          ctx.fillStyle = C.sub; ctx.font = font(a.size); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(a.text, bx + u, gy + 0.9 * u);
-          var b = fitLines(ctx, k2[1], bw - 2 * u, 2.6 * u, true, 1, 1.1 * u);
-          if (measure(ctx, b.lines[0]) > bw - 2 * u) { b = fitLines(ctx, k2[1], bw - 2 * u, 1.5 * u, true, 2, 1 * u); }
-          ctx.fillStyle = C.text; ctx.font = font(b.size, true);
-          b.lines.forEach(function (l, j) { ctx.fillText(l, bx + u, gy + 2.8 * u + j * b.size * 1.15); });
+          var bx = gx + i * (bw + 32 * k);
+          if (i) { ctx.beginPath(); ctx.moveTo(bx - 16 * k, gy); ctx.lineTo(bx - 16 * k, gy + bh2); ctx.stroke(); }
+          var a = fit1(ctx, k2[0], bw, kl, false, 15 * k);
+          ctx.fillStyle = C.sub; ctx.font = font(a.size); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(a.text, bx, gy);
+          var b = fit1(ctx, k2[1], bw, kv, true, 20 * k);
+          ctx.fillStyle = C.text; ctx.font = font(b.size, true); ctx.fillText(b.text, bx, gy + kl * 1.4);
         });
-        gy += bh2 + 1.6 * u; gh -= bh2 + 1.6 * u;
+        ctx.beginPath(); ctx.moveTo(gx, gy + bh2 + 14 * k); ctx.lineTo(gx + gw, gy + bh2 + 14 * k); ctx.stroke();
+        gy += bh2 + 34 * k; gh -= bh2 + 34 * k;
       }
     }
     // 図（いくつかまとめるときは、横長は横に、ほかは縦に並べる）。それぞれの図の見出しは2行まで
@@ -776,7 +811,7 @@
       var cx = side ? gx + i * (cw0 + gapX) : gx, cy = side ? gy : gy + i * (ch0 + gapY), cw = cw0, chh = ch0, uu = u * (n > 1 ? 0.9 : 1);
       if (n > 1) {
         if (side && i > 0) { ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1, u * 0.08); ctx.beginPath(); ctx.moveTo(cx - gapX / 2, cy); ctx.lineTo(cx - gapX / 2, cy + chh); ctx.stroke(); }
-        var ht = fitLines(ctx, it.title || autoTitle(it), cw, 1.8 * u, true, 2, 1.25 * u);
+        var ht = fitLines(ctx, autoTitle(it) + '（' + whenT(it.chart) + '）', cw, 26 * k, true, 2, 19 * k); // 画面の見出し（it.title）は時点が入っているので使わない
         ctx.fillStyle = C.text; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
         ht.lines.forEach(function (l, j) { ctx.font = font(ht.size, true); ctx.fillText(l, cx, cy + j * ht.size * 1.25); });
         var used = ht.lines.length * ht.size * 1.25 + 0.8 * u; cy += used; chh -= used;
@@ -784,18 +819,17 @@
       var fn = DRAW[it.chart.kind];
       if (fn) { ctx.save(); fn(ctx, it.chart, cx, cy, cw, chh, uu); ctx.restore(); }
     });
-    // 出典（とサイトの名前）
+    // 出典と注記（とサイトの名前）
     var ly = bottom + footGap / 2;
     ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1, u * 0.08); ctx.beginPath(); ctx.moveTo(pad, ly); ctx.lineTo(W - pad, ly); ctx.stroke();
     ctx.fillStyle = C.sub; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     var fy = bottom + footGap;
     foot.forEach(function (f) { f.lines.forEach(function (l) { ctx.font = font(f.size); ctx.fillText(l, pad, fy); fy += f.size * 1.35; }); });
-    if (opts.site) { ctx.font = font(siteF, true); ctx.fillStyle = C.accent; ctx.textAlign = 'right'; ctx.fillText(SITE, W - pad, bottom + footGap); }
+    if (opts.site) { ctx.font = font(nf, true); ctx.fillStyle = C.accent; ctx.textAlign = 'right'; ctx.fillText(SITE, W - pad, bottom + footGap); }
     ctx.fillText = fill;
     cv._text = drawn.join(''); cv._boxes = boxes;
     return cv;
   }
-  function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
   // ---- 日本語の字：Google Fonts の Noto Sans JP を、ページの字とは別の名前で読み込む（ページの見た目は変えない）
   var faceCss = null, known = {};

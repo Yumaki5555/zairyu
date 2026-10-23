@@ -55,21 +55,8 @@
     if (S.from && (per.indexOf(S.from) < 0 || S.from >= S.to)) { S.from = ''; }
     if (!forms().some(function (f) { return f[0] === S.form; })) { S.form = forms()[0][0]; }
   }
-  function who() {
-    var n = nats(), v = visas();
-    if (!n.length && !v.length) { return '在留外国人'; }
-    return n.length ? n[0] + 'の人' + (v.length ? '（在留資格「' + v[0] + '」）' : '') : '在留資格「' + v[0] + '」の人';
-  }
-  // 増減の棒のタイトル（例：新潟県上越市｜フィリピン人の在留資格別増減）で使う、短い呼び方。
-  // 「朝鮮」は国籍を表すものではない記載、「無国籍」は国籍がないので「〜人」にしない。「〜共和国」「〜連邦」も「〜の人」
-  function person(x) { return x === '朝鮮' ? '朝鮮籍の人' : x === '無国籍' ? '無国籍の人' : /(共和国|連邦)$/.test(x) ? x + 'の人' : x + '人'; }
-  function whoT() {
-    var n = nats(), v = visas();
-    if (!n.length && !v.length) { return '在留外国人'; }
-    return n.length ? person(n[0]) + (v.length ? '（在留資格「' + v[0] + '」）' : '') : '在留資格「' + v[0] + '」';
-  }
 
-  // ---------- 図の中身（share.js の chart）をつくる → { chart, meta, autoTitle, note } か { why }
+  // ---------- 図の中身（share.js の chart）をつくる → { chart, meta, note } か { why }。タイトルは share.js が chart と meta から作る（「地域｜…」の形）
   function cut(s, from, to) { // 移り変わりのうち、開始〜終了の分
     var i0 = s.per.indexOf(from), i1 = s.per.indexOf(to), hid = {};
     for (var i = i0; i <= i1; i++) { if (s.hid[i]) { hid[i - i0] = 1; } }
@@ -97,7 +84,7 @@
       if (x === null || y === null) { return x === y ? q[2] - p[2] : (x === null ? 1 : -1); }
       return y - x || q[2] - p[2];
     });
-    return { kind: 'diff', rows: out, what: what, area: area, who: whoT(), from: from, when: to, sort: S.sort, count: out.length };
+    return { kind: 'diff', rows: out, what: what, area: area, from: from, when: to, sort: S.sort, count: out.length };
   }
   function build() {
     var a = areaObj(), from = S.from, to = S.to, form = S.form, n = nats(), v = visas();
@@ -113,7 +100,7 @@
         }
         if (!from) {
           return { chart: { kind: 'rank', rows: items.slice(0, 10).map(function (x) { return [x[0], x[1]]; }), f: D.METRICS.count.f, metric: '人数', when: to, area: a.name, what: a.name + 'の' + dimName, rt: dim },
-            meta: meta, autoTitle: a.name + '　' + dimName + '別の' + who() + '（多い順）', note: b.partial };
+            meta: meta, note: b.partial };
         }
         if (form === 'diff') {
           return beforeOf(a, items.map(function (x) { return { nats: dim === 'nat' ? [x[0]] : n, visas: dim === 'visa' ? [x[0]] : v }; }), from).then(function (bs) {
@@ -132,10 +119,10 @@
         if (!c.items.length) { return { why: c.why || '該当する統計データがありません' }; }
         var items = c.items.filter(function (x) { return x[0] !== 'その他' && x[1] !== 'その他'; });
         var nm = function (x) { return x[0] + '（' + x[1] + '）'; };
-        var what = a.name + 'の国籍・地域×在留資格', head = a.name + '　' + (n.length || v.length ? who() + '　' : '') + '国籍・地域×在留資格';
+        var what = a.name + 'の国籍・地域×在留資格';
         if (!from) {
           return { chart: { kind: 'rank', rows: items.slice(0, 10).map(function (x) { return [nm(x), x[2]]; }), f: D.METRICS.count.f, metric: '人数', when: to, area: a.name, what: what, rt: 'nx' },
-            meta: meta, autoTitle: head + 'の人数（多い順）' };
+            meta: meta };
         }
         if (form === 'diff') {
           return beforeOf(a, items.map(function (x) { return { nats: [x[0]], visas: [x[1]] }; }), from).then(function (bs) {
@@ -144,7 +131,7 @@
         }
         return lineOf(a, items.slice(0, TOP).map(function (x) { return { name: nm(x), nats: [x[0]], visas: [x[1]] }; }), from, to).then(function (l) {
           return { chart: { kind: 'line', per: l.per, series: l.series, index: false, area: a.name, when: to, from: from, dim: 'nx' }, meta: meta,
-            autoTitle: head + '（多い' + TOP + '組）の移り変わり', note: '終了の時点に多い' + TOP + '組の移り変わりです。' };
+            note: '終了の時点に多い' + TOP + '組の移り変わりです。' };
         });
       });
     }
@@ -164,7 +151,7 @@
       if (!rows.some(function (r) { return r.now != null; })) { return { why: vals[0] && vals[0].why || '該当する統計データがありません' }; }
       if (form === 'bar') {
         return { chart: { kind: 'rank', rows: rows.filter(function (r) { return r.now != null; }).sort(function (p, q) { return q.now - p.now; }).slice(0, 10).map(function (r) { return [r.name, r.now]; }),
-          f: D.METRICS.count.f, metric: '人数', when: to, area: l === 'pref' ? '全国' : S.pref, what: place, rt: l }, meta: meta, autoTitle: place + '別の' + who() + '（多い順）' };
+          f: D.METRICS.count.f, metric: '人数', when: to, area: l === 'pref' ? '全国' : S.pref, what: place, rt: l }, meta: meta };
       }
       if (form === 'diff') {
         return { chart: diffChart(rows.map(function (r) { return [r.name, r.now, r.before]; }), l === 'pref' ? '都道府県' : '市区町村', l === 'pref' ? '全国' : S.pref, from, to), meta: meta };
@@ -178,7 +165,7 @@
         var sorted = rows.filter(function (r) { return values[r.key] != null; }).sort(function (p, q) { return values[q.key] - values[p.key]; }).slice(0, 10).map(function (r) { return [r.name, values[r.key]]; });
         return { chart: { kind: 'map', shape: shape, values: values, names: names, f: f, short: D.shortOf(from ? 'diff1' : 'count'), sorted: sorted, metric: from ? '増減の人数' : '人数',
           when: to, from: from || undefined, area: l === 'pref' ? '全国' : S.pref, pop: false, cls: map._cls, legend: map._legend, level: l, rankHead: from ? '増えた順' : '多い順' },
-          meta: meta, autoTitle: from ? place + '別の' + who() + 'の' + spanText(from, to) + 'の増減' : null };
+          meta: meta };
       });
     });
   }

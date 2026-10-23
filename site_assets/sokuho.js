@@ -147,7 +147,8 @@
     var spOnly = series.filter(function (s) { return !s.dash; });
     var firstNat = dim === '国籍・地域' && pick.length === 1 && pick[0] !== '総数' ? [pick[0]] : [];
     var chartSeries = pick.length === 1 && withConf ? [{ name: pick[0], vals: sub.map(function (w) { var v = own(dim, pick[0], w); if (v == null && D.conf[dim][pick[0]]) { var j = D.CP.indexOf(w); v = j < 0 ? null : D.conf[dim][pick[0]][j]; } return v; }), cls: '1' }] : spOnly;
-    var chart = { kind: 'line', per: sub, series: chartSeries, index: false, area: '全国', when: sub[sub.length - 1], from: sub[0] };
+    var chart = { kind: 'line', per: sub, series: chartSeries, index: false, area: '全国', when: sub[sub.length - 1], from: sub[0],
+      dim: dim === '国籍・地域' ? 'nat' : dim === '在留資格' ? 'visa' : 'pref' }; // 画像のタイトル（share.js）：全国｜在留外国人の国籍・地域別の移り変わり
     c.appendChild(tools(function () { return { title: dim + 'の移り変わり', chart: chart, meta: { nat: firstNat, visa: dim === '在留資格' && pick.length === 1 ? [pick[0]] : [] }, src: SRC + (withConf ? '、在留外国人統計（確定統計）' : ''), status: withConf ? '速報と確定統計' : '速報' }; }));
     return c;
   }

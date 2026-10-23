@@ -392,7 +392,7 @@ def cross_table(nat_items, xd, n=8):
             f"<th>多い在留資格（その国籍・地域の中の割合）</th></tr>{trs}</table></div></details></div>")
 
 
-CSS_VER = "12"
+CSS_VER = "13"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -946,7 +946,7 @@ def region_heat(d, ranked):
     chart1 = {"kind": "heat", "rows": [[r[1], r[2], r[4]] for r in rows], "cols": [w[:4] for w in years], "cls": [c and [x[0] for x in c] for c in cells],
               "text": [c and [x[1] for x in c] for c in cells], "legend": lg, "metric": "人数", "from": years[0], "when": years[-1], "mark": mark,
               "area": "全国", "markNote": "点線より左（2011年まで）は登録外国人統計で、数え方が違います"}
-    year_grid = heat_grid(rows, [w[:4] for w in years], cells, lg, {"chart": chart1, "title": "地域区分別　在留外国人の数の移り変わり（各年12月末）"},
+    year_grid = heat_grid(rows, [w[:4] for w in years], cells, lg, {"chart": chart1, "title": "全国｜在留外国人の地域区分別人数の移り変わり"},
                           f"各年12月末の人数（{years[0][:4]}〜{years[-1][:4]}年）。マスの中の数は、1万人より多い所は「万」で短くしています。"
                           "点線より左（2011年まで）は登録外国人統計で、数え方が違います（短い期間の滞在の人なども入ります）。"
                           "地域区分は今の国の区分で分けています。マスを押すと（マウスを合わせると）、正確な人数が出ます。", "各年12月末", mark=mark)
@@ -981,7 +981,7 @@ def region_heat(d, ranked):
                         f"{r[1]}の人のうち {v}：{num(got[v])}人（{got[v] / t * 100:.1f}%）") for v in vcols])
     chart2 = {"kind": "heat", "rows": [[r[1], r[2], r[4]] for r in rows], "cols": vcols, "cls": [c and [x[0] for x in c] for c in cells2],
               "text": [c and [x[1] for x in c] for c in cells2], "legend": plg, "metric": "その地域区分の人のうちの割合", "when": LATEST, "area": "全国", "vertical": True}
-    visa_grid = heat_grid(rows, vcols, cells2, plg, {"chart": chart2, "title": f"地域区分別　在留資格の割合（{when_label(LATEST)}）"},
+    visa_grid = heat_grid(rows, vcols, cells2, plg, {"chart": chart2, "title": "全国｜在留外国人の地域区分別在留資格の割合"},
                           f"{when_label(LATEST)}。その地域区分の国籍・地域の人のうち、それぞれの在留資格の人の割合です（横に足すと100%）。"
                           "全国で人数の多い在留資格12と、それ以外を合わせた「その他」です。「技人国」は「技術・人文知識・国際業務」のことです。"
                           "人数の少ない地域区分は、少しの人数で割合が大きく変わります。", "地域区分", vertical=True, extra=("人数", totals))
