@@ -5,7 +5,8 @@
    画面の「サイト名を入れる」を選んだときだけ、サイトの名前（アドレスではない）を右下に入れる。
    大きさ：横長 1600×900（16:9、はじめ）、正方形 1200×1200、縦長 1080×1350。保存の前に見え方を確かめられる。
    どのページでも、グラフの「画像を保存」を押したときに読み込む（app.js）。日本語の字（Noto Sans JP）もそのときに、ページの字とは別の名前で読み込む。
-   X の投稿画面を開くリンクでは画像は自動でつかないので、保存またはコピーした画像を貼ってもらう */
+   X の投稿画面を開くリンクでは画像は自動でつかないので、保存またはコピーした画像を貼ってもらう。
+   トップページの「グラフの画像を作る」（xmaker.js）も、ここの compose・autoTitle・postText・glyphs で同じ画像と投稿文を作る */
 (function () {
   'use strict';
   var SIZES = [['wide', 1600, 900, '横長 16:9（1600×900・Xの投稿向き）'], ['square', 1200, 1200, '正方形 1:1（1200×1200）'], ['tall', 1080, 1350, '縦長 4:5（1080×1350）']];
@@ -369,7 +370,7 @@
     }
     function ranking(px, py, pw) {
       if (!top.length) { return; }
-      ctx.fillStyle = C.sub; ctx.font = font(hf, true); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('多い順', px, py);
+      ctx.fillStyle = C.sub; ctx.font = font(hf, true); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(ch.rankHead || '多い順', px, py);
       var yy = py + hf * 1.6;
       top.forEach(function (r, i) {
         var cy = yy + i * rh + rh / 2, val = r[1] == null ? '—' : ch.f(r[1]), pre = (i + 1) + ' ';
@@ -425,13 +426,19 @@
       ctx.fillStyle = k[0]; ctx.fillRect(kx, ky - sw * 0.35, sw, sw * 0.7);
       ctx.fillStyle = C.text; ctx.font = font(kf); ctx.fillText(k[1], kx + sw + 0.5 * u, ky); kx += sw + 0.5 * u + measure(ctx, k[1]) + 1.6 * u;
     });
-    var kt = fit1(ctx, '棒の長さ＝10年間の増減の人数　上位' + rows.length + '（全' + ch.count + '）', x + w - kx, kf, false, 0.9 * u);
+    var kt = fit1(ctx, '棒の長さ＝' + (ch.span || '10年間') + 'の増減の人数　上位' + rows.length + '（全' + ch.count + '）', x + w - kx, kf, false, 0.9 * u);
     ctx.fillStyle = C.sub; ctx.font = font(kt.size); ctx.fillText(kt.text, kx, ky);
     // 列の見出し
     var hy = y + keyH + colH * 0.45, hf = Math.min(1.25 * u, L.f * 0.85);
     ctx.fillStyle = C.sub; ctx.font = font(hf, true);
-    ctx.textAlign = 'left'; ctx.fillText(clip(ctx, ch.what, L.nmW), nx, hy);
-    if (L.withCt) { ctx.textAlign = 'right'; ctx.fillText(clip(ctx, ch.from.slice(0, 4) + '年 → ' + ch.when.slice(0, 4) + '年（人）', L.ctW + 2 * L.gap), cx + L.ctW, hy); }
+    var whatT = clip(ctx, ch.what, L.nmW); ctx.textAlign = 'left'; ctx.fillText(whatT, nx, hy);
+    if (L.withCt) { // 期間の見出し：名前の列の見出しに重ならない幅に入れる（入らなければ短くする）。どちらかが12月末でないときは、両方に月も書く（トップページでは期間を選べる）
+      var mon = ch.from.slice(5) !== '12' || ch.when.slice(5) !== '12', yl = function (w) { return w.slice(0, 4) + '年' + (mon ? +w.slice(5) + '月' : ''); }, room = cx + L.ctW - (nx + measure(ctx, whatT) + L.gap);
+      var y0 = ch.from.slice(0, 4), y1 = ch.when.slice(0, 4), m0 = +ch.from.slice(5), m1 = +ch.when.slice(5);
+      var ht = [yl(ch.from) + ' → ' + yl(ch.when) + '（人）', yl(ch.from) + '→' + yl(ch.when) + '（人）', yl(ch.from) + '→' + yl(ch.when),
+        mon && y0 === y1 ? y0 + '年' + m0 + '月→' + m1 + '月' : '', y0 + '/' + m0 + '→' + y1 + '/' + m1].filter(function (t) { return t && measure(ctx, t) <= room; })[0]; // 短くするときは「2025年6月→12月」「2024/6→2025/12」
+      ctx.textAlign = 'right'; ctx.fillText(ht || clip(ctx, yl(ch.from) + '→' + yl(ch.when), room), cx + L.ctW, hy);
+    }
     ctx.textAlign = 'center'; ctx.fillStyle = C.text; ctx.fillText('0', Math.max(z, bx + measure(ctx, '0') / 2), hy);
     ctx.fillStyle = C.sub; ctx.textAlign = 'left';
     if (bx + L.barW - z > measure(ctx, '増加 →') + 2.4 * u) { ctx.fillText('増加 →', Math.max(z, bx) + 1.4 * u, hy); } // 減った所ばかりで右に場所がないときは書かない
@@ -449,7 +456,7 @@
       if (r[1] == null) { // 比較対象なし：点線の枠と「10年前の数なし」だけ（棒も0の線も出さない）
         var nh = Math.min(lh * 0.8, L.f * 1.6), nf = Math.min(L.f * 0.75, nh * 0.6);
         ctx.strokeStyle = C.sub; ctx.lineWidth = Math.max(1, u * 0.08); ctx.setLineDash([u * 0.4, u * 0.3]); ctx.strokeRect(bx, cy - nh / 2, L.barW, nh); ctx.setLineDash([]);
-        ctx.font = font(nf); ctx.fillStyle = C.sub; ctx.textAlign = 'left'; ctx.fillText(clip(ctx, '10年前の数なし', L.barW - u), bx + 0.6 * u, cy);
+        ctx.font = font(nf); ctx.fillStyle = C.sub; ctx.textAlign = 'left'; ctx.fillText(clip(ctx, (ch.before || '10年前') + 'の数なし', L.barW - u), bx + 0.6 * u, cy);
       } else if (r[1]) {
         var bw = Math.max(2, Math.abs(r[1]) / span * L.barW);
         ctx.fillStyle = r[1] > 0 ? C.up : C.down; ctx.fillRect(r[1] > 0 ? z : z - bw, cy - bh / 2, bw, bh);
@@ -662,7 +669,7 @@
     if (ch.kind === 'map' && ch.sorted.length) { return [['いちばん多い', ch.sorted[0][0]], [ch.metric, ch.sorted[0][1] == null ? '—' : ch.f(ch.sorted[0][1])]]; }
     return [];
   }
-  function period(ch) { return ch.kind === 'diff' ? wl(ch.from) + ' → ' + wl(ch.when) : (ch.kind === 'line' || ch.kind === 'heat') && ch.from ? wl(ch.from) + '〜' + wl(ch.when) : wl(ch.when); }
+  function period(ch) { return ch.kind === 'diff' || (ch.kind === 'map' && ch.from) ? wl(ch.from) + ' → ' + wl(ch.when) : (ch.kind === 'line' || ch.kind === 'heat') && ch.from ? wl(ch.from) + '〜' + wl(ch.when) : wl(ch.when); }
   function postText(cur, title) {
     var ch = cur.chart, k = keyNumbers(ch).map(function (x) { return x[0] + '：' + x[1]; }).join('、');
     if (ch.kind === 'diff') { // 増減：上の3つ
@@ -901,5 +908,5 @@
     });
     bar.appendChild(b1); bar.appendChild(b2);
   }
-  window.KZX = { buttons: buttons, open: openDialog, compose: compose, autoTitle: autoTitle, SIZES: SIZES };
+  window.KZX = { buttons: buttons, open: openDialog, compose: compose, autoTitle: autoTitle, SIZES: SIZES, postText: postText, glyphs: glyphs };
 })();

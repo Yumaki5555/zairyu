@@ -701,8 +701,9 @@
     if (!d) { return; }
     vtools(box).appendChild(saveButton(function () { return { chart: d.chart, meta: { nat: [], visa: [] }, src: SRC_STAT, autoTitle: d.title }; }));
   });
-  // 年ごとの人数・在留資格の割合・世界地図をボタンで切り替える（国籍から探す）。選んだものは次に開いたときのために残す
-  var HEATKEY = 'kazu-zairyu-heat';
+  // 世界地図・在留資格の割合・年ごとの人数をボタンで切り替える（国籍から探す）。はじめはページの最初のもの（世界地図）。選んだものは次に開いたときのために残す
+  // （残す名前は、はじめを世界地図に変えたときに -2 にした。前に「年ごとの人数」を見ていた人も、まず世界地図になるように）
+  var HEATKEY = 'kazu-zairyu-heat-2';
   document.querySelectorAll('.heatsw').forEach(function (sw) {
     var panes = Array.prototype.slice.call(sw.querySelectorAll(':scope > .heatpane'));
     if (panes.length < 2) { return; }

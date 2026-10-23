@@ -2,7 +2,7 @@
 # 使い方: <pandas の入った python> -I make_site.py
 #
 #   作るページ（どのページも、ヘッダーのメニュー・いまいる所・上に戻るボタンは同じ。見せる順は「見出し→対象と時点→主要な数→グラフ・地図→ランキング→表→出典」）
-#     index.html            日本全体（「何を調べますか？」の入口・主要な数・移り変わり・日本の地図・国籍・在留資格・都道府県の一覧）
+#     index.html            日本全体（いちばん上にグラフの画像を作る（X投稿用。site_assets/xmaker.js）、「何を調べますか？」の入口・主要な数・移り変わり・日本の地図・国籍・在留資格・都道府県の一覧）
 #     area-index.html       地域から探す（名前で探す・日本地図・地方ごと・都道府県の一覧・政令市）
 #     nat-index.html        国籍から探す（地域区分ごとの色のマス目と世界地図・地域区分ごとの人数・国籍・地域の一覧。名前で探す・並べ替え）
 #     visa-index.html       在留資格から探す（資格ごとの人数と割合・一覧・移り変わり）
@@ -392,7 +392,7 @@ def cross_table(nat_items, xd, n=8):
             f"<th>多い在留資格（その国籍・地域の中の割合）</th></tr>{trs}</table></div></details></div>")
 
 
-CSS_VER = "9"
+CSS_VER = "11"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -741,6 +741,14 @@ def ten_card(dim, what, rows, link):
 
 
 # ---------------------------------------------------------------- ページ
+# トップページのいちばん上：グラフの画像を作る（X投稿用）。中身（選ぶボタン・画像）は xmaker.js が作る
+# （数の取り出し方はダッシュボードの dash.js、画像は share.js と同じ）。2026年10月 作った人の希望「X用の機能をトップページの最初に」
+XMAKER = """<section class="card xm" id="xmaker" aria-labelledby="xm-h"><h2 id="xm-h">グラフの画像を作る（X投稿用）</h2>
+<p class="xm-lead">①〜③を選ぶと、右（スマホでは下）にX投稿用の画像ができます。そのまま保存・コピーして投稿できます。</p>
+<div class="xm-body"><p class="dhelp">読み込み中…</p></div>
+<noscript><p class="note">この部分は JavaScript を使います。JavaScript が動かないときは、下の表で数をご覧ください。</p></noscript></section>"""
+
+
 def top_page(d):
     s = dict(sorted(d.japan.items()))
     now = s[LATEST]
@@ -764,6 +772,7 @@ def top_page(d):
     sets += [visa_set(d, n, lambda w, n=n: d.nat_visa.get((w, n)), nat=n) for n, _, _ in ni[:20]]
     body = f"""<h1>日本に住む外国人の数</h1>
 <p class="lead">出入国在留管理庁が発表している在留外国人の数を、国籍・在留資格・都道府県・市区町村ごとに見られるサイトです。</p>
+{XMAKER}
 <section class="ask" aria-labelledby="ask-h"><h2 id="ask-h">何を調べますか？</h2>{ENTRIES}</section>
 <section id="japan" aria-labelledby="japan-h"><h2 id="japan-h" style="margin-top:22px">日本全体の在留外国人</h2>
 {meta_line("日本全体", '<span>もっと新しい数（速報）：<a href="sokuho.html">半期速報</a></span>')}
@@ -787,7 +796,7 @@ def top_page(d):
 <section class="card" id="dash"><h2>条件を選んで、もっと詳しく調べる（ダッシュボード）</h2>{DASH_MENU}</section>
 {NOTES}"""
     return page("日本全体", [("日本全体", None)], body, f"{when_label(LATEST)}の在留外国人は{num(now)}人。国籍・在留資格・都道府県・市区町村ごとの数と移り変わり。",
-                active="japan")
+                js=("share.js", "dash.js", "xmaker.js"), active="japan")
 
 
 def pref_table(d, title="都道府県の一覧", limit=10):
@@ -916,7 +925,7 @@ def world_map_names():
 
 
 def region_heat(d, ranked):
-    """地域区分ごとの人数を色で見る：年ごとの人数・在留資格の割合（どちらも色のマス目）・世界地図。上のボタンで切り替え（app.js）。
+    """地域区分ごとの人数を色で見る：世界地図（はじめ）・在留資格の割合・年ごとの人数（あとの2つは色のマス目）。上のボタンで切り替え（app.js）。
     JavaScript が動かないときは3つとも縦に並ぶ"""
     rows = heat_rows()
     # 1. 年ごとの人数（各年12月末。国籍・地域ごとの数がそろう2006年末から）
@@ -996,9 +1005,10 @@ def region_heat(d, ranked):
                            "（香港の人は、国の表では「中国」と「英国」に分かれて入っています）。"
                            f"地図にないもの：{no_map}。国の表の「朝鮮」は、朝鮮半島から来た人とその子孫などで国籍が確かめられていない人の記載で、"
                            "国籍を表すものではないため、地図には色を付けていません。")
-    panes = [("year", "年ごとの人数", f"地域区分ごとの人数の移り変わり（{years[0][:4]}〜{years[-1][:4]}年）", year_grid),
+    # 並びは世界地図（はじめに見せる）→ 在留資格の割合 → 年ごとの人数（マスが多く細かいので最後。2026年10月 作った人の希望）
+    panes = [("world", "世界地図", f"国籍・地域ごとの人数の世界地図（{when_label(LATEST)}）", world),
              ("visa", "在留資格の割合", f"地域区分ごとの在留資格の割合（{when_label(LATEST)}）", visa_grid),
-             ("world", "世界地図", f"国籍・地域ごとの人数の世界地図（{when_label(LATEST)}）", world)]
+             ("year", "年ごとの人数", f"地域区分ごとの人数の移り変わり（{years[0][:4]}〜{years[-1][:4]}年）", year_grid)]
     return ('<div class="heatsw">' + "".join(f'<div class="heatpane" data-k="{k}" data-label="{esc(b)}"><h3>{esc(h)}</h3>{body}</div>' for k, b, h, body in panes) +
             "</div>")
 
@@ -1022,9 +1032,9 @@ def nat_index_page(d):
     body = f"""<h1>国籍から探す</h1>
 {meta_line(f"日本に住む外国人（{len(ranked)}の国籍・地域）")}
 <p class="lead">国籍・地域の名前を押すと、その国籍・地域の人の在留資格や、住んでいる都道府県・市区町村が見られます。アジア・アフリカなどの地域区分で絞ることもできます。</p>
-{jump([("heat", "色で見る（年ごと・在留資格・世界地図）"), ("regions", "地域区分ごとの人数"), ("list", "国籍・地域の一覧")])}
+{jump([("heat", "色で見る（世界地図・在留資格・年ごと）"), ("regions", "地域区分ごとの人数"), ("list", "国籍・地域の一覧")])}
 <section class="card" id="heat"><h2>地域区分ごとの人数を色で見る</h2>
-<p class="cardmeta">色が濃いほど人数（割合）が多いことを表します。上のボタンで「年ごとの人数」「在留資格の割合」「世界地図」を切り替えられます。地域区分の名前を押すと、下の一覧がその区分の国・地域だけになります。</p>
+<p class="cardmeta">色が濃いほど人数（割合）が多いことを表します。上のボタンで「世界地図」「在留資格の割合」「年ごとの人数」を切り替えられます。地域区分の名前を押すと、下の一覧がその区分の国・地域だけになります。</p>
 {region_heat(d, ranked)}</section>
 <section class="card" id="regions"><h2>地域区分ごとの人数</h2>
 <p class="cardmeta">集計時点：{when_label(LATEST)}。国籍・地域の人数を、州・地域区分ごとに足したもの。区分の名前を押すと、下の一覧がその区分の国・地域だけになります。</p>
@@ -1448,7 +1458,7 @@ def main():
             if f.endswith(".html"):
                 os.remove(os.path.join(OUT, f))
     os.makedirs(os.path.join(OUT, "assets"), exist_ok=True)
-    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
+    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "xmaker.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
         shutil.copyfile(os.path.join(BASE, "site_assets", f), os.path.join(OUT, "assets", f))
     src, dst = os.path.join(BASE, "site_assets", "map"), os.path.join(OUT, "assets", "map")  # 地図の形
     os.makedirs(dst, exist_ok=True)

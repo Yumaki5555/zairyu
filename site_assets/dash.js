@@ -2,15 +2,16 @@
    共通の絞り込み（地域・国籍・在留資格・時点・指標）を選ぶと、地図・折れ線・円グラフ・ランキングが変わる。
    数は data/*.json（make_dash_data.py が作る）から必要な分だけ読む。
    決まり：データのない時点・組み合わせは推測で埋めない（「該当する統計データがありません」）。0人と「データなし」「公表されていない」を分ける。
-   選んだ条件はページのアドレス（# のあと）に残すので、アドレスを送ると同じ画面が出る */
+   選んだ条件はページのアドレス（# のあと）に残すので、アドレスを送ると同じ画面が出る。
+   数の取り出し方（getSeries など）は、トップページの「グラフの画像を作る」（xmaker.js）にも window.KZDATA で渡す */
 (function () {
   'use strict';
   var K = window.KZ, fmt = K.fmt, esc = K.esc, svg = K.svg;
-  var root = document.getElementById('dash');
+  // ダッシュボードの画面かどうか（トップページにも id="dash" の見出しがあるので、画面の箱でも見分ける）
+  var root = document.getElementById('dash'), isDash = !!(root && document.getElementById('dash-view'));
   // グラフの部品は半期速報のページ（sokuho.js）でも使う
   window.KZC = { el: el, nodata: nodata, lineChart: lineChart, pieChart: pieChart, barList: barList, tableEl: tableEl, details: details,
     topWithOther: topWithOther, wl: wl, signed: signed, fitPanel: function (p) { fitPanel(p); } };
-  if (!root) { return; }
   var M = null, MUNI = {}, PREF_ROMA = {};
   var MAXCMP = 5, SLOTS = 7;
   var SRC = '出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」';
@@ -1338,8 +1339,27 @@
     });
   }
 
+  // ---------- ほかのページ（トップページの「グラフの画像を作る」xmaker.js）には、数の取り出し方だけを渡す。
+  // ダッシュボードと同じ数・同じ「データなし」の決まりになる。meta.json は ready() を呼んだときに読む（半期速報のページでは読まない）
+  function setup(m) {
+    M = m;
+    M.prefs.forEach(function (p) { PREF_ROMA[p[0]] = p[1]; });
+    M.prefs.forEach(function (p) { (M.munis[p[1]] || []).forEach(function (r) { MUNI[r[0]] = { key: r[0], name: r[1], kind: r[2], parent: r[3], link: r[4], pref: p[0] }; }); });
+  }
+  if (!isDash) {
+    var ready = null;
+    window.KZDATA = {
+      ready: function () { return ready || (ready = load('meta.json').then(function (m) { setup(m); S = { nat: [], visa: [] }; return M; })); },
+      muni: function (k) { return MUNI[k]; }, munisOf: munisOf, natList: natList, visaList: visaList,
+      getSeries: getSeries, getBreakdown: getBreakdown, getCombos: getCombos,
+      regionValues: function (regs, m, when, nats, visas) { S.nat = nats; S.visa = visas; return regionValues(regs, m, when); }, // 地図・ランキングの絞り込みは S から読む
+      prefRegions: prefRegions, muniRegions: muniRegions, drawMap: drawMap, shortOf: shortOf, topWithOther: topWithOther, METRICS: METRICS, wl: wl, signed: signed
+    };
+    return;
+  }
+
   // ---------- 全体の流れ
-  var VIEWS = { map: viewMap, trend: viewTrend, visa: viewBreak('visa'), nat: viewBreak('nat'), rank: viewRank, cmp: viewCmp, area: viewArea };
+  var VIEWS ={ map: viewMap, trend: viewTrend, visa: viewBreak('visa'), nat: viewBreak('nat'), rank: viewRank, cmp: viewCmp, area: viewArea };
   var token = 0, filterBox = document.getElementById('dash-filter'), viewBox = document.getElementById('dash-view');
   var nowBox = el('div'); nowBox.id = 'dash-now'; filterBox.insertAdjacentElement('afterend', nowBox); // 「表示中：…」の行（止めない）
   function render() {
@@ -1374,9 +1394,7 @@
     });
   });
   load('meta.json').then(function (m) {
-    M = m;
-    M.prefs.forEach(function (p) { PREF_ROMA[p[0]] = p[1]; });
-    M.prefs.forEach(function (p) { (M.munis[p[1]] || []).forEach(function (r) { MUNI[r[0]] = { key: r[0], name: r[1], kind: r[2], parent: r[3], link: r[4], pref: p[0] }; }); });
+    setup(m);
     readHash();
     render();
   }, function () { viewBox.replaceChildren(nodata('データを読み込めませんでした。')); });
