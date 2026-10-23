@@ -3,13 +3,17 @@
    X投稿用の画像（share.js の compose）をその場で作り直して見せる。数の取り出し方はダッシュボード（dash.js）と同じものを使う。
    決まり：データのない時点・組み合わせは推測で埋めない（「該当する統計データがありません」と理由を出す）。
    選べる時点は、選んだものの数がある時点だけにする（例：市区町村の国籍×在留資格は2023年12月末から）。
-   画像の見た目・タイトル・投稿文は、ほかのページの「画像を保存」と同じ（share.js）。サイト名とアドレスは、はじめは入れない */
+   画像の見た目・タイトル・投稿文は、ほかのページの「画像を保存」と同じ（share.js）。サイト名とアドレスは、はじめは入れない。
+   確定統計より新しい法務省の半期速報（data/sokuho.json）は、1時点のグラフで、発表にある数（全国の国籍・地域／在留資格／都道府県）だけ選べる。
+   速報と確定統計は混ぜない（開始〜終了の移り変わり・増減には使わない）。画像と投稿文には「（速報）」と速報の出典を書く */
 (function () {
   'use strict';
   var K = window.KZ, D = window.KZDATA, X = window.KZX;
   var root = document.getElementById('xmaker');
   if (!root || !K || !D || !X) { return; }
-  var esc = K.esc, M = null;
+  var esc = K.esc, M = null, SK = null; // SK：半期速報（読めなかったときは null のまま。速報は選べない）
+  var SP_SRC = '出入国在留管理庁「在留外国人数について」（報道発表・速報）'; // 半期速報のページ（sokuho.js）と同じ出典
+  var SP_DIM = { nat: '国籍・地域', visa: '在留資格', area: '都道府県' }, SP_OUT = { '総数': 1, 'その他': 1, '中長期在留者': 1, '未定・不詳': 1 };
   var TOP = 5; // 折れ線の本数（多い順）
   var KINDS = [['nat', '国籍・地域', '国籍・地域ごとの人数'], ['visa', '在留資格', '在留資格ごとの人数'],
     ['area', '地域', '都道府県・市区町村ごとの人数（地図）'], ['nx', '国籍×在留資格', '「ベトナム（技能実習）」のような組み合わせ']];
@@ -48,10 +52,23 @@
     if (S.kind === 'visa' || visas().length) { var v = l === 'muni' ? M.muniVisaFrom : M.oldVisaFrom; if (v > lo) { lo = v; } }
     return (l === 'muni' ? M.MP : M.P).filter(function (w) { return w >= lo; });
   }
+  function spList() { return SK ? SK.W.filter(function (w) { return w > M.P[M.P.length - 1]; }) : []; } // 確定統計がまだない時点の速報
+  function spAvail() { return !S.from && SP_DIM[S.kind] && !S.pref && !nats().length && !visas().length ? spList() : []; } // 速報の発表にある数（全国・ほかの条件なし）
+  function isSp(w) { return spList().indexOf(w) >= 0; }
+  function spRel(w) { return SK.releases[SK.W.indexOf(w)]; }
+  function spItems(w) { // 速報の、その時点の名前と人数（多い順。総数・その他・中長期在留者・未定・不詳は除く）
+    var tab = SK.sp[SP_DIM[S.kind]], i = SK.W.indexOf(w);
+    return Object.keys(tab).filter(function (n) { return !SP_OUT[n] && tab[n][i] != null; }).map(function (n) { return [n, tab[n][i]]; }).sort(function (p, q) { return q[1] - p[1]; });
+  }
+  function spBreakdown(w) { return { items: spItems(w), total: SK.sp[SP_DIM[S.kind]]['総数'][SK.W.indexOf(w)] }; } // getBreakdown と同じ形
+  function spRegions(w) { // regionValues と同じ形（都道府県ごと。その時点だけ）
+    var by = {}; spItems(w).forEach(function (x) { by[x[0]] = x[1]; });
+    return D.prefRegions().map(function (r) { return { key: r.key, name: r.name, s: { per: [w], val: [by[r.key] != null ? by[r.key] : null], hid: {} } }; });
+  }
   function forms() { return FORMS[S.from ? 'span' : 'one'][S.kind]; }
   function clamp() {
     var per = periods();
-    if (per.indexOf(S.to) < 0) { S.to = per[per.length - 1]; }
+    if (per.concat(spAvail()).indexOf(S.to) < 0) { S.to = per[per.length - 1]; }
     if (S.from && (per.indexOf(S.from) < 0 || S.from >= S.to)) { S.from = ''; }
     if (!forms().some(function (f) { return f[0] === S.form; })) { S.form = forms()[0][0]; }
   }
@@ -91,7 +108,7 @@
     var meta = { nat: n, visa: v };
     if (S.kind === 'nat' || S.kind === 'visa') {
       var dim = S.kind, filter = dim === 'nat' ? v : n, dimName = dim === 'nat' ? '国籍・地域' : '在留資格';
-      return D.getBreakdown(a, dim, to, filter).then(function (b) {
+      return (isSp(to) ? Promise.resolve(spBreakdown(to)) : D.getBreakdown(a, dim, to, filter)).then(function (b) {
         if (!b.items.length) { return { why: b.why }; }
         var items = b.items.filter(function (x) { return x[0] !== 'その他'; });
         var total = b.total != null ? b.total : b.items.reduce(function (s, x) { return s + x[1]; }, 0);
@@ -143,7 +160,7 @@
       });
     }
     var regs = l === 'pref' ? D.prefRegions() : D.muniRegions(S.pref, false);
-    return D.regionValues(regs, 'count', to, n, v).then(function (vals) {
+    return (isSp(to) ? Promise.resolve(spRegions(to)) : D.regionValues(regs, 'count', to, n, v)).then(function (vals) {
       var rows = vals.map(function (x) {
         var i = x.s.per.indexOf(to), j = from ? x.s.per.indexOf(from) : -1;
         return { key: x.key, name: x.name, now: i >= 0 && !x.s.hid[i] ? x.s.val[i] : null, before: j >= 0 && !x.s.hid[j] ? x.s.val[j] : null };
@@ -245,10 +262,14 @@
     g3.appendChild(selRow('from', '開始', [['', [['', 'なし（1時点）']]], ['', opts.slice(0, -1)]], S.from, function (x) {
       set(x && x >= S.to ? { from: x, to: per[per.length - 1] } : { from: x }); // 終了より後を選んだときは、終了をいちばん新しい時点に
     }));
-    g3.appendChild(selRow('to', S.from ? '終了' : '時点', [['', opts]], S.to, function (x) { set({ to: x }); })); // 開始より前を選んだときは、1時点だけに（clamp）
+    var sp = spAvail(), spAll = spList().map(function (w) { return wl(w) + '（速報）'; }).join('・');
+    g3.appendChild(selRow('to', S.from ? '終了' : '時点', [['', opts]].concat(sp.length ? [['法務省の速報', sp.map(function (w) { return [w, wl(w) + '（速報）']; })]] : []), S.to, function (x) { set({ to: x }); })); // 開始より前を選んだときは、1時点だけに（clamp）
     f3.appendChild(g3);
     f3.appendChild(el('p', 'xm-help', esc(S.from ? wl(S.from) + 'から' + wl(S.to) + 'まで（' + spanText(S.from, S.to) + '）の移り変わり・増減です。' :
-      '開始をえらぶと、開始から終了までの移り変わり・増減になります。') + '<br>選べるのは数がある時点だけです（' + esc(wl(per[0])) + 'から）。'));
+      '開始をえらぶと、開始から終了までの移り変わり・増減になります。') + '<br>選べるのは数がある時点だけです（' + esc(wl(per[0])) + 'から）。' +
+      (!spAll ? '' : '<br>' + esc(sp.length ? spAll + 'は、法務省が' + spRel(sp[sp.length - 1]).pub.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1年$2月$3日') + 'に発表した速報の数です。' :
+        S.from ? spAll + 'は、開始を「なし（1時点）」にすると選べます。' :
+          spAll + 'は、' + (SP_DIM[S.kind] ? '' : '①で「国籍×在留資格」以外を選び、') + '②で何も選ばないとき（全国）だけ選べます（法務省の速報の発表にある数だけのため）。'))));
     var nodes = [f1, f2, f3];
     if (forms().length > 1) {
       var f4 = step(4, 'グラフの形'); f4.appendChild(pickRow('form', 'グラフの形', forms(), S.form, function (x) { set({ form: x }); })); nodes.push(f4);
@@ -264,6 +285,7 @@
   }
   function dashLink() {
     var q = new URLSearchParams();
+    if (isSp(S.to)) { q.set('dim', SP_DIM[S.kind]); q.set('w', S.to); return 'sokuho.html#' + q.toString(); } // 速報は半期速報のページへ
     if (S.pref) { q.set('pref', S.pref); }
     if (S.kind !== 'area' && S.muni) { q.set('muni', S.muni); }
     if (nats().length) { q.set('nat', nats()[0]); }
@@ -290,9 +312,10 @@
   }
   function enable(on) { [bSave, bCopy, bShare, bText].forEach(function (b) { b.disabled = !on; }); aX.classList.toggle('xm-off', !on); }
   function render() {
-    var my = ++token;
+    var my = ++token, sp = isSp(S.to);
     controls();
     moreA.href = dashLink();
+    moreA.textContent = sp ? '速報の数を表で見る（法務省・半期速報のページ）→' : 'もっと細かく選ぶ・数を表で見る（ダッシュボード）→';
     prev.replaceChildren(el('span', 'xm-wait', '画像を作っています…'));
     noteP.textContent = ''; msg.textContent = ''; enable(false);
     build().then(function (r) {
@@ -303,8 +326,10 @@
         tIn.value = ''; txt.value = ''; return;
       }
       cur = { chart: r.chart, meta: r.meta, autoTitle: r.autoTitle };
+      if (sp) { cur.src = SP_SRC; cur.status = '速報'; } // 画像の時点の横と投稿文に「（速報）」、出典は報道発表
       tIn.value = X.autoTitle(cur); delete txt.dataset.edited;
-      noteP.textContent = r.note || '';
+      noteP.textContent = sp ? '法務省の速報（' + wl(S.to) + '）の数です。くわしい表（確定統計）は、あとで e-Stat に出ます。' +
+        (S.kind === 'nat' ? '発表にのっている国籍・地域は多い' + spItems(S.to).length + 'までです' + (S.form === 'pie' ? '（「その他」は総数からグラフの国籍・地域を引いた数）。' : '。') : '') : r.note || '';
       enable(true); draw();
     }).catch(function (e) {
       if (my !== token) { return; }
@@ -343,5 +368,6 @@
     if (navigator.clipboard) { navigator.clipboard.writeText(txt.value).then(done, function () { txt.select(); }); } else { txt.select(); }
   });
 
-  D.ready().then(function (m) { M = m; clamp(); render(); }, function () { prev.replaceChildren(el('p', 'dnodata', 'データを読み込めませんでした。')); });
+  var spLoad = fetch('data/sokuho.json').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); // 読めなくても、確定統計だけで動かす
+  Promise.all([D.ready(), spLoad]).then(function (r) { M = r[0]; SK = r[1]; clamp(); render(); }, function () { prev.replaceChildren(el('p', 'dnodata', 'データを読み込めませんでした。')); });
 })();
