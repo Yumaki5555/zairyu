@@ -392,7 +392,7 @@ def cross_table(nat_items, xd, n=8):
             f"<th>多い在留資格（その国籍・地域の中の割合）</th></tr>{trs}</table></div></details></div>")
 
 
-CSS_VER = "11"
+CSS_VER = "12"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -698,8 +698,8 @@ def visa_items(counts):
 
 # 10年前（2015年12月末）からの増減を見るときに注意がいるもの（制度・区分が変わった、新しくできた）。名前に「※」を付け、カードの下に書く
 TEN_NOTE = {
-    "特定技能": "2019年4月にできた在留資格です。10年前にはないので「比較対象なし」とし、増減は出していません。",
-    "介護": "2017年9月にできた在留資格です。10年前にはないので「比較対象なし」とし、増減は出していません。",
+    "特定技能": "2019年4月にできた在留資格です。10年前にはないので「比較不可」とし、増減は出していません。",
+    "介護": "2017年9月にできた在留資格です。10年前にはないので「比較不可」とし、増減は出していません。",
     "高度専門職": "2015年4月にできた在留資格です。10年前の数は、できてから8か月後の数です。",
     "技術・人文知識・国際業務": "2015年4月に「技術」と「人文知識・国際業務」が1つになってできた在留資格です（10年前の数も、1つになった後の数です）。",
     "経営・管理": "2015年4月に「投資・経営」から名前が変わり、対象も広がった在留資格です（10年前の数は、変わった後の数です）。",
@@ -713,14 +713,14 @@ TEN_RATE_NOTE = "増減率は、10年前の人数が少ないと大きく出ま�
 
 def ten_card(dim, what, rows, link):
     """10年前からの増減のカード（国籍・地域／在留資格）。rows：[(名前, リンク, 今の数, 10年前の数 or None)]（今の数の多い順）。
-    10年前の数がない（10年前の表にない）ものは「比較対象なし」とし、0人としては扱わない。10年前が0人なら、増減は出し、増減率は出さない（計算できない）。
+    10年前の数がない（10年前の表にない）ものは「比較不可」とし、0人としては扱わない。10年前が0人なら、増減は出し、増減率は出さない（計算できない）。
     増減の横棒・並べ替え・もっと見る・画像を保存は app.js。JavaScript が動かないときは、多い15の表"""
     data = {"dim": dim, "what": what, "area": "全国", "from": TEN_AGO, "when": LATEST, "limit": 15,
             "rows": [[n, l, int(c), None if b is None else int(b)] for n, l, c, b in rows], "notes": [n for n, *_ in rows if n in TEN_NOTE]}
     trs = ""
     for n, l, c, b in rows[:15]:
         nm = f'<a href="{esc(l)}">{esc(n)}</a>' if l else esc(n)
-        diff = "比較対象なし" if b is None else signed(c - b)
+        diff = "比較不可" if b is None else ("0" if c == b else signed(c - b))  # 増減が0なら「0」（±を付けない。画面・画像と同じ）
         rate = pct_signed(c - b, b) if b else "—"
         trs += (f"<tr><td>{nm}</td><td class='n'>{num(c)}</td><td class='n'>{'—' if b is None else num(b)}</td>"
                 f"<td class='n'>{diff}</td><td class='n'>{rate}</td></tr>")
@@ -732,7 +732,7 @@ def ten_card(dim, what, rows, link):
     notes = [f"<li>※ <b>{esc('・'.join(ns))}</b>：{esc(t)}</li>" for t, ns in same.items()]
     none = [n for n, _, _, b in rows if b is None and n not in TEN_NOTE]
     if none:
-        notes.append(f"<li>「比較対象なし」の{esc(what)}（{esc('、'.join(none))}）は、10年前の国の表にのっていないため、増減は出していません（0人とはしていません）。</li>")
+        notes.append(f"<li>「比較不可」の{esc(what)}（{esc('、'.join(none))}）は、10年前の国の表にのっていないため、増減は出していません（0人とはしていません）。</li>")
     notes.append(f"<li>{TEN_RATE_NOTE}</li>")
     return (f'<section class="card ten-card" id="ten-{dim}"><h2>10年前からの増減：{esc(what)}</h2>'
             f'<p class="cardmeta"><span>対象：全国の{len(rows)}の{esc(what)}</span><span>期間：{when_label(TEN_AGO)} → {when_label(LATEST)}（10年間）</span></p>'

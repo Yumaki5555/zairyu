@@ -591,12 +591,14 @@
   });
 
   // ---- 10年前からの増減（国籍・地域／在留資格。トップページ）：増減の横棒・並べ替え・もっと見る・画像を保存
-  //   棒の長さは増減の人数（どの並べ方でも同じ目もり）。増えた＝緑で0より右、減った＝赤で0より左。色だけに頼らず、＋−の付いた数を必ず書く。
-  //   10年前の数がないもの（null）は「比較対象なし」：0人とはせず、棒も出さず、増減の並べ方ではいつもいちばん下。10年前が0人なら増減率は出さない（計算できない）
-  var TEN_SORTS = [['now', '現在の人数順'], ['up', '増加人数順'], ['down', '減少人数順'], ['rate', '増加率順']];
-  function signedNum(v) { return (v > 0 ? '+' : v < 0 ? '−' : '±') + fmt(Math.abs(v)); }
+  //   見た瞬間に「何人増えた・減った」が分かるように、説明の文は入れず、色・目もり・数で示す（保存する画像 share.js の drawDiff と同じ決まり）。
+  //   棒の長さは増減の人数（どの並べ方・どの件数を見ても同じ目もり。下に人数の目もり）。増えた＝緑で0より右、減った＝赤で0より左。＋−の付いた数を必ず書く。
+  //   10年前の数がないもの（null）は「比較不可」：0人とはせず、棒も増減率も出さず、増減の並べ方ではいつもいちばん下。10年前が0人なら増減率は「—」（計算できない）。増減が0なら「0人」
+  function ymd(w) { return w.slice(0, 4) + '年' + (w.slice(5) === '12' ? '末' : +w.slice(5) + '月末'); } // 2025年末・2025年6月末
+  function tenSorts(d) { return [['now', ymd(d.when) + 'の人数順'], ['up', '増加人数順'], ['down', '減少人数順'], ['rate', '増減率順']]; }
+  function signedNum(v) { return v === 0 ? '0' : (v > 0 ? '+' : '−') + fmt(Math.abs(v)); }
   function rateText(r) {
-    return r == null ? '—' : (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    return r == null ? '—' : (Math.abs(r) < 0.05 ? '' : r > 0 ? '+' : '−') + Math.abs(r).toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
   }
   function tenRows(d) {
     return d.rows.map(function (r, i) {
@@ -616,77 +618,78 @@
   document.querySelectorAll('.viz[data-viz="ten"]').forEach(function (box) {
     var d = data(box);
     if (!d) { return; }
-    var rows = tenRows(d), sk = 'now', shown = d.limit;
-    var maxUp = Math.max.apply(null, rows.map(function (r) { return r.diff > 0 ? r.diff : 0; })),
-      maxDown = Math.max.apply(null, rows.map(function (r) { return r.diff < 0 ? -r.diff : 0; })), span = maxUp + maxDown || 1;
-    var zero = maxDown / span * 100; // 0の線の位置（棒の欄の左から何％）。減った所の棒が入るぶんだけ右に寄せる
+    var rows = tenRows(d), sk = 'now', shown = d.limit, SORTS = tenSorts(d);
+    // 目もり：すべての件の増減が入る、0をふくむ範囲。きりのよい数に線と数を書く（3つほど）
+    var lo = Math.min.apply(null, [0].concat(rows.map(function (r) { return r.diff == null ? 0 : r.diff; }))),
+      hi = Math.max.apply(null, [0].concat(rows.map(function (r) { return r.diff == null ? 0 : r.diff; })));
+    if (hi === lo) { hi = lo + 1; }
+    var pos = function (v) { return (v - lo) / (hi - lo) * 100; }, zero = pos(0), step = niceStep((hi - lo) / 3), ticks = [];
+    for (var t0 = Math.ceil(lo / step) * step; t0 <= hi + 1e-9; t0 += step) { ticks.push(Math.round(t0)); }
+    var grid = ticks.filter(function (t) { return t; }).map(function (t) { return '<span class="ten-gl" style="left:' + pos(t).toFixed(2) + '%"></span>'; }).join('');
     var t = vtools(box), sl = mk('div', 'dctl ten-sort'), grp = mk('div', 'modes tsort');
     var lid = 'tensort-' + d.dim;
     sl.appendChild(mk('span', 'dlab', '並べ方')); sl.lastChild.id = lid;
     grp.setAttribute('role', 'group'); grp.setAttribute('aria-labelledby', lid);
-    TEN_SORTS.forEach(function (s) {
+    SORTS.forEach(function (s) {
       var b = mk('button', null, s[1]); b.type = 'button'; b.dataset.k = s[0];
       b.addEventListener('click', function () { sk = s[0]; shown = d.limit; draw(); });
       grp.appendChild(b);
     });
     sl.appendChild(grp); t.appendChild(sl);
-    t.appendChild(saveButton(function () {
-      var s = TEN_SORTS.filter(function (x) { return x[0] === sk; })[0];
-      return { chart: { kind: 'diff', dim: d.dim, what: d.what, area: d.area, from: d.from, when: d.when, sort: sk, sortName: s[1], count: rows.length,
+    t.appendChild(saveButton(function () { // 画像にも、いまの並び順で入れる
+      return { chart: { kind: 'diff', dim: d.dim, what: d.what, area: d.area, from: d.from, when: d.when, sort: sk, count: rows.length,
         rows: tenSort(rows, sk).slice(0, 10).map(function (r) { return [r.name, r.diff, r.now, r.before, r.rate]; }) }, meta: { nat: [], visa: [] }, src: SRC_STAT };
     }));
     var now = mk('p', 'vnow'); now.setAttribute('role', 'status');
-    var key = mk('p', 'ten-key', '<span class="k"><span class="ten-sw up"></span>増加（0より右）</span><span class="k"><span class="ten-sw down"></span>減少（0より左）</span>' +
-      '<span>棒の長さ＝10年間に増えた・減った人数</span><span>数の見方：' + esc(wl(d.from)) + 'の人数 → <b>' + esc(wl(d.when)) + 'の人数</b></span>');
     var list = mk('ol', 'ten-list');
     var foot = mk('div', 'tmore'), bMore = mk('button', 'dbtn dbtn-sub'), bAll = mk('button', 'dbtn dbtn-sub'), bLess = mk('button', 'dbtn dbtn-sub');
     [bMore, bAll, bLess].forEach(function (b) { b.type = 'button'; foot.appendChild(b); });
     bMore.addEventListener('click', function () { shown += d.limit; draw(); });
     bAll.addEventListener('click', function () { shown = rows.length; draw(); });
     bLess.addEventListener('click', function () { shown = d.limit; draw(); box.scrollIntoView({ block: 'start' }); });
-    var cap = mk('p', 'ten-cap', '対象期間：' + esc(wl(d.from)) + ' → ' + esc(wl(d.when)) + '（10年間）　出典：' + esc(SRC_STAT));
-    [now, key, list, foot, cap].reverse().forEach(function (e) { t.insertAdjacentElement('afterend', e); });
+    var cap = mk('p', 'ten-cap', '出典：' + esc(SRC_STAT.replace('（旧登録外国人統計）', '')) + 'を加工して作成');
+    [now, list, foot, cap].reverse().forEach(function (e) { t.insertAdjacentElement('afterend', e); });
     function nameHtml(n) { return esc(n).replace(/・/g, '・<wbr>'); } // 長い名前は「・」の所で折り返す
     function head() {
-      var lb = zero < 4 ? 'left:0' : 'left:' + zero.toFixed(2) + '%;transform:translateX(-50%)';
       return '<li class="ten-row ten-head" aria-hidden="true"><span class="ten-rk"></span><span class="ten-nm">' + esc(d.what) + '</span>' +
-        '<span class="ten-ct">' + esc(d.from.slice(0, 4)) + '年 → ' + esc(d.when.slice(0, 4)) + '年（人）</span>' +
-        '<span class="ten-bar"><span class="ten-zl" style="' + lb + '">0</span><span class="ten-dir" style="left:calc(' + zero.toFixed(2) + '% + 1.4em)">増加 →</span>' +
-        (zero >= 30 ? '<span class="ten-dir dn" style="right:calc(' + (100 - zero).toFixed(2) + '% + 1.4em)">← 減少</span>' : '') + '</span>' +
-        '<span class="ten-dv">増減（人）</span><span class="ten-rt">増減率</span></li>';
+        '<span class="ten-ct">' + esc(ymd(d.from)) + ' → ' + esc(ymd(d.when)) + '</span><span class="ten-bar"></span>' +
+        '<span class="ten-dv">増減</span><span class="ten-rt">増減率</span></li>';
+    }
+    function axis() { // いちばん下の目もりの数（棒の欄の下）
+      var lab = ticks.map(function (v) {
+        var p = pos(v), al = p < 6 ? 'left:0' : p > 94 ? 'right:0' : 'left:' + p.toFixed(2) + '%;transform:translateX(-50%)';
+        return '<span class="ten-tk" style="' + al + '">' + (v === 0 ? '0' : signedNum(v)) + '</span>';
+      }).join('');
+      return '<li class="ten-row ten-axis" aria-hidden="true"><span class="ten-bar">' + lab + '</span></li>';
     }
     function row(r, rank) {
-      var cls = r.diff == null ? 'none' : r.diff > 0 ? 'up' : r.diff < 0 ? 'down' : 'flat', bar;
-      if (r.diff == null) {
-        bar = '<span class="ten-na">10年前の数なし</span>';
-      } else {
-        var w = Math.abs(r.diff) / span * 100, left = r.diff >= 0 ? zero : zero - w;
-        bar = '<span class="ten-zero" style="left:' + zero.toFixed(2) + '%"></span>' +
-          (r.diff ? '<span class="ten-fill ' + cls + '" style="left:' + left.toFixed(2) + '%;width:' + w.toFixed(2) + '%"></span>' : '');
+      var cls = r.diff == null ? 'none' : r.diff > 0 ? 'up' : r.diff < 0 ? 'down' : 'flat', bar = grid + '<span class="ten-zero" style="left:' + zero.toFixed(2) + '%"></span>';
+      if (r.diff) {
+        var a = pos(Math.min(0, r.diff)), b = pos(Math.max(0, r.diff));
+        bar += '<span class="ten-fill ' + cls + '" style="left:' + a.toFixed(2) + '%;width:' + (b - a).toFixed(2) + '%"></span>';
       }
       var nm = (r.link ? '<a href="' + esc(r.link) + '">' + nameHtml(r.name) + '</a>' : nameHtml(r.name)) + (r.note ? '<span class="ten-mk" title="下に注意があります">⁠※</span>' : '');
       return '<li class="ten-row ' + cls + '"><span class="ten-rk">' + rank + '</span><span class="ten-nm">' + nm + '</span>' +
-        '<span class="ten-ct">' + (r.before == null ? '—' : fmt(r.before)) + ' → <b>' + fmt(r.now) + '</b>人</span>' +
+        '<span class="ten-ct">' + (r.before == null ? '—' : fmt(r.before)) + ' → ' + fmt(r.now) + '人</span>' +
         '<span class="ten-bar" aria-hidden="true">' + bar + '</span>' +
-        '<span class="ten-dv">' + (r.diff == null ? '比較対象なし' : signedNum(r.diff) + '人') + '</span>' +
-        '<span class="ten-rt"><span class="ten-rl">増減率 </span>' + rateText(r.rate) + '</span></li>';
+        '<span class="ten-dv">' + (r.diff == null ? '比較不可' : signedNum(r.diff) + '人') + '</span>' +
+        '<span class="ten-rt">' + (r.diff == null ? '' : '<span class="ten-rl">増減率 </span>' + rateText(r.rate)) + '</span></li>';
     }
     function draw() {
-      var s = TEN_SORTS.filter(function (x) { return x[0] === sk; })[0], list2 = tenSort(rows, sk), n = list2.length, lim = Math.min(shown, n);
+      var s = SORTS.filter(function (x) { return x[0] === sk; })[0], list2 = tenSort(rows, sk), n = list2.length, lim = Math.min(shown, n);
       grp.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.k === sk ? 'true' : 'false'); });
       var cnt = function (f) { return rows.filter(f).length; }, extra = '';
       if (sk === 'up') { extra = '増えたのは' + cnt(function (r) { return r.diff > 0; }) + '件。'; }
       if (sk === 'down') { var dn = cnt(function (r) { return r.diff < 0; }); extra = dn ? '減ったのは' + dn + '件。' : '減ったものはありません。'; }
-      if (sk === 'rate') { extra = '増減率は、10年前の人数が少ないと大きく出ます。'; }
       var none = cnt(function (r) { return r.diff == null; });
-      if (none && sk !== 'now') { extra += '比較対象なしの' + none + '件は、いちばん下に並べています。'; }
+      if (none && sk !== 'now') { extra += '比較不可の' + none + '件は、いちばん下です。'; }
       now.innerHTML = '表示中：<b>' + esc(s[1]) + '</b>（全' + n + '件のうち ' + lim + '件）' + (extra ? '<span class="ten-ex">' + esc(extra) + '</span>' : '');
       var h = head();
       for (var i = 0; i < lim; i++) {
         var r = list2[i], skip = sk === 'rate' ? r.rate == null : sk !== 'now' && r.diff == null;
         h += row(r, skip ? '—' : i + 1);
       }
-      list.innerHTML = h;
+      list.innerHTML = h + axis();
       bMore.hidden = lim >= n; bMore.textContent = 'もっと見る（あと' + Math.min(d.limit, n - lim) + '件）';
       bAll.hidden = lim >= n || n - lim <= d.limit; bAll.textContent = 'すべて表示する（全' + n + '件）';
       bLess.hidden = lim <= d.limit; bLess.textContent = '最初の' + d.limit + '件だけにする';

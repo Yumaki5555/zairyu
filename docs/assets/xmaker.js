@@ -20,11 +20,14 @@
       area: [['map', '増減の地図'], ['diff', '増減（棒）'], ['line', '折れ線（地域の合計）']], nx: [['line', '折れ線（多い5組）'], ['diff', '増減（棒）']] }
   };
   var SIZES = [['wide', '横長 16:9'], ['square', '正方形'], ['tall', '縦長 4:5']];
-  var S = { kind: 'nat', pref: '', muni: '', nat: '', visa: '', from: '', to: '', form: '', size: 'wide' };
+  var S = { kind: 'nat', pref: '', muni: '', nat: '', visa: '', from: '', to: '', form: '', sort: 'now', size: 'wide' };
+  // 増減の棒の並び順（はじめは終了の時点の人数が多い順）。トップページの「10年前からの増減」と同じ4つ
+  var SORTS = [['now', ''], ['up', '増加人数順'], ['down', '減少人数順'], ['rate', '増減率順']];
 
   function el(tag, cls, html) { var e = document.createElement(tag); if (cls) { e.className = cls; } if (html != null) { e.innerHTML = html; } return e; }
   function wl(w) { return D.wl(w); }
   function months(w) { return +w.slice(0, 4) * 12 + +w.slice(5, 7); }
+  function ymd(w) { return w.slice(0, 4) + '年' + (w.slice(5) === '12' ? '末' : +w.slice(5) + '月末'); } // 2025年末・2025年6月末
   function spanText(from, to) { var m = months(to) - months(from), y = Math.floor(m / 12), r = m % 12; return (y ? y + '年' : '') + (r ? r + 'か月' : '') + '間'; }
 
   // ---------- 選んだもの
@@ -57,6 +60,14 @@
     if (!n.length && !v.length) { return '在留外国人'; }
     return n.length ? n[0] + 'の人' + (v.length ? '（在留資格「' + v[0] + '」）' : '') : '在留資格「' + v[0] + '」の人';
   }
+  // 増減の棒のタイトル（例：新潟県上越市｜フィリピン人の在留資格別増減）で使う、短い呼び方。
+  // 「朝鮮」は国籍を表すものではない記載、「無国籍」は国籍がないので「〜人」にしない。「〜共和国」「〜連邦」も「〜の人」
+  function person(x) { return x === '朝鮮' ? '朝鮮籍の人' : x === '無国籍' ? '無国籍の人' : /(共和国|連邦)$/.test(x) ? x + 'の人' : x + '人'; }
+  function whoT() {
+    var n = nats(), v = visas();
+    if (!n.length && !v.length) { return '在留外国人'; }
+    return n.length ? person(n[0]) + (v.length ? '（在留資格「' + v[0] + '」）' : '') : '在留資格「' + v[0] + '」';
+  }
 
   // ---------- 図の中身（share.js の chart）をつくる → { chart, meta, autoTitle, note } か { why }
   function cut(s, from, to) { // 移り変わりのうち、開始〜終了の分
@@ -71,12 +82,22 @@
       return { per: per, series: series };
     });
   }
-  function diffChart(rows, what, area, from, to) { // rows：[[名前, 今, 前 or null]] → 増減の棒（今の人数が多い10）
-    var out = rows.filter(function (r) { return r[1] != null; }).sort(function (p, q) { return q[1] - p[1]; }).map(function (r) {
+  function beforeOf(a, list, from) { // list：[{ nats, visas }] → 開始の時点の数。0人とデータなし（null）を分ける（ダッシュボードの移り変わりと同じ取り出し方）
+    return Promise.all(list.map(function (it) { return D.getSeries(a, it.nats, it.visas); })).then(function (ss) {
+      return ss.map(function (s) { var i = s.per.indexOf(from); return i < 0 || s.hid[i] ? null : s.val[i]; });
+    });
+  }
+  function diffChart(rows, what, area, from, to) { // rows：[[名前, 今, 前 or null]] → 増減の棒（S.sort の並び順。比べられないものはいつもいちばん下）
+    var key = { now: function (r) { return r[2]; }, up: function (r) { return r[1]; }, down: function (r) { return r[1] == null ? null : -r[1]; }, rate: function (r) { return r[4]; } }[S.sort];
+    var out = rows.filter(function (r) { return r[1] != null; }).map(function (r) {
       var d = r[2] == null ? null : r[1] - r[2];
       return [r[0], d, r[1], r[2], r[2] ? d / r[2] * 100 : null];
+    }).sort(function (p, q) {
+      var x = key(p), y = key(q);
+      if (x === null || y === null) { return x === y ? q[2] - p[2] : (x === null ? 1 : -1); }
+      return y - x || q[2] - p[2];
     });
-    return { kind: 'diff', rows: out, what: what, area: area, from: from, when: to, sort: 'now', sortName: '人数の多い順', count: out.length, span: spanText(from, to), before: wl(from) };
+    return { kind: 'diff', rows: out, what: what, area: area, who: whoT(), from: from, when: to, sort: S.sort, count: out.length };
   }
   function build() {
     var a = areaObj(), from = S.from, to = S.to, form = S.form, n = nats(), v = visas();
@@ -95,10 +116,8 @@
             meta: meta, autoTitle: a.name + '　' + dimName + '別の' + who() + '（多い順）', note: b.partial };
         }
         if (form === 'diff') {
-          return D.getBreakdown(a, dim, from, filter).then(function (b0) {
-            var before = {}; b0.items.forEach(function (x) { before[x[0]] = x[1]; });
-            var ch = diffChart(items.map(function (x) { return [x[0], x[1], before[x[0]] != null ? before[x[0]] : null]; }), dimName, a.name, from, to);
-            return { chart: ch, meta: meta, autoTitle: a.name + '　' + dimName + '別の' + who() + 'の' + ch.span + 'の増減', note: b.partial || b0.partial };
+          return beforeOf(a, items.map(function (x) { return { nats: dim === 'nat' ? [x[0]] : n, visas: dim === 'visa' ? [x[0]] : v }; }), from).then(function (bs) {
+            return { chart: diffChart(items.map(function (x, i) { return [x[0], x[1], bs[i]]; }), dimName, a.name, from, to), meta: meta, note: b.partial };
           });
         }
         var list = items.slice(0, TOP).map(function (x) { return { name: x[0], nats: dim === 'nat' ? [x[0]] : n, visas: dim === 'visa' ? [x[0]] : v }; });
@@ -119,10 +138,8 @@
             meta: meta, autoTitle: head + 'の人数（多い順）' };
         }
         if (form === 'diff') {
-          return D.getCombos(a, from, n, v).then(function (c0) {
-            var before = {}; (c0.items || []).forEach(function (x) { before[x[0] + '\t' + x[1]] = x[2]; });
-            var ch = diffChart(items.map(function (x) { var b = before[x[0] + '\t' + x[1]]; return [nm(x), x[2], b != null ? b : null]; }), '国籍・地域×在留資格', a.name, from, to);
-            return { chart: ch, meta: meta, autoTitle: head + 'の' + ch.span + 'の増減' };
+          return beforeOf(a, items.map(function (x) { return { nats: [x[0]], visas: [x[1]] }; }), from).then(function (bs) {
+            return { chart: diffChart(items.map(function (x, i) { return [nm(x), x[2], bs[i]]; }), '国籍・地域×在留資格', a.name, from, to), meta: meta };
           });
         }
         return lineOf(a, items.slice(0, TOP).map(function (x) { return { name: nm(x), nats: [x[0]], visas: [x[1]] }; }), from, to).then(function (l) {
@@ -150,8 +167,7 @@
           f: D.METRICS.count.f, metric: '人数', when: to, area: l === 'pref' ? '全国' : S.pref, what: place, rt: l }, meta: meta, autoTitle: place + '別の' + who() + '（多い順）' };
       }
       if (form === 'diff') {
-        var ch = diffChart(rows.map(function (r) { return [r.name, r.now, r.before]; }), l === 'pref' ? '都道府県' : '市区町村', l === 'pref' ? '全国' : S.pref, from, to);
-        return { chart: ch, meta: meta, autoTitle: place + '別の' + who() + 'の' + ch.span + 'の増減' };
+        return { chart: diffChart(rows.map(function (r) { return [r.name, r.now, r.before]; }), l === 'pref' ? '都道府県' : '市区町村', l === 'pref' ? '全国' : S.pref, from, to), meta: meta };
       }
       var roma = (M.prefs.filter(function (p) { return p[0] === S.pref; })[0] || [])[1];
       return new Promise(function (res) { K.loadShape(l === 'pref' ? 'assets/map/japan.json' : 'assets/map/pref-' + roma + '.json', res); }).then(function (shape) {
@@ -247,7 +263,13 @@
     f3.appendChild(el('p', 'xm-help', esc(S.from ? wl(S.from) + 'から' + wl(S.to) + 'まで（' + spanText(S.from, S.to) + '）の移り変わり・増減です。' :
       '開始をえらぶと、開始から終了までの移り変わり・増減になります。') + '<br>選べるのは数がある時点だけです（' + esc(wl(per[0])) + 'から）。'));
     var nodes = [f1, f2, f3];
-    if (forms().length > 1) { var f4 = step(4, 'グラフの形'); f4.appendChild(pickRow('form', 'グラフの形', forms(), S.form, function (x) { set({ form: x }); })); nodes.push(f4); }
+    if (forms().length > 1) {
+      var f4 = step(4, 'グラフの形'); f4.appendChild(pickRow('form', 'グラフの形', forms(), S.form, function (x) { set({ form: x }); })); nodes.push(f4);
+      if (S.form === 'diff') { // 増減の棒の並び順（画像にも、この並び順で入る）
+        f4.appendChild(el('span', 'dlab xm-sortlab', '並び順'));
+        f4.appendChild(pickRow('sort', '並び順', SORTS.map(function (o) { return [o[0], o[1] || ymd(S.to) + 'の人数順']; }), S.sort, function (x) { set({ sort: x }); }));
+      }
+    }
     var focusKey = document.activeElement && ctl.contains(document.activeElement) ? document.activeElement.dataset.k : null;
     ctl.replaceChildren.apply(ctl, nodes);
     if (focusKey) { var back = ctl.querySelector('[data-k="' + focusKey + '"]'); if (back) { back.focus(); } } // 選びなおしても、押した所から続けて操作できる
