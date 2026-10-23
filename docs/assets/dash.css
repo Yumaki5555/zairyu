@@ -44,6 +44,7 @@ button.dmitem[aria-selected="true"]::before { content: "✓"; color: var(--btn);
 .dcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
 .dcard h2 { font-size: 21px; line-height: 1.45; }
 .dcard h3 { font-size: 17px; margin: 6px 0; }
+.dcard .dtools + h3 { margin-top: 24px; } /* 1つのカードにグラフが続くとき、前のグラフの保存ボタンと次の見出しの間をあける */
 .dsub { margin-top: 10px; min-width: 0; }
 .dsrc { font-size: 14px; color: var(--sub); margin: 10px 0 0; }
 .dnodata { padding: 18px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; color: var(--sub); font-size: 16px; }

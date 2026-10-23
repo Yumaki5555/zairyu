@@ -164,19 +164,16 @@
     var byD = rows.slice().sort(function (a, b) { return b.d - a.d; }), byR = rows.filter(function (r) { return r.r != null; }).sort(function (a, b) { return b.r - a.r; });
     var s1 = el('section', 'dsub'); s1.appendChild(el('h3', null, '増減の人数')); s1.appendChild(Z.barList(byD.map(function (r) { return [r.n, r.d, fmt(r.b) + '人→' + fmt(r.v) + '人']; }), null, { f: function (v) { return signed(v) + '人'; }, rank: true }));
     var s2 = el('section', 'dsub'); s2.appendChild(el('h3', null, '増減率')); s2.appendChild(Z.barList(byR.map(function (r) { return [r.n, r.r, fmt(r.b) + '人→' + fmt(r.v) + '人']; }), null, { f: function (v) { return signed(v, 1) + '%'; }, rank: true }));
-    grid.appendChild(s1); grid.appendChild(s2); c.appendChild(grid);
-    c.appendChild(el('p', 'dhelp', esc('増減の人数と増減率は別のものです。増減率は、もとの人数が少ないと大きく出ます。比べているのは、' + dl(w) + 'の発表で名前の出ている' + dim + 'のうち、' + dl(bw) + 'の数があるものだけです。')));
-    c.appendChild(srcLine(w));
     var span = dl(bw) + ' → ' + dl(w);
     var chart = { kind: 'rank', rows: byD.slice(0, 10).map(function (r) { return [r.n, r.d]; }), f: function (v) { return signed(v) + '人'; }, metric: '増減の人数', area: '全国', when: w, what: '全国の' + dim, whenText: span };
     var chart2 = { kind: 'rank', rows: byR.slice(0, 10).map(function (r) { return [r.n, r.r]; }), f: function (v) { return signed(v, 1) + '%'; }, metric: '増減率', area: '全国', when: w, what: '全国の' + dim, whenText: span };
     var note = dim === '在留資格' ? VNOTE : '';
-    var t = el('div', 'dtools');
-    if (window.KZX) {
-      window.KZX.buttons(t, function () { return cur(chart, '全国｜不法残留者の' + by(dim) + '増減', note); });
-      var t2 = el('div', 'dtools'); window.KZX.buttons(t2, function () { return cur(chart2, '全国｜不法残留者の' + by(dim) + '増減率', note); });
-      t.appendChild(el('span', 'dhelp', '↑増減の人数の画像　↓増減率の画像')); c.appendChild(t); c.appendChild(t2);
-    }
+    // 画像を保存するボタンは、どちらの画像か分かるように、それぞれのランキングのすぐ下に置く
+    s1.appendChild(tools(function () { return cur(chart, '全国｜不法残留者の' + by(dim) + '増減', note); }));
+    s2.appendChild(tools(function () { return cur(chart2, '全国｜不法残留者の' + by(dim) + '増減率', note); }));
+    grid.appendChild(s1); grid.appendChild(s2); c.appendChild(grid);
+    c.appendChild(el('p', 'dhelp', esc('増減の人数と増減率は別のものです。増減率は、もとの人数が少ないと大きく出ます。比べているのは、' + dl(w) + 'の発表で名前の出ている' + dim + 'のうち、' + dl(bw) + 'の数があるものだけです。')));
+    c.appendChild(srcLine(w));
     return c;
   }
 

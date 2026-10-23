@@ -166,17 +166,14 @@
     var byD = rows.slice().sort(function (a, b) { return b.d - a.d; }), byR = rows.filter(function (r) { return r.r != null; }).sort(function (a, b) { return b.r - a.r; });
     var s1 = el('section', 'dsub'); s1.appendChild(el('h3', null, '増加人数')); s1.appendChild(Z.barList(byD.slice(0, 10).map(function (r) { return [r.n, r.d, fmt(r.b) + '人→' + fmt(r.v) + '人']; }), null, { f: function (v) { return signed(v) + '人'; }, rank: true }));
     var s2 = el('section', 'dsub'); s2.appendChild(el('h3', null, '増加率')); s2.appendChild(Z.barList(byR.slice(0, 10).map(function (r) { return [r.n, r.r, fmt(r.b) + '人→' + fmt(r.v) + '人']; }), null, { f: function (v) { return signed(v, 1) + '%'; }, rank: true }));
+    var chart = { kind: 'rank', rows: byD.slice(0, 10).map(function (r) { return [r.n, r.d]; }), f: function (v) { return signed(v) + '人'; }, metric: '増加人数', when: w, area: '全国', what: '全国の' + dim + '（' + wl(bw) + '→' + wl(w) + '）' };
+    var chart2 = { kind: 'rank', rows: byR.slice(0, 10).map(function (r) { return [r.n, r.r]; }), f: function (v) { return signed(v, 1) + '%'; }, metric: '増加率', when: w, area: '全国', what: '全国の' + dim + '（' + wl(bw) + '→' + wl(w) + '）' };
+    // 画像を保存するボタンは、どちらの画像か分かるように、それぞれのランキングのすぐ下に置く
+    s1.appendChild(tools(function () { return current(chart, dim + 'の増加人数ランキング'); }));
+    s2.appendChild(tools(function () { return current(chart2, dim + 'の増加率ランキング'); }));
     grid.appendChild(s1); grid.appendChild(s2); c.appendChild(grid);
     c.appendChild(el('p', 'dhelp', '増加人数と増加率は別のものです。増加率は、もとの人数が少ないと大きく出ます。比べているのは発表にのっている' + dim + 'だけです。'));
     c.appendChild(srcLine(w));
-    var chart = { kind: 'rank', rows: byD.slice(0, 10).map(function (r) { return [r.n, r.d]; }), f: function (v) { return signed(v) + '人'; }, metric: '増加人数', when: w, area: '全国', what: '全国の' + dim + '（' + wl(bw) + '→' + wl(w) + '）' };
-    var chart2 = { kind: 'rank', rows: byR.slice(0, 10).map(function (r) { return [r.n, r.r]; }), f: function (v) { return signed(v, 1) + '%'; }, metric: '増加率', when: w, area: '全国', what: '全国の' + dim + '（' + wl(bw) + '→' + wl(w) + '）' };
-    var t = el('div', 'dtools');
-    if (window.KZX) {
-      window.KZX.buttons(t, function () { return current(chart, dim + 'の増加人数ランキング'); });
-      var t2 = el('div', 'dtools'); window.KZX.buttons(t2, function () { return current(chart2, dim + 'の増加率ランキング'); });
-      t.appendChild(el('span', 'dhelp', '↑増加人数の画像　↓増加率の画像')); c.appendChild(t); c.appendChild(t2);
-    }
     return c;
   }
 
