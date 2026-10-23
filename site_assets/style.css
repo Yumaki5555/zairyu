@@ -309,6 +309,12 @@ ul.hbars li { display: grid; grid-template-columns: minmax(7em, 32%) 1fr auto 56
 .hbars .track { height: 14px; }
 .hbars .fill { display: block; height: 14px; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px; }
 .hbars .fill.o { background: var(--co); }
+/* 説明つきの一覧（特定活動の在留目的など）：名前と人数の行、その下に説明 */
+ul.tkl { list-style: none; margin: 0; padding: 0; }
+ul.tkl li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.tkh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 17px; }
+.tkh .v { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+ul.tkl p { margin: 4px 0 0; }
 
 /* 地図（本物の形・四角で並べる） */
 .map-ctl { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; margin-bottom: 10px; }

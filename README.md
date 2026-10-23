@@ -38,6 +38,7 @@ Python 3 と pandas・openpyxl・xlrd・pbixray を使います（古い表の�
 6. `python download_press.py` → `python make_press.py` … 法務省の半期速報（報道発表の資料）。内わけの合計と、同じ時点の確定統計と同じかを確かめる
    `python download_fuho.py` → `python make_fuho.py` … 不法残留者数（報道発表の資料、`データ/不法残留/`）。
    `python download_kika.py` → `python make_kika.py` … 帰化の数（法務省民事局の PDF、`データ/帰化/`）。どちらも内わけの合計などを確かめる（サイトの「不法残留」「帰化」のページに使う）
+   `python make_tokutei.py` … 在留資格「特定活動」の在留目的ごとの数（e-Stat の表から、`データ/特定活動/`。サイトの「在留資格「特定活動」とは」のページに使う）
 7. `python make_site.py` … `site/` にサイトのページを作る
 8. `python make_dash_data.py` … ダッシュボードが読む小さな表（`site/data/*.json`）を作る
 9. `python copy_public.py <写す先>` … 公開するものだけを写す（`site/` は `docs/` になる）。`upload_github.py` はこれをして GitHub に上げる
