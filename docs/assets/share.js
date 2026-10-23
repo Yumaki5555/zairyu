@@ -383,70 +383,102 @@
     });
   }
 
-  // 地図（都道府県・市区町村の色分け）。2026年10月 作った人の指示「凡例を小さくして横並びに。地図や多い順など大事なものを大きく」：
-  // 色の見方は、色の四角と字を横に並べて何行かにする（色のマス目と同じ heatLegend。目もりの大きさの字）。多い順は名前より大きい字（大事な数の大きさまで）。
-  // 横に長い場所：地図は左（高さいっぱい。幅の62%まで）、右の上に多い順、右下に色の見方。
-  // 縦に長い場所：地図は上、下に多い順（左）と色の見方（右。せまければ多い順の下に横いっぱい）。地図と下の欄は、間をあけずに上下の真ん中に
+  // 地図の形の外わく。遠くの小さな島（石川県の舳倉島・福岡県の沖ノ島など。画像では点にしか見えない）は描かず、本体に合わせた外わくにする（上や横に空白を作らない）。
+  // 小さな島：縦横の長いほうが形の大きさの2%より小さい島。本体（大きな島と枠）の外わくから、形の大きさの3%以内にあれば残す。
+  // 小さな島だけの市区町村（新潟県の粟島浦村など）は、いちばん大きい島を本体にする。枠（全国の地図の沖縄県、沖縄県の島の集まり）は外わくに入れる
+  function mapBox(sh) {
+    if (sh._box) { return sh._box; }
+    var parts = sh.prefs || sh.areas, S = Math.max(sh.w, sh.h), rings = [], box = [Infinity, Infinity, -Infinity, -Infinity];
+    function add(bx, b) { bx[0] = Math.min(bx[0], b[0]); bx[1] = Math.min(bx[1], b[1]); bx[2] = Math.max(bx[2], b[2]); bx[3] = Math.max(bx[3], b[3]); }
+    Object.keys(parts).forEach(function (key) {
+      var mine = (parts[key].match(/M[^M]*/g) || []).map(function (d) { // 形の字は「M x,y L x,y … Z」の輪の続き（make_map.py）
+        var v = d.match(/-?\d+(?:\.\d+)?/g).map(Number), b = [Infinity, Infinity, -Infinity, -Infinity];
+        for (var i = 0; i + 1 < v.length; i += 2) { add(b, [v[i], v[i + 1], v[i], v[i + 1]]); }
+        return { key: key, d: d, b: b, big: Math.max(b[2] - b[0], b[3] - b[1]) >= S * 0.02, size: (b[2] - b[0]) * (b[3] - b[1]) };
+      });
+      if (mine.length && !mine.some(function (r) { return r.big; })) { mine.reduce(function (a, r) { return r.size > a.size ? r : a; }).big = true; }
+      rings.push.apply(rings, mine);
+    });
+    rings.forEach(function (r) { if (r.big) { add(box, r.b); } });
+    (sh.frames || []).forEach(function (f) { add(box, f.box); });
+    if (sh.inset) { add(box, sh.inset); }
+    var m = S * 0.03, all = box.slice(), out = {};
+    rings.forEach(function (r) {
+      var b = r.b;
+      if (!r.big && !(b[0] >= box[0] - m && b[1] >= box[1] - m && b[2] <= box[2] + m && b[3] <= box[3] + m)) { return; } // 遠くの小さな島
+      add(all, b); out[r.key] = (out[r.key] || '') + r.d;
+    });
+    sh._box = { x: all[0], y: all[1], w: all[2] - all[0], h: all[3] - all[1], parts: out };
+    return sh._box;
+  }
+  // 地図（都道府県・市区町村の色分け）。2026年10月 作った人の指示：「凡例を小さくして横並びに。地図や多い順など大事なものを大きく」
+  // 「右の文字は、県の横幅に依存させないで」「正方形と縦長は、順位を横並びにするなど、バランスを考えて」。
+  // 色の見方は、色の四角と字を横に並べて何行かにする（色のマス目と同じ heatLegend。目もりの大きさの字）。
+  // 横に長い場所：左半分に地図（その中の真ん中）、右半分に多い順（名前の1.3倍の字）とその下に色の見方。右の字の位置と大きさは、地図の形によらず同じ。
+  // 縦に長い場所：下に多い順を横に5つ（順位と名前、その下に数）、その下に色の見方を横いっぱいに。地図は残りの場所の真ん中に
   function drawMapShape(ctx, ch, x, y, w, h, u) {
-    var sh = ch.shape, top = (ch.sorted || []).slice(0, 5), n = top.length, hf = px('tick', u), headH = n ? hf * 1.6 : 0, gap = 1.2 * u;
+    var bx = mapBox(ch.shape), top = (ch.sorted || []).slice(0, 5), n = top.length, hf = px('tick', u), headH = n ? hf * 1.6 : 0, gap = 1.2 * u;
     var vals = top.map(function (r) { return r[1] == null ? '—' : noUnit(ch.f(r[1])); });
     function legendOf(lw) { return (ch.legend || []).length ? heatLegend(ctx, ch, lw, u) : { h: 0, draw: function () {} }; }
-    function rankW(f) { // 多い順（順位・名前・数）の幅。名前と数の間は字の大きさの1.2倍
-      ctx.font = font(f, true);
-      return maxW(ctx, top.map(function (r, i) { return (i + 1) + ' ' + r[0]; })) + 1.2 * f + maxW(ctx, vals);
-    }
-    function ranking(rx, ry, pw, f, rh) {
-      if (!n) { return; }
-      ctx.fillStyle = C.sub; ctx.font = font(hf, true); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(ch.rankHead || '多い順', rx, ry);
-      top.forEach(function (r, i) {
-        var cy = ry + headH + i * rh + rh / 2, pre = (i + 1) + ' ';
-        ctx.font = font(f, true); ctx.textBaseline = 'middle';
-        var vw = measure(ctx, vals[i]), preW = measure(ctx, pre);
-        ctx.fillStyle = C.sub; ctx.textAlign = 'left'; ctx.fillText(pre, rx, cy);
-        ctx.fillStyle = C.text; ctx.fillText(clip(ctx, r[0], pw - preW - vw - 0.8 * u), rx + preW, cy);
-        ctx.textAlign = 'right'; ctx.fillText(clip(ctx, vals[i], pw - preW), rx + pw, cy);
-      });
-    }
-    function shape(ox, oy, k) {
-      ctx.save(); ctx.translate(ox, oy); ctx.scale(k, k);
+    function shape(mx, my, mw, mh) { // 地図を、(mx, my) から幅 mw・高さ mh の場所の真ん中に、入るいちばん大きい大きさで描く
+      var k = Math.min(mw / bx.w, mh / bx.h);
+      ctx.save(); ctx.translate(mx + (mw - bx.w * k) / 2, my + (mh - bx.h * k) / 2); ctx.scale(k, k); ctx.translate(-bx.x, -bx.y);
       ctx.lineWidth = 1 / k * Math.max(1, u * 0.08);
-      (sh.frames || []).forEach(function (f) { ctx.strokeStyle = C.line; ctx.strokeRect(f.box[0], f.box[1], f.box[2] - f.box[0], f.box[3] - f.box[1]); });
-      if (sh.inset) { ctx.strokeStyle = C.line; ctx.strokeRect(sh.inset[0], sh.inset[1], sh.inset[2] - sh.inset[0], sh.inset[3] - sh.inset[1]); }
-      var parts = sh.prefs || sh.areas;
-      Object.keys(parts).forEach(function (key) {
-        var p = new Path2D(parts[key]);
+      (ch.shape.frames || []).forEach(function (f) { ctx.strokeStyle = C.line; ctx.strokeRect(f.box[0], f.box[1], f.box[2] - f.box[0], f.box[3] - f.box[1]); });
+      var ins = ch.shape.inset;
+      if (ins) { ctx.strokeStyle = C.line; ctx.strokeRect(ins[0], ins[1], ins[2] - ins[0], ins[3] - ins[1]); }
+      Object.keys(bx.parts).forEach(function (key) {
+        var p = new Path2D(bx.parts[key]);
         ctx.fillStyle = C.m[(ch.cls && ch.cls[key]) || 'b-n'] || C.m['b-n']; ctx.fill(p);
         ctx.strokeStyle = '#ffffff'; ctx.stroke(p);
       });
       ctx.restore();
     }
-    var k;
+    function head(hx, hy) { ctx.fillStyle = C.sub; ctx.font = font(hf, true); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(ch.rankHead || '多い順', hx, hy); }
     if (w >= h * 1.15 && w >= 34 * u) { // 横に長い場所
-      var mw = Math.min(w * 0.62, h * sh.w / sh.h), pw = w - mw - 2 * u, rx = x + w - pw, lg = legendOf(pw), ph = h - lg.h - gap; // ph：多い順に使える高さ
-      // 多い順の字：行の高さの6割（大事な数の大きさまで）。幅に入らなければ名前の大きさまで小さくする（それでも入らない名前は「…」）
-      var f = Math.min(px('big', u), (ph - headH) / Math.max(n, 1) * 0.6);
-      while (f > px('name', u) && rankW(f) > pw) { f -= 0.05 * u; }
+      var pw = w / 2, rx = x + w - pw, lg = legendOf(pw), lgap = n ? 1.6 * u : 0;
+      var rankW = function (f) { // 多い順（順位・名前・数）の幅。名前と数の間は字の大きさの1.2倍
+        ctx.font = font(f, true);
+        return maxW(ctx, top.map(function (r, i) { return (i + 1) + ' ' + r[0]; })) + 1.2 * f + maxW(ctx, vals);
+      };
+      // 多い順の字：名前の1.3倍。行の高さは字の1.6倍。右半分の幅か、色の見方と合わせた高さに入らなければ小さくする
+      var f = px('name', u) * 1.3;
+      while (f > FLOOR && (rankW(f) > pw || headH + n * f * 1.6 + lgap + lg.h > h)) { f -= 0.05 * u; }
       f = atLeast(f);
-      k = Math.min(mw / sh.w, h / sh.h);
-      shape(x + (mw - sh.w * k) / 2, y + (h - sh.h * k) / 2, k);
-      ranking(rx, y, Math.min(pw, rankW(f) + 3 * u), f, Math.min(f * 1.75, (ph - headH) / Math.max(n, 1))); // 名前と数を離しすぎない
-      lg.draw(rx, y + h - lg.h);
+      var rh = Math.min(f * 1.6, (h - headH - lgap - lg.h) / Math.max(n, 1)), rw = Math.min(pw, rankW(f) + 3 * u); // 名前と数を離しすぎない
+      var by = y + Math.max(0, (h - headH - n * rh - lgap - lg.h) / 2); // 多い順と色の見方を、まとめて上下の真ん中に
+      shape(x, y, w - pw - 2 * u, h);
+      if (n) {
+        head(rx, by);
+        top.forEach(function (r, i) {
+          var cy = by + headH + i * rh + rh / 2, pre = (i + 1) + ' ';
+          ctx.font = font(f, true); ctx.textBaseline = 'middle';
+          var vw = measure(ctx, vals[i]), preW = measure(ctx, pre);
+          ctx.fillStyle = C.sub; ctx.textAlign = 'left'; ctx.fillText(pre, rx, cy);
+          ctx.fillStyle = C.text; ctx.fillText(clip(ctx, r[0], rw - preW - vw - 0.8 * u), rx + preW, cy);
+          ctx.textAlign = 'right'; ctx.fillText(clip(ctx, vals[i], rw - preW), rx + rw, cy);
+        });
+      }
+      lg.draw(rx, by + headH + n * rh + lgap);
       return;
     }
-    // 縦に長い場所：下の欄は、多い順の字を大きいほう（名前の1.3倍）から試して、全体の高さの42%までに入る大きさにする
-    function below(f) {
-      var rw = n ? Math.min(w, rankW(f) + 2 * u) : 0, rh = f * 1.6, rankH = n ? headH + n * rh : 0, lw = w - rw - 2 * u;
-      var beside = !n || lw >= 16 * u, lg = legendOf(beside ? (n ? lw : w) : w);
-      return { f: f, rw: rw, rh: rh, lg: lg, beside: beside, rankH: rankH, h: beside ? Math.max(rankH, lg.h) : rankH + gap + lg.h };
+    // 縦に長い場所：多い順は同じ幅で横に5つ。1段目に順位と名前（名前の大きさ。入らなければ小さく）、2段目に数（大事な数の0.8倍）
+    var cg = 1.2 * u, cw = (w - 4 * cg) / 5, nf = px('name', u), vf = px('big', u) * 0.8, lg2 = legendOf(w);
+    var rankH = n ? headH + nf * 1.5 + vf * 1.3 : 0, bh = rankH + (n && lg2.h ? gap : 0) + lg2.h, by2 = y + h - bh;
+    shape(x, y, w, h - bh - gap);
+    if (n) {
+      head(x, by2);
+      top.forEach(function (r, i) {
+        var cx = x + i * (cw + cg), pre = (i + 1) + ' ', ny = by2 + headH + nf * 0.7, vy = by2 + headH + nf * 1.5 + vf * 0.62;
+        ctx.font = font(nf, true); var preW = measure(ctx, pre), a = fit1(ctx, r[0], cw - preW, nf, true);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = C.sub; ctx.font = font(nf, true); ctx.fillText(pre, cx, ny);
+        ctx.fillStyle = C.text; ctx.font = font(a.size, true); ctx.fillText(a.text, cx + preW, ny);
+        var b = fit1(ctx, vals[i], cw, vf, true, nf);
+        ctx.font = font(b.size, true); ctx.fillText(b.text, cx, vy);
+      });
     }
-    var b = below(atLeast(Math.min(px('big', u), px('name', u) * 1.3)));
-    while (b.h > h * 0.42 && b.f > FLOOR + 0.01) { b = below(atLeast(b.f - 0.05 * u)); }
-    k = Math.min(w / sh.w, (h - b.h - gap) / sh.h);
-    var my = y + (h - sh.h * k - gap - b.h) / 2, by = my + sh.h * k + gap;
-    shape(x + (w - sh.w * k) / 2, my, k);
-    ranking(x, by, b.rw, b.f, b.rh);
-    // 色の見方を右に置くときは、1行目の見出しを「多い順」の見出しとそろえる
-    if (b.beside) { b.lg.draw(n ? x + b.rw + 2 * u : x, by - (n ? 0.375 * hf : 0)); } else { b.lg.draw(x, by + b.rankH + gap); }
+    lg2.draw(x, by2 + rankH + (n && lg2.h ? gap : 0));
   }
   // ---- 増減の棒（トップページの「10年前からの増減」と「グラフの画像を作る」の増減。2026年10月 作った人の指示で作り直し）
   // 見た瞬間に「何人増えた・減った」が分かるように：左に名前と2時点の人数、中央に0を基準にした棒（増加＝緑で右、減少＝赤で左）、
