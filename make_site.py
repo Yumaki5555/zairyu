@@ -13,7 +13,9 @@
 #     nat-<国籍>.html       国籍・地域ごと（在留資格とその移り変わり・都道府県の地図・市区町村）
 #   グラフの部品（円グラフ・棒グラフ・表の切り替え、地図、いくつかの線の折れ線、選んで見る表）は site_assets/app.js、見た目は site_assets/style.css
 #     sokuho.html           法務省・半期速報（報道発表の数。確定統計とは分けて示す。数は site/data/sokuho.json）
-#     fuho.html・kika.html  不法残留者数・帰化の数（在留外国人統計とは別の統計。数は データ/不法残留/・データ/帰化/。グラフも表もページに書く）
+#     fuho.html・kika.html  不法残留者数・帰化の数（在留外国人統計とは別の統計。数は データ/不法残留/・データ/帰化/）。
+#                           選んで見る部分（半期速報と同じ形のダッシュボード）は site_assets/fuho.js・kika.js が site/data/fuho.json・kika.json（make_dash_data.py）から作る。
+#                           JavaScript が動かないときのために、いちばん新しい数のグラフと表をページに書いておく（noscript）
 #     dash.html             ダッシュボード（絞り込み・地図・推移・内訳・ランキング・比較。数は make_dash_data.py が作る site/data/*.json）
 #   地図の形は site_assets/map/*.json（make_map.py で国土地理院「地球地図日本」から、world.json は make_world_map.py で Natural Earth から作る）。site/assets/ に写す
 #   （ページに書いた数から JavaScript でグラフを作る。JavaScript が動かなくても表は見える）。
@@ -404,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "16"
+CSS_VER = "17"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -1597,8 +1599,12 @@ def fuho_page():
 <p class="lead">在留期間が過ぎたあとも日本から出国していない外国人の数です（国の発表のことばで「不法残留者」）。出入国在留管理庁が毎年1月1日と7月1日の数を発表しています。
 <a href="index.html">在留外国人の数</a>（在留外国人統計）とは別の統計で、在留外国人の数には入っていません。</p>
 <p class="meta"><span>対象：<b>日本全体</b></span><span>時点：<b>{day_label(last)}現在</b>（{ymd_text(pub["公表日"])}公表の発表）</span></p>
-{jump([("trend", "移り変わり"), ("nat", "国籍・地域別"), ("visa", "在留資格別"), ("cross", "国籍・地域×在留資格")] + ([("new", "新規")] if new_sec else []) + [("notes", "注意と出典")])}
+{jump([("rank", "ランキング"), ("trend", "移り変わり"), ("grow", "増減"), ("pie", "構成"), ("cross", "国籍・地域×在留資格"), ("new", "新規"), ("notes", "注意と出典")])}
 {kpi}
+<p class="dintro">表（国籍・地域／在留資格）と時点（発表）を選ぶと、ランキング・増減・構成が変わります。移り変わりでは、比べる国籍・地域（男女別も）と期間を選べます。
+選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。どの図も「画像を保存」で X投稿用の画像にできます。</p>
+<div id="fuho"><div id="fuho-ctl"></div><div id="fuho-view"><p class="dhelp">読み込み中…</p></div></div>
+<noscript><p class="note">選んで見る部分は JavaScript を使います。下は、いちばん新しい発表の数です。</p>
 <section class="card" id="trend"><h2>不法残留者数の移り変わり</h2>
 {chart_total}
 <p class="note">{whens[0][:4]}〜2020年は、毎年1月1日の数です（発表の表にある時点）。2021年からは1月1日と7月1日の年2回です。
@@ -1619,7 +1625,7 @@ def fuho_page():
 <section class="card" id="cross"><h2>国籍・地域 × 在留資格（{day_label(last)}現在）</h2>
 <p class="note">技能実習の号ごとの内わけは、GitHub の表（データ/不法残留/国籍_在留資格.csv）にあります。</p>
 {cross_table}</section>
-{new_sec}
+{new_sec}</noscript>
 <section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
 <li>出典：{FUHO_SRC}。</li>
 <li>不法残留者は、入管法第24条の不法残留の規定に当たる人です。国が出入国の記録と退去強制の手続きの情報などから出した<b>概数</b>です。</li>
@@ -1632,7 +1638,8 @@ def fuho_page():
 {related([("kika.html", "帰化", "帰化の申請・許可の数"), ("sokuho.html", "半期速報", "在留外国人の新しい数"), ("visa-index.html", "在留資格から探す", "在留外国人の在留資格別の人数"),
           ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("不法残留者数", [("日本全体", "index.html"), ("不法残留者数", None)], body,
-                "出入国在留管理庁が発表している不法残留者数の移り変わりと、国籍・地域別・在留資格別の数。", active="fuho", src=FUHO_SRC)
+                "出入国在留管理庁が発表している不法残留者数の移り変わりと、国籍・地域別・在留資格別の数。", css=("dash.css",), js=("share.js", "dash.js", "fuho.js"),
+                active="fuho", src=FUHO_SRC)
 
 
 def kika_page():
@@ -1702,8 +1709,12 @@ def kika_page():
 <p class="lead">帰化は、外国の国籍の人が法務大臣の許可を受けて日本の国籍を取ることです。法務省民事局が発表している、毎年（1月〜12月）の帰化の申請・許可・不許可の人数です。
 帰化して日本の国籍になった人は、<a href="index.html">在留外国人の数</a>には入りません。</p>
 <p class="meta"><span>対象：<b>日本全体</b></span><span>期間：<b>1952年〜{last}年</b>（毎年1月〜12月の人数。{first - 1}年まではまとめた数）</span></p>
-{jump([("trend", "移り変わり"), ("nat", "国籍別"), ("years", "毎年の数"), ("acq", "国籍の取得と離脱"), ("notes", "注意と出典")])}
+{jump([("year", "その年の数"), ("trend", "移り変わり"), ("top", "国籍別上位10"), ("acq", "国籍の取得と離脱"), ("years", "毎年の数"), ("notes", "注意と出典")])}
 {kpi}
+<p class="dintro">年を選ぶと、その年の申請・許可・不許可の数と許可者の国籍が変わります。移り変わりでは、比べるもの（申請・許可・不許可、許可者の国籍）と期間を選べます。
+選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。どの図も「画像を保存」で X投稿用の画像にできます。</p>
+<div id="kika"><div id="kika-ctl"></div><div id="kika-view"><p class="dhelp">読み込み中…</p></div></div>
+<noscript><p class="note">選んで見る部分は JavaScript を使います。下は、発表の数をまとめたものです。</p>
 <section class="card" id="trend"><h2>申請・許可・不許可の数の移り変わり</h2>
 {chart_main}
 <p class="note">帰化許可者数は{first}年から、申請者数は{min(ap)}年から、不許可者数は{min(ng)}年からの数です。
@@ -1725,7 +1736,7 @@ def kika_page():
 <section class="card" id="acq"><h2>国籍の取得（届け出）と離脱</h2>
 <p class="note">帰化とは別の数です。国籍取得者数は、国籍法第3条・第17条などにもとづいて、届け出で日本の国籍を取った人の数です。
 国籍離脱者数は、国籍法第13条にもとづいて日本の国籍をはなれた人の数です。最近の10年分が発表されています。</p>
-{nat_table}</section>
+{nat_table}</section></noscript>
 <section class="card note" id="notes"><h2>出典・数を見るときの注意</h2><ul>
 <li>出典：{KIKA_SRC}（<a href="https://www.moj.go.jp/MINJI/toukei_t_minj03.html">https://www.moj.go.jp/MINJI/toukei_t_minj03.html</a>）。</li>
 <li>どれも暦年（1月〜12月）の人数です。</li>
@@ -1736,7 +1747,8 @@ def kika_page():
 {related([("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("nat-index.html", "国籍から探す", "在留外国人の国籍・地域別の人数"),
           ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("帰化の数", [("日本全体", "index.html"), ("帰化の数", None)], body,
-                "法務省民事局が発表している帰化の申請・許可・不許可の人数の移り変わりと、国籍別の帰化許可者数。", active="kika", src=KIKA_SRC)
+                "法務省民事局が発表している帰化の申請・許可・不許可の人数の移り変わりと、国籍別の帰化許可者数。", css=("dash.css",), js=("share.js", "dash.js", "kika.js"),
+                active="kika", src=KIKA_SRC)
 
 
 REGIONS = [("北海道・東北", PREFS[0:7]), ("関東", PREFS[7:14]), ("中部", PREFS[14:23]), ("近畿", PREFS[23:30]), ("中国", PREFS[30:35]),
@@ -1867,7 +1879,7 @@ def main():
             if f.endswith(".html"):
                 os.remove(os.path.join(OUT, f))
     os.makedirs(os.path.join(OUT, "assets"), exist_ok=True)
-    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "xmaker.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
+    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "fuho.js", "kika.js", "xmaker.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
         shutil.copyfile(os.path.join(BASE, "site_assets", f), os.path.join(OUT, "assets", f))
     src, dst = os.path.join(BASE, "site_assets", "map"), os.path.join(OUT, "assets", "map")  # 地図の形
     os.makedirs(dst, exist_ok=True)

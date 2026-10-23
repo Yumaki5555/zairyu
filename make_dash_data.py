@@ -19,6 +19,8 @@
 #     mx/<ローマ字>-<時点>.json  その都道府県の市区町村×国籍×在留資格（2023年12月末〜）
 #     sokuho.json          法務省の半期速報（データ/半期速報/、make_press.py が作る）と、比べるための確定統計（2012年12月末〜）。
 #                          速報と確定統計は別々に持ち、混ぜない。速報は発表ごとの「その時点の数」と、発表にのった前の時点の数
+#     fuho.json            不法残留者数（データ/不法残留/、make_fuho.py が作る）。在留外国人統計とは別の統計
+#     kika.json            帰化の数（データ/帰化/、make_kika.py が作る）。在留外国人統計とは別の統計
 #   人口：総務省「住民基本台帳に基づく人口」（日本人住民と外国人住民の合計、翌年1月1日現在）を12月末の時点に合わせる
 import json
 import os
@@ -132,6 +134,85 @@ def sokuho(d, MP):
             conf["都道府県"][p] = [d.pref_series[p].get(w) for w in CP]
     conf["都道府県"]["総数"] = conf["国籍・地域"].get("総数")
     return {"W": W, "releases": rel, "sp": out, "before": before, "CP": CP, "conf": conf, "renames": ms.VISA_RENAME}
+
+
+def fuho():
+    """不法残留者数のページ（fuho.html・fuho.js）の数。W：数のある時点（2017年1月1日〜）、R：発表の時点（2021年1月1日〜）。
+    sp：表（国籍・地域／在留資格）× 名前 の時点ごとの数（同じ時点の数はどの発表でも同じ。make_fuho.py で確かめた）。
+    国籍・地域の「その他」は、発表ごとに上位の国が入れ替わって中身が違うので、その発表の時点の数だけ入れる。
+    sex：男・女 × 国籍・地域。listed：発表ごとの名前（国籍・地域は上位10、在留資格は「その他」と技能実習の号を除く）。subs：技能実習の号。
+    cross：発表ごとの 国籍・地域 × 在留資格。new：新規不法残留者数（2026年1月1日の発表から）"""
+    folder = os.path.join(DATA, "不法残留")
+    t = pd.read_csv(os.path.join(folder, "推移.csv"))
+    t["種別"] = t["種別"].fillna("")
+    cx = pd.read_csv(os.path.join(folder, "国籍_在留資格.csv"))
+    nw = pd.read_csv(os.path.join(folder, "新規.csv"))
+    nw["種別"] = nw["種別"].fillna("")
+    chk = pd.read_csv(os.path.join(folder, "確かめ.csv"))
+    src = pd.read_csv(os.path.join(BASE, "元データ", "不法残留_出どころ一覧.csv"))
+    W, R = sorted(t["時点"].unique()), sorted(t["発表の時点"].unique())
+    sp, sex = {"国籍・地域": {}, "在留資格": {}}, {"男": {}, "女": {}}
+    for kind, nat, sx, visa, w, n, state in zip(t["表"], t["国籍・地域"], t["性別"], t["在留資格"], t["時点"], t["人数"], t["状態"]):
+        dim, name = ("国籍・地域", nat) if kind == "国籍・地域別" else ("在留資格", visa)
+        if dim == "国籍・地域" and name == "その他" and state != "その発表の時点の数":
+            continue
+        (sp[dim] if sx == "総数" else sex[sx]).setdefault(name, [None] * len(W))[W.index(w)] = int(n)
+    subs = sorted(set(t.loc[t["種別"] != "", "在留資格"]))
+    listed, cross, new, rel = {}, {}, {}, []
+    for r in R:
+        q = t[(t["発表の時点"] == r) & (t["時点"] == r) & (t["性別"] == "総数")]
+        listed[r] = {"国籍・地域": [n for n in q.loc[q["表"] == "国籍・地域別", "国籍・地域"] if n not in ("総数", "その他")],
+                     "在留資格": [v for v in q.loc[q["表"] == "在留資格別", "在留資格"] if v not in ("総数", "その他") and v not in subs]}
+        c = cx[cx["時点"] == r]
+        cross[r] = {}
+        for a, b, n in zip(c["国籍・地域"], c["在留資格"], c["人数"]):
+            cross[r].setdefault(a, {})[b] = int(n)
+        g = nw[nw["時点"] == r]
+        if len(g):
+            new[r] = {}
+            for kind, gg in g.groupby("表", sort=False):
+                rows = {}
+                for name, k, n in zip(gg["名前"], gg["区分"], gg["人数"]):
+                    rows.setdefault(name, {})[k] = int(n)
+                new[r][kind.replace("別", "")] = [[name, x["新規"], x["その時点の数"], x["前の時点の数"], x["継続"], x["減少"]] for name, x in rows.items()]
+        files = src[src["時点"] == r]
+        ck = chk[chk["発表の時点"] == r]
+        rel.append({"w": r, "pub": files["公表日"].iat[0], "page": files["発表のページ"].iat[0], "title": files["表題"].iat[0],
+                    "files": [[a, b] for a, b in zip(files["ファイル名"], files["資料のURL"])], "checks": len(ck), "bad": int((ck["結果"] != "合う").sum())})
+    return {"W": W, "R": R, "sp": sp, "sex": sex, "listed": listed, "subs": subs, "cross": cross, "new": new, "releases": rel,
+            "visas": [v for v in cross[R[-1]]["総数"] if v != "総数"]}
+
+
+def kika():
+    """帰化のページ（kika.html・kika.js）の数。Y：1年ごとの数のある年（1967年〜）。s：帰化許可申請者数・帰化許可者数・帰化不許可者数と、
+    帰化許可者数の内わけ（韓国・朝鮮／中国／その他）の年ごとの数（ない年は null）。agg：まとめた期間の数（1952年4月28日〜1966年など）。
+    top：国籍別の上位10（最近の3年）。acq：国籍取得者数・国籍離脱者数（最近の10年）"""
+    folder = os.path.join(DATA, "帰化")
+    t = pd.read_csv(os.path.join(folder, "帰化の推移.csv"), dtype={"年": str})
+    byn = pd.read_csv(os.path.join(folder, "国籍別帰化許可者数.csv"), dtype={"順位": str})
+    acq = pd.read_csv(os.path.join(folder, "国籍取得と離脱.csv"))
+    yearly = t[t["年"].str.isdigit()]
+    Y = sorted(int(y) for y in yearly["年"].unique())
+    s = {}
+    for y, item, nat, v in zip(yearly["年"], yearly["項目"], yearly["国籍・地域"], yearly["人数"]):
+        s.setdefault(item if nat == "総数" else nat, [None] * len(Y))[Y.index(int(y))] = int(v)
+    era = {"令和": 2018, "平成": 1988, "昭和": 1925}
+    agg = {}
+    for y, label, item, nat, v in zip(t["年"], t["年の書き方"], t["項目"], t["国籍・地域"], t["人数"]):
+        if not y.isdigit():
+            name = re.sub(r"\((\d+月\d+日)\)", r"\1", re.sub(r"(令和|平成|昭和)(\d+)年", lambda m: f"{era[m.group(1)] + int(m.group(2))}年", label))
+            agg.setdefault(y, {"label": name})[item if nat == "総数" else nat] = int(v)
+    top = {}
+    for y, g in byn.groupby("年"):
+        ranked = g[g["順位"].fillna("").str.isdigit()].sort_values("順位", key=lambda c: c.astype(int))
+        rest = dict(zip(g.loc[~g["順位"].fillna("").str.isdigit(), "国籍・地域"], g.loc[~g["順位"].fillna("").str.isdigit(), "人数"]))
+        top[str(y)] = {"rows": [[n, int(v)] for n, v in zip(ranked["国籍・地域"], ranked["人数"])], "other": int(rest["その他"]), "total": int(rest["総数"])}
+    a = acq.pivot_table(index="年", columns="項目", values="人数", aggfunc="first").sort_index()
+    srcs = pd.read_csv(os.path.join(BASE, "元データ", "帰化_出どころ一覧.csv"))
+    url = lambda word: srcs.loc[srcs["表題"].str.contains(word), "資料のURL"].iat[-1]
+    return {"Y": Y, "s": s, "agg": [agg[k] for k in sorted(agg, key=lambda k: k.replace("-", "0"))], "top": top,
+            "acq": {"Y": [int(y) for y in a.index], **{c: [int(v) for v in a[c]] for c in a.columns}},
+            "page": "https://www.moj.go.jp/MINJI/toukei_t_minj03.html", "pdfTrend": url("帰化許可申請者数、帰化許可者数"), "pdfNat": url("国籍別帰化許可者数")}
 
 
 def main():
@@ -348,6 +429,8 @@ def main():
     sk["natRegion"] = {n: list(ms.NAT_REGION[n]) for n in sk["sp"]["国籍・地域"] if n in ms.NAT_REGION}
     sk["regions"] = ms.REGION_TREE
     size["sokuho.json"] = dump("sokuho.json", sk)
+    size["fuho.json"] = dump("fuho.json", fuho())
+    size["kika.json"] = dump("kika.json", kika())
     if ms.NO_REGION:
         print("地域区分の表にない国籍・地域：" + "、".join(sorted(ms.NO_REGION)))
     total = sum(size.values())

@@ -678,7 +678,9 @@
   function lineChart(per, series, opt) {
     opt = opt || {};
     var box = el('div', 'dline'), hidden = {};
-    var xs = per.map(wx), x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+    // 在留外国人統計ではない数（不法残留の1月1日・7月1日、帰化の年ごと。fuho.js・kika.js）は、横の位置（opt.at：年の目もりが整数の所）と時点の名前（opt.lab）をもらう
+    var xs = opt.at || per.map(wx), x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+    var lab = function (i) { return opt.lab ? opt.lab(i) : wl(per[i]); }, off = opt.at ? 0 : 0.5;
     function draw() {
       box.innerHTML = '';
       var narrow = box.clientWidth && box.clientWidth < 520;
@@ -699,9 +701,9 @@
         t.textContent = opt.index ? String(Math.round(v)) : (Math.abs(v) >= 10000 ? (v / 10000) + '万' : fmt(v)); g.appendChild(t);
       }
       var span2 = x1 - x0, ystep = span2 > 30 ? 10 : span2 > 12 ? 5 : span2 > 6 ? 2 : 1;
-      for (var yr = Math.ceil(x0 / ystep) * ystep; yr <= x1; yr += ystep) { var tx = svg('text', { class: 'ax', x: X(yr + 0.5), y: H - 12, 'text-anchor': 'middle' }); tx.textContent = yr; g.appendChild(tx); }
+      for (var yr = Math.ceil(x0 / ystep) * ystep; yr <= x1; yr += ystep) { var tx = svg('text', { class: 'ax', x: X(yr + off), y: H - 12, 'text-anchor': 'middle' }); tx.textContent = yr; g.appendChild(tx); }
       var cx = wx('2012-12');
-      if (x0 < cx && cx <= x1) {
+      if (!opt.at && x0 < cx && cx <= x1) { // 数え方の変わり目は在留外国人統計の図だけ
         g.appendChild(svg('line', { class: 'mark', x1: X(cx - 0.25), x2: X(cx - 0.25), y1: T, y2: H - B }));
         var m1 = svg('text', { class: 'ax mk', x: X(cx - 0.25) - 4, y: T - 10, 'text-anchor': 'end' }); m1.textContent = '←登録外国人統計'; g.appendChild(m1);
         var m2 = svg('text', { class: 'ax mk', x: X(cx - 0.25) + 4, y: T - 10 }); m2.textContent = '在留外国人統計→'; g.appendChild(m2);
@@ -721,7 +723,7 @@
         cross.setAttribute('x1', X(xs[best])); cross.setAttribute('x2', X(xs[best])); cross.setAttribute('visibility', 'visible');
         var rows = series.filter(function (s) { return !hidden[s.name]; }).map(function (s) { return s; })
           .sort(function (a, b) { return (b.vals[best] || -1e12) - (a.vals[best] || -1e12); });
-        K.showTip(ev, '<b>' + esc(wl(per[best])) + '</b>' + rows.map(function (s) {
+        K.showTip(ev, '<b>' + esc(lab(best)) + '</b>' + rows.map(function (s) {
           var v = s.vals[best];
           return '<br><span class="sw sw-' + s.cls + '"></span> ' + esc(s.name) + '：' + (v == null ? (s.hid && s.hid[best] ? '公表されていない<br><span class="tipwhy">（' + esc(WHY.hidden) + '）</span>' : 'データなし' + (s.why && s.why[best] ? '<br><span class="tipwhy">（' + esc(s.why[best]) + '）</span>' : '')) : (opt.index ? v.toFixed(1) : (opt.f ? opt.f(v) : fmt(v) + '人')));
         }).join(''));

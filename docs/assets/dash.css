@@ -1,4 +1,4 @@
-/* ダッシュボード（dash.html）と半期速報（sokuho.html）の見た目。色の値・ボタン・選ぶ欄・画像を保存の画面は style.css（どのページも同じ） */
+/* ダッシュボード（dash.html）と半期速報（sokuho.html）・不法残留（fuho.html）・帰化（kika.html）の見た目。色の値・ボタン・選ぶ欄・画像を保存の画面は style.css（どのページも同じ） */
 .dintro { margin: 0 0 10px; color: var(--sub); }
 .dmenu { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 .dmenu a { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 14px; border-radius: 22px; border: 1px solid var(--btn-line);
@@ -11,7 +11,7 @@
 /* 絞り込み（地域・国籍・在留資格・時点）。パソコンではヘッダーの下に残る */
 .dfilter { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; background: var(--card); border: 1px solid var(--line);
            border-radius: 12px; padding: 10px 12px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
-#dash-filter, #sokuho-ctl { position: sticky; top: calc(var(--hdr, 56px) + 4px); z-index: 20; }
+#dash-filter, #sokuho-ctl, #fuho-ctl, #kika-ctl { position: sticky; top: calc(var(--hdr, 56px) + 4px); z-index: 20; }
 .dmbtn { font: inherit; font-size: 16px; padding: 6px 10px; min-height: 44px; border-radius: 8px; border: 1px solid var(--field); background: var(--card); color: var(--text);
          text-align: left; min-width: 9em; max-width: 17em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .dmbtn::after { content: " ▾"; color: var(--sub); }
