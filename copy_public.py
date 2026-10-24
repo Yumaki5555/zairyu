@@ -21,7 +21,7 @@ import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 HAND_MADE = ["出どころ一覧.csv", "OCR直し.csv", "印刷のまま.csv", "名前の直し.csv", "人口_出どころ一覧.csv", "半期速報_出どころ一覧.csv",
-             "不法残留_出どころ一覧.csv", "帰化_出どころ一覧.csv"]
+             "不法残留_出どころ一覧.csv", "帰化_出どころ一覧.csv", "難民_出どころ一覧.csv"]
 KEEP = {".git", ".gitignore", "LICENSE"}  # 写す先で別に作るもの（消さない）
 EMPTY = object()  # 中身のないファイルを作る印
 

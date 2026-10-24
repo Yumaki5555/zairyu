@@ -11,7 +11,7 @@
 /* 絞り込み（地域・国籍・在留資格・時点）。パソコンではヘッダーの下に残る */
 .dfilter { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; background: var(--card); border: 1px solid var(--line);
            border-radius: 12px; padding: 10px 12px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
-#dash-filter, #sokuho-ctl, #fuho-ctl, #kika-ctl { position: sticky; top: calc(var(--hdr, 56px) + 4px); z-index: 20; }
+#dash-filter, #sokuho-ctl, #fuho-ctl, #kika-ctl, #nanmin-ctl { position: sticky; top: calc(var(--hdr, 56px) + 4px); z-index: 20; }
 .dmbtn { font: inherit; font-size: 16px; padding: 6px 10px; min-height: 44px; border-radius: 8px; border: 1px solid var(--field); background: var(--card); color: var(--text);
          text-align: left; min-width: 9em; max-width: 17em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .dmbtn::after { content: " ▾"; color: var(--sub); }
@@ -140,14 +140,14 @@ table.srank td.up { color: #1f7a4f; } table.srank td.down { color: #b4441a; }
 /* 帰化のページ（kika.js）：上から ① これまでの累計 ② 国籍別 ③ 毎年の推移 ④ くわしい数。字は大きめ、欄の間をあける。不法残留のページ（fuho.js）も同じ部品を使う */
 .kctl { align-items: center; }
 .kctl .kctlhelp { margin: 0; font-size: 15px; color: var(--sub); flex: 1 1 14em; }
-#kika-view .ksec, #fuho-view .ksec { padding: 20px 22px; margin: 20px 0; scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
+#kika-view .ksec, #fuho-view .ksec, #nanmin-view .ksec { padding: 20px 22px; margin: 20px 0; scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
 #notes { scroll-margin-top: calc(var(--hdr, 56px) + 96px); }
-#kika-view .ksec > h2, #fuho-view .ksec > h2 { font-size: 25px; line-height: 1.4; margin: 0 0 12px; }
-#kika-view .ksec h3, #fuho-view .ksec h3 { font-size: 19px; margin: 18px 0 8px; }
-#kika-view .ksec .dhelp, #fuho-view .ksec .dhelp { font-size: 16px; line-height: 1.7; }
-#kika-view .ksec .stotal { font-size: 18px; }
-#kika-view .ksec .stotal b { font-size: 22px; }
-#kika-view .ksec .stotal .sub { display: block; font-size: 15px; color: var(--sub); }
+#kika-view .ksec > h2, #fuho-view .ksec > h2, #nanmin-view .ksec > h2 { font-size: 25px; line-height: 1.4; margin: 0 0 12px; }
+#kika-view .ksec h3, #fuho-view .ksec h3, #nanmin-view .ksec h3 { font-size: 19px; margin: 18px 0 8px; }
+#kika-view .ksec .dhelp, #fuho-view .ksec .dhelp, #nanmin-view .ksec .dhelp { font-size: 16px; line-height: 1.7; }
+#kika-view .ksec .stotal, #nanmin-view .ksec .stotal { font-size: 18px; }
+#kika-view .ksec .stotal b, #nanmin-view .ksec .stotal b { font-size: 22px; }
+#kika-view .ksec .stotal .sub, #nanmin-view .ksec .stotal .sub { display: block; font-size: 15px; color: var(--sub); }
 .khero { border: 2px solid var(--btn-line); }
 .khero .klab { font-size: 18px; color: var(--sub); margin: 0; }
 .khero .kbig { font-size: 60px; font-weight: 800; line-height: 1.1; margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
@@ -187,8 +187,8 @@ ul.krank li.none .fill { background: none; outline: 2px dashed var(--sub); outli
 ul.krank .v { text-align: right; font-weight: 700; font-size: 19px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 ul.krank .p { text-align: right; color: var(--sub); font-size: 15px; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
-  #kika-view .ksec, #fuho-view .ksec { padding: 16px 14px; margin: 16px 0; }
-  #kika-view .ksec > h2, #fuho-view .ksec > h2 { font-size: 22px; }
+  #kika-view .ksec, #fuho-view .ksec, #nanmin-view .ksec { padding: 16px 14px; margin: 16px 0; }
+  #kika-view .ksec > h2, #fuho-view .ksec > h2, #nanmin-view .ksec > h2 { font-size: 22px; }
   .khero .kbig { font-size: 46px; }
   .kyear > b { font-size: 28px; }
   .kviews button { flex: 1 1 100%; }
@@ -200,10 +200,10 @@ ul.krank .p { text-align: right; color: var(--sub); font-size: 15px; font-varian
   .kctl .dacts { flex: 0 0 auto; }
   /* たたんだ欄の表は、なるべく横にずらさずに入るよう、字と間を少し詰める */
   details.kfold { padding: 0 10px; }
-  #kika-view table.t, #fuho-view table.t { font-size: 14px; }
-  #kika-view table.t th, #kika-view table.t td, #fuho-view table.t th, #fuho-view table.t td { padding: 6px 4px; }
-  #kika-view table.t th, #fuho-view table.t th { font-size: 13px; }
-  #kika-view table.t td:not(.n), #fuho-view table.t td:not(.n) { min-width: 4.5em; }
+  #kika-view table.t, #fuho-view table.t, #nanmin-view table.t { font-size: 14px; }
+  #kika-view table.t th, #kika-view table.t td, #fuho-view table.t th, #fuho-view table.t td, #nanmin-view table.t th, #nanmin-view table.t td { padding: 6px 4px; }
+  #kika-view table.t th, #fuho-view table.t th, #nanmin-view table.t th { font-size: 13px; }
+  #kika-view table.t td:not(.n), #fuho-view table.t td:not(.n), #nanmin-view table.t td:not(.n) { min-width: 4.5em; }
   /* スマホ：1段目に「順位・名前・人数・割合」、2段目に棒 */
   ul.krank li { grid-template-columns: 2.2em minmax(0, 1fr) auto 3.4em; grid-template-areas: "rk nm v p" ". tr tr tr"; gap: 4px 8px; }
   ul.krank .rk { grid-area: rk; } ul.krank .nm { grid-area: nm; } ul.krank .v { grid-area: v; } ul.krank .p { grid-area: p; }
@@ -274,4 +274,13 @@ ul.frank li.kid .v { font-size: 16px; }
   .kctl.fctl > .dctl:not(.dacts) { flex: 1 1 0; min-width: 0; }
   .kctl.fctl > .dctl:not(.dacts) select { width: 100%; max-width: none; font-size: 15px; padding-left: 6px; padding-right: 4px; }
   .fctl .dacts .dbtn { padding: 6px 8px; font-size: 14px; }
+}
+
+/* 難民のページ（nanmin.js）：帰化・不法残留と同じ部品（ksec・krank・frank・fbox・kfold）。大事な数の欄は4つ（審査の欄は3つ）を横に並べる */
+.nkpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0 8px; }
+.nkpis.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.nkpis .fbox > b { font-size: 26px; }
+@media (max-width: 600px) {
+  .nkpis, .nkpis.n3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .nkpis .fbox > b { font-size: 22px; }
 }

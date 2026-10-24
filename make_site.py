@@ -13,8 +13,8 @@
 #     nat-<国籍>.html       国籍・地域ごと（在留資格とその移り変わり・都道府県の地図・市区町村）
 #   グラフの部品（円グラフ・棒グラフ・表の切り替え、地図、いくつかの線の折れ線、選んで見る表）は site_assets/app.js、見た目は site_assets/style.css
 #     sokuho.html           法務省・半期速報（報道発表の数。確定統計とは分けて示す。数は site/data/sokuho.json）
-#     fuho.html・kika.html  不法残留者数・帰化の数（在留外国人統計とは別の統計。数は データ/不法残留/・データ/帰化/）。
-#                           選んで見る部分（半期速報と同じ形のダッシュボード）は site_assets/fuho.js・kika.js が site/data/fuho.json・kika.json（make_dash_data.py）から作る。
+#     fuho.html・kika.html・nanmin.html  不法残留者数・帰化の数・難民の認定と保護の数（在留外国人統計とは別の統計。数は データ/不法残留/・データ/帰化/・データ/難民/）。
+#                           選んで見る部分（半期速報と同じ形のダッシュボード）は site_assets/fuho.js・kika.js・nanmin.js が site/data/fuho.json・kika.json・nanmin.json（make_dash_data.py）から作る。
 #                           JavaScript が動かないときのために、いちばん新しい数のグラフと表をページに書いておく（noscript）
 #     dash.html             ダッシュボード（絞り込み・地図・推移・内訳・ランキング・比較。数は make_dash_data.py が作る site/data/*.json）
 #   地図の形は site_assets/map/*.json（make_map.py で国土地理院「地球地図日本」から、world.json は make_world_map.py で Natural Earth から作る）。site/assets/ に写す
@@ -406,23 +406,39 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "23b"
+CSS_VER = "24"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
-NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
-       ("dash", "dash.html", "ダッシュボード"), ("sokuho", "sokuho.html", "半期速報"), ("fuho", "fuho.html", "不法残留"), ("kika", "kika.html", "帰化"),
-       ("about", "about.html", "このサイトについて"))
+# ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
+NAV_OTHER = (("kika", "kika.html", "帰化"), ("fuho", "fuho.html", "不法残留"), ("nanmin", "nanmin.html", "難民"))  # 在留外国人統計とは別の統計
+NAV = (("japan", "index.html", "日本全体"), ("dash", "dash.html", "ダッシュボード"), ("area", "area-index.html", "地域から探す"),
+       ("nat", "nat-index.html", "国籍から探す"), ("sokuho", "sokuho.html", "半期速報"), ("other", NAV_OTHER, "ほかの統計"),
+       ("tokutei", "tokutei.html", "特定活動"), ("about", "about.html", "このサイトについて"))
 CUR = ' aria-current="page"'
+
+
+def nav_html(active):
+    """ヘッダーのメニュー。「ほかの統計」は見出しのボタンと、その下に開く項目（JavaScript が動かないときは、マウスを合わせる・選ぶと開く）"""
+    out = ""
+    for k, h, t in NAV:
+        if isinstance(h, tuple):
+            on = any(k2 == active for k2, _, _ in h)
+            items = "".join(f'<a href="{h2}"{CUR if k2 == active else ""}>{t2}</a>' for k2, h2, t2 in h)
+            out += (f'<div class="msub{" cur" if on else ""}"><button type="button" class="msub-btn" aria-expanded="false" aria-controls="msub-{k}">{t}</button>'
+                    f'<div class="msub-list" id="msub-{k}" role="group" aria-label="{t}">{items}</div></div>')
+        else:
+            out += f'<a href="{h}"{CUR if k == active else ""}>{t}</a>'
+    return out
 
 
 def page(title, crumbs, body, desc, css=(), js=(), active=None, src=None):
     """ページの外がわ（ヘッダー・メニュー・いまいる所・下の出典）。active：メニューのうち、このページが入るもの（NAV の鍵）。
-    src：在留外国人統計ではない数のページ（不法残留・帰化）の、下に書く出典の文"""
+    src：在留外国人統計ではない数のページ（不法残留・帰化・難民）の、下に書く出典の文"""
     foot = (f"出典：{src}。数は国の発表のまま示しています。良い・悪いの判断はしていません。" if src else
             "出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」・Natural Earth（世界地図）を加工して作成。\n"
             f'数は国の発表のまま示しています。良い・悪いの判断はしていません。データは{when_label(LATEST)}まで（それより新しい数は<a href="sokuho.html">半期速報</a>）。')
-    nav = "".join(f'<a href="{h}"{CUR if k == active else ""}>{t}</a>' for k, h, t in NAV)
-    fnav = "".join(f'<a href="{h}">{t}</a>' for k, h, t in NAV)
+    nav = nav_html(active)
+    fnav = "".join(f'<a href="{h2}">{t2}</a>' for k, h, t in NAV for _, h2, t2 in (h if isinstance(h, tuple) else ((k, h, t),)))  # 下のメニューは「ほかの統計」の中も並べる
     crumb = ""
     if len(crumbs) > 1:  # トップページでは出さない
         crumb = ('<nav class="crumb" aria-label="いまいる所"><ol>' +
@@ -1367,6 +1383,7 @@ FUHO_ORG = "出入国在留管理庁「本邦における不法残留者数に�
 KIKA_ORG = "法務省民事局「帰化許可申請者数等の推移」"
 FUHO_SRC, KIKA_SRC = FUHO_ORG + "を加工して作成", KIKA_ORG + "を加工して作成"
 FUHO_SAVE, KIKA_SAVE = {"src": FUHO_ORG, "tag": "#不法残留"}, {"src": KIKA_ORG, "tag": "#帰化"}
+# 難民：毎年の報道発表「令和〇年における難民認定者数等について」（データ/難民/、make_nanmin.py が PDF から作る）。出典の名前は、いちばん新しい発表の表題（nanmin_page で決める）
 
 
 def save_box(inner, save, chart):
@@ -1645,7 +1662,7 @@ def fuho_page():
 <li>グラフの色は、国籍・地域ごと・在留資格ごとに決めていて、ページのどのグラフでも同じです。色は7つなので、8つ目からの国籍・地域は同じ色の点線（棒はしま模様）で分けています。</li>
 <li>表（1行に1つの数の CSV）は GitHub の「データ/不法残留/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
 </ul></details>{up}</section>
-{related([("kika.html", "帰化", "帰化の申請・許可の数"), ("sokuho.html", "半期速報", "在留外国人の新しい数"), ("visa-index.html", "在留資格から探す", "在留外国人の在留資格別の人数"),
+{related([("kika.html", "帰化", "帰化の申請・許可の数"), ("nanmin.html", "難民の認定と保護の数", "難民認定の申請・認定などの数"), ("sokuho.html", "半期速報", "在留外国人の新しい数"), ("visa-index.html", "在留資格から探す", "在留外国人の在留資格別の人数"),
           ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("不法残留者数", [("日本全体", "index.html"), ("不法残留者数", None)], body,
                 "出入国在留管理庁が発表している不法残留者数の移り変わりと、国籍・地域別・在留資格別の数。", css=("dash.css",), js=("share.js", "dash.js", "fuho.js"),
@@ -1767,11 +1784,117 @@ def kika_page():
 <li>取り込むときに、どの年も 許可者数の合計＝韓国・朝鮮＋中国＋その他 になっているか、累計が毎年の数の和と同じか、国籍別の表と毎年の表が同じ数かを確かめています。</li>
 <li>表（1行に1つの数の CSV）は GitHub の「データ/帰化/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
 </ul></details>{up}</section>
-{related([("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("nat-index.html", "国籍から探す", "在留外国人の国籍・地域別の人数"),
+{related([("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("nanmin.html", "難民の認定と保護の数", "難民認定の申請・認定などの数"), ("nat-index.html", "国籍から探す", "在留外国人の国籍・地域別の人数"),
           ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("帰化の数", [("日本全体", "index.html"), ("帰化の数", None)], body,
                 f"1952年〜{last}年に帰化を許可された人は合わせて{num(total_all)}人（法務省民事局の発表）。国籍別の帰化許可者数と、毎年の移り変わり。", css=("dash.css",), js=("share.js", "dash.js", "kika.js"),
                 active="kika", src=KIKA_SRC)
+
+
+def nanmin_page():
+    """難民認定などの数（在留外国人統計とは別の統計）。選んで見る部分は nanmin.js が data/nanmin.json から作る。
+    JavaScript が動かないときは、いちばん新しい年の数と、1978年からの毎年の数を noscript に書いておく（目次のリンク先の id は nanmin.js の欄と同じ）"""
+    folder = os.path.join(DATA, "難民")
+    t = pd.read_csv(os.path.join(folder, "毎年の数.csv"))
+    nt = pd.read_csv(os.path.join(folder, "国籍別.csv"))
+    rel = pd.read_csv(os.path.join(BASE, "元データ", "難民_出どころ一覧.csv"))
+    syr_key = "（参考）シリア人留学生の受入れ"
+    t = t[t["項目"] != syr_key]
+    s = defaultdict(dict)  # 項目 → {年: 人数}
+    for y, item, v in zip(t["年"], t["項目"], t["人数"]):
+        s[item][int(y)] = int(v)
+    label = dict(zip(t["年"].astype(int), t["年の書き方"]))
+    years = sorted(label)
+    last, first = years[-1], years[0]
+    newest = rel[rel["年"] == rel["年"].max()].iloc[0]
+    org = f"出入国在留管理庁「{newest['表題']}」など（報道発表）"
+    src = org + "を加工して作成"
+    save = {"src": org, "tag": "#難民"}
+    g = lambda item, y: s[item].get(y)
+    cell = lambda item, y: num(g(item, y)) if g(item, y) is not None else "—"
+    prot = [("条約難民", "難民と認定（条約難民）", "1"), ("補完的保護対象者", "補完的保護対象者と認定", "2"), ("その他の保護", "人道的な配慮で在留を許可（その他の保護）", "3"),
+            ("定住難民", "定住難民として受入れ（インドシナ難民・第三国定住）", "4")]
+    tot = g("合計", last)
+    cum = sum(s["合計"].values())
+    # 国籍・地域別（いちばん新しい年）
+    def nat_rows(item, y):
+        q = nt[(nt["項目"] == item) & (nt["年"] == y)]
+        return [(n, int(v), None if pd.isna(k) else int(k)) for n, v, k in zip(q["国籍・地域"], q["人数"], q["うち審査請求"])]
+    ap = [r for r in nat_rows("難民認定申請者数", last) if r[0] != "総数"]
+    ok = [r for r in nat_rows("難民認定者数", last) if r[0] != "総数"]
+    ap_bars = static_hbars([(n, v, False) for n, v, _ in ap[:15]], g("難民認定申請者数", last), when=f"{last}年",
+                           save={**save, "title": f"全国｜{last}年の難民認定申請者の国籍・地域別人数（上位15）"})
+    ok_trs = "".join(f"<tr><td>{esc(n)}</td><td class='n'>{num(v)}</td><td class='n'>{num(k) if k is not None else '—'}</td></tr>" for n, v, k in ok)
+    ok_table = (f"<div class='scroll'><table class='t'><thead><tr><th>国籍・地域</th><th class='n'>難民と認定された人</th><th class='n'>うち審査請求で認定</th></tr></thead>"
+                f"<tbody>{ok_trs}<tr><td><b>総数</b></td><td class='n'><b>{cell('条約難民', last)}</b></td><td class='n'>{cell('条約難民のうち審査請求で認定', last)}</td></tr></tbody></table></div>")
+    ticks = [(y, str(y)) for y in range((first + 9) // 10 * 10, last + 1, 10)]
+    pts = lambda item: [(y, v, f"{y}年") for y, v in sorted(s[item].items())]
+    chart_ap = static_lines([{"name": "難民認定申請者数", "cls": "5", "pts": pts("難民認定申請者数")}], "難民認定申請者数の移り変わり", ticks, head="年",
+                            save={**save, "title": "全国｜難民認定申請者数の移り変わり"})
+    chart_pr = static_lines([{"name": k, "cls": c, "pts": pts(k)} for k, _, c in prot], "難民と認定・保護した人の数の移り変わり", ticks, head="年",
+                            save={**save, "title": "全国｜難民と認定・保護した人の数の移り変わり"})
+    cols = ["難民認定申請者数", "補完的保護対象者認定申請者数", "定住難民", "条約難民", "条約難民のうち審査請求で認定", "補完的保護対象者", "その他の保護", "合計"]
+    year_trs = "".join(f"<tr><td>{y}年（{esc(label[y])}）</td>" + "".join(f"<td class='n'>{cell(c, y)}</td>" for c in cols) + "</tr>" for y in reversed(years))
+    year_table = ("<div class='scroll'><table class='t'><thead><tr><th>年</th><th class='n'>難民認定申請者数</th><th class='n'>補完的保護の申請者数</th><th class='n'>定住難民</th>"
+                  "<th class='n'>条約難民</th><th class='n'>うち審査請求で認定</th><th class='n'>補完的保護対象者</th><th class='n'>その他の保護</th><th class='n'>合計</th></tr></thead>"
+                  f"<tbody>{year_trs}</tbody></table></div>")
+    pubs = rel.drop_duplicates("年").sort_values("年", ascending=False)
+    pub_list = "".join(f'<li><a href="{esc(u)}">{esc(ti)}</a>（公表 {ymd_text(p)}）</li>' for ti, u, p in zip(pubs["表題"], pubs["発表のページ"], pubs["公表日"]))
+    chk = pd.read_csv(os.path.join(folder, "確かめ.csv"))
+    overlap = "合計は国の表の「合計」です。定住難民として受け入れたあと条約難民と認定された人や、一次審査で人道配慮となったあと審査請求で難民と認定された人などは、重複して数えられています。"
+    up = '<p class="kup"><a href="#toc">↑ 上に戻る（目次）</a></p>'
+    body = f"""<h1>難民の認定と保護の数</h1>
+<p class="lead">日本で難民と認定された人、難民に近い立場として保護された人、難民の認定を申請した人などの数です。出入国在留管理庁が毎年、前の年（1月〜12月）の数を発表しています。
+<a href="index.html">在留外国人の数</a>（在留外国人統計）とは別の統計です。</p>
+<p class="meta"><span>対象：<b>日本全体</b></span><span>期間：<b>{first}年〜{last}年</b>（毎年1月〜12月の人数。{ymd_text(newest["公表日"])}公表の発表まで）</span></p>
+{jump([("total", "① その年の数と累計"), ("nat", "② 国籍・地域別"), ("pick", "③ 選んだ国籍・地域"), ("visa", "④ 申請したときの在留資格"), ("trend", "⑤ 移り変わり"),
+       ("proc", "⑥ 審査の進み方"), ("more", "⑦ くわしい数"), ("notes", "⑧ 出典と注意")], nid="toc")}
+<p class="dintro">「対象の年」を変えると、その年の数と、その年までの累計に変わります。選んだ条件はこのページのアドレスに残るので、アドレスを送れば同じ画面を見てもらえます。どの図も「画像を保存」で X投稿用の画像にできます。</p>
+<div id="nanmin"><div id="nanmin-ctl"></div><div id="nanmin-view"><p class="dhelp">読み込み中…</p></div></div>
+<noscript><p class="note">選んで見る部分は JavaScript を使います。下は、{last}年までの発表の数をまとめたものです。</p>
+<section class="card" id="total"><h2>日本では、何人が難民と認定・保護された？</h2>
+<p>{last}年に難民と認定された人（条約難民）：<b class="kbig">{cell("条約難民", last)}人</b>（うち審査請求で認定 {cell("条約難民のうち審査請求で認定", last)}人）</p>
+<p>{last}年の難民認定申請者数：<b>{cell("難民認定申請者数", last)}人</b></p>
+<div class='scroll'><table class='t'><thead><tr><th>{last}年に認定・保護した人</th><th class='n'>人数</th></tr></thead><tbody>
+{"".join(f"<tr><td>{esc(n)}</td><td class='n'>{cell(k, last)}</td></tr>" for k, n, _ in prot)}<tr><td><b>合計</b></td><td class='n'><b>{num(tot)}</b></td></tr></tbody></table></div>
+<p class="note">{overlap}{first}年〜{last}年の合計は{num(cum)}人です（毎年の数を足し合わせた数で、いま日本に住んでいる人の数ではありません）。</p>{up}</section>
+<section class="card" id="nat"><h2>どの国籍・地域の人が申請・認定された？</h2>
+<h3>{last}年に難民認定を申請した人（上位15）</h3>
+{ap_bars}
+<h3>{last}年に難民と認定された人</h3>
+{ok_table}{up}</section>
+<section class="card" id="trend"><h2>増えている？減っている？</h2>
+<h3>難民認定申請者数</h3>
+{chart_ap}
+<h3>難民と認定・保護した人</h3>
+{chart_pr}{up}</section>
+<section class="card" id="more"><h2>毎年の数</h2>
+<p class="note">「—」は、国の表に数のない所です（0人ではありません）。</p>
+{year_table}
+<h3>取り込んだ発表</h3><ul>{pub_list}</ul>{up}</section></noscript>
+<section class="card" id="notes"><h2>出典と、数を見るときの注意</h2>
+<details class="kfold"><summary>出典と注意を開く</summary><ul class="note">
+<li>出典：{src}。毎年の数は「我が国における難民保護の状況等」の表（いちばん新しい発表のもの）、国籍・地域別・申請したときの在留資格・審査の数は、本文と別表の表から読みました。</li>
+<li>どれも暦年（1月〜12月）の人数です（シリア人留学生の受入れだけ年度）。</li>
+<li><b>条約難民</b>：入管法にもとづいて、難民条約の難民（人種・宗教・国籍・特定の社会的集団の構成員であること・政治的意見を理由に、迫害を受けるおそれがある人）に当たると認定された人。
+一次審査で認定されず、審査請求（2016年3月までは異議申立て）で認定された人も入ります（その人数は「うち審査請求で認定」）。</li>
+<li><b>補完的保護対象者</b>：難民条約の5つの理由には当たらないものの、難民と同じように迫害を受けるおそれがあるとして認定された人（紛争から逃れてきた人など）。2023年12月1日に始まった制度です。</li>
+<li><b>その他の保護（人道配慮）</b>：難民や補完的保護対象者とは認定しなかったものの、人道的な配慮を理由に在留を認めた人（1991年から）。本国の情勢などをふまえたものと、日本人と結婚しているなど日本での事情をふまえたものがあります。
+国の表のとおり、難民認定などの手続きの結果が出る前に、本国の情勢をふまえて在留を先に認めたミャンマーの人などが入っています。</li>
+<li><b>定住難民</b>：政府の決定（閣議了解）にもとづいて受け入れた難民。1978〜2005年はインドシナ難民（ベトナム・ラオス・カンボジアから周辺の地域へ逃れた人と、呼び寄せた家族）、2010年からは第三国定住難民（国の表の注では、タイまたはマレーシアから受け入れたミャンマーの難民）です。</li>
+<li>{overlap}そのため、区分の数を足した数と合計は、国の表のとおり同じですが、人の数としては重複があります。</li>
+<li>国籍・地域別の数は{min(nt["年"])}年からです。難民認定申請者数の{min(nt["年"])}〜2020年は、発表が上位25か国・地域と「その他」だけなので、上位25の外の国籍・地域の数は分かりません（0人ではありません）。2021年からは全部の国籍・地域がのっているので、のっていない国籍・地域は0人です。</li>
+<li>申請者数・認定者数・処理数は、それぞれその年にあった数です。その年に申請した人がその年に審査されたとは限らないので、このページでは認定者数÷申請者数を「認定される割合」としては出していません。
+審査の進み方の割合は、その年に審査を終えた人（処理数）の内わけです。</li>
+<li>申請者数には、前にも申請したことのある人（複数回の申請）も入っています。</li>
+<li>取り込むときに、内わけの合計が総数と合うか、表どうし（毎年の数の表・国籍別の表・審査の表）で同じ数か、同じ年の数が発表によって違わないかを確かめています（{len(chk)}件。合わないもの {int((chk["結果"] != "合う").sum())}件）。</li>
+<li>表（1行に1つの数の CSV）は GitHub の「データ/難民/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
+</ul></details>{up}</section>
+{related([("tokutei.html", "在留資格「特定活動」とは", "難民認定の手続き中の人や、本国の情勢による在留も入る在留資格"), ("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"),
+          ("kika.html", "帰化の数", "日本の国籍を取った人の数"), ("about.html", "このサイトについて", "使っているデータと注意")])}"""
+    return page("難民の認定と保護の数", [("日本全体", "index.html"), ("難民の認定と保護の数", None)], body,
+                f"{last}年に日本で難民と認定された人は{cell('条約難民', last)}人、難民認定の申請者は{cell('難民認定申請者数', last)}人（出入国在留管理庁の発表）。国籍・地域別の数と、{first}年からの移り変わり。",
+                css=("dash.css",), js=("share.js", "dash.js", "nanmin.js"), active="nanmin", src=src)
 
 
 # ---------------------------------------------------------------- 在留資格「特定活動」の説明
@@ -2044,9 +2167,10 @@ def tokutei_page(d):
 <li>表（1行に1つの数の CSV）は GitHub の「データ/特定活動/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
 </ul></details>{up}</section>
 {related([("visa-index.html", "在留資格から探す", "ほかの在留資格の人数と割合"), ("sokuho.html", "法務省・半期速報", "確定統計より新しい在留資格別の数"),
+          ("nanmin.html", "難民の認定と保護の数", "難民認定の申請・認定、人道配慮などの数"),
           ("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("在留資格「特定活動」とは", [("日本全体", "index.html"), ("在留資格から探す", "visa-index.html"), ("特定活動とは", None)], body,
-                f"在留資格「特定活動」の対象・できた年（1990年）・在留目的ごとの人数。{lw}は{num(now)}人。", css=("dash.css",), active="japan")
+                f"在留資格「特定活動」の対象・できた年（1990年）・在留目的ごとの人数。{lw}は{num(now)}人。", css=("dash.css",), active="tokutei")
 
 
 REGIONS = [("北海道・東北", PREFS[0:7]), ("関東", PREFS[7:14]), ("中部", PREFS[14:23]), ("近畿", PREFS[23:30]), ("中国", PREFS[30:35]),
@@ -2147,6 +2271,7 @@ def about_page(d):
 <li><a href="sokuho.html">半期速報</a>：出入国在留管理庁の報道発表「〇年〇月末現在における在留外国人数について」（令和2年末から）。確定統計とは別に示しています</li>
 <li><a href="fuho.html">不法残留者数</a>：出入国在留管理庁の報道発表「本邦における不法残留者数について」（2021年1月1日現在の発表から）。在留外国人統計とは別の統計です</li>
 <li><a href="kika.html">帰化の数</a>：法務省民事局「帰化許可申請者数等の推移」（1952年から）。在留外国人統計とは別の統計です</li>
+<li><a href="nanmin.html">難民の認定と保護の数</a>：出入国在留管理庁の報道発表「令和〇年における難民認定者数等について」（2020年の数の発表から。毎年の数は1978年から）。在留外国人統計とは別の統計です</li>
 <li><a href="tokutei.html">在留資格「特定活動」とは</a>：在留外国人統計の「特定活動」の在留目的ごとの数（2012年12月末から）と、入管法・特定活動告示・出入国在留管理庁の資料からまとめた説明</li></ul></section>
 <section class="card note"><h2>数を見るときの注意</h2><ul>
 <li><b>2011年までと2012年からで数え方が違います。</b>2011年までは「外国人登録をした人」（短い期間の滞在の人なども入る）、2012年12月末からは「中長期在留者と特別永住者」です。つなげて増え方を見るときは注意してください。</li>
@@ -2182,7 +2307,7 @@ def main():
             if f.endswith(".html"):
                 os.remove(os.path.join(OUT, f))
     os.makedirs(os.path.join(OUT, "assets"), exist_ok=True)
-    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "fuho.js", "kika.js", "xmaker.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
+    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "fuho.js", "kika.js", "nanmin.js", "xmaker.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
         shutil.copyfile(os.path.join(BASE, "site_assets", f), os.path.join(OUT, "assets", f))
     src, dst = os.path.join(BASE, "site_assets", "map"), os.path.join(OUT, "assets", "map")  # 地図の形
     os.makedirs(dst, exist_ok=True)
@@ -2194,7 +2319,7 @@ def main():
         city_series(d, key)
     pages = {"index.html": top_page(d), "nat-index.html": nat_index_page(d), "area-index.html": area_index_page(d), "visa-index.html": visa_index_page(d),
              "about.html": about_page(d), "dash.html": dash_page(), "sokuho.html": sokuho_page(), "fuho.html": fuho_page(), "kika.html": kika_page(),
-             "tokutei.html": tokutei_page(d)}
+             "tokutei.html": tokutei_page(d), "nanmin.html": nanmin_page()}
     for p in PREFS:
         pages[PREF_FILE[p]] = pref_page(d, p)
     for p in PREFS:  # 市区町村：都道府県の中の順位（政令市は区の合計で1つ）

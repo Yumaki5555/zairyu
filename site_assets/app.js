@@ -36,10 +36,24 @@
   var hdr = document.querySelector('header.top'), mbtn = hdr && hdr.querySelector('.menu-btn');
   function setHdr() { if (hdr) { document.documentElement.style.setProperty('--hdr', hdr.offsetHeight + 'px'); } }
   setHdr(); window.addEventListener('resize', later(setHdr));
+  // メニューの「ほかの統計」：見出しを押すと下に開く（もう一度押す・ほかの所を押す・Esc で閉じる）。スマホのメニューを開いたときは、中も開いておく
+  var subs = hdr ? hdr.querySelectorAll('.msub') : [];
+  function subOpen(s, open) { s.classList.toggle('open', open); s.querySelector('.msub-btn').setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  subs.forEach(function (s) {
+    s.querySelector('.msub-btn').addEventListener('click', function (ev) { ev.stopPropagation(); subOpen(s, !s.classList.contains('open')); });
+  });
+  document.addEventListener('click', function (ev) {
+    subs.forEach(function (s) { if (s.classList.contains('open') && !s.contains(ev.target) && !hdr.classList.contains('open')) { subOpen(s, false); } });
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' || hdr.classList.contains('open')) { return; }
+    subs.forEach(function (s) { if (s.classList.contains('open')) { subOpen(s, false); s.querySelector('.msub-btn').focus(); } });
+  });
   if (mbtn) {
     var menu = function (open) {
       hdr.classList.toggle('open', open); mbtn.setAttribute('aria-expanded', open ? 'true' : 'false');
       mbtn.querySelector('.mt').textContent = open ? '閉じる' : 'メニュー';
+      subs.forEach(function (s) { subOpen(s, open); });
     };
     mbtn.addEventListener('click', function () { menu(!hdr.classList.contains('open')); });
     document.addEventListener('click', function (ev) { if (hdr.classList.contains('open') && !hdr.contains(ev.target)) { menu(false); } });

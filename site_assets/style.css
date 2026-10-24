@@ -55,17 +55,28 @@ header.top .in { position: relative; max-width: 960px; margin: 0 auto; display: 
                  padding: 4px max(16px, env(safe-area-inset-right)) 4px max(16px, env(safe-area-inset-left)); }
 header.top a.home { color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; white-space: nowrap; margin-right: auto; padding: 6px 0; }
 nav.menu { display: flex; flex-wrap: wrap; gap: 2px; }
-nav.menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 6px; border-radius: 8px; color: var(--text); text-decoration: none; /* 8つの項目が1行に入るように（不法残留・帰化を足したとき） */
-             font-size: 15px; font-weight: 600; white-space: nowrap; }
+nav.menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 5px; border-radius: 8px; color: var(--text); text-decoration: none; /* 8つの項目が1行に入るように（ほかの統計・特定活動を足したとき。字は14px） */
+             font-size: 14px; font-weight: 600; white-space: nowrap; }
 nav.menu a:hover { background: var(--btn-soft); }
 nav.menu a[aria-current="page"] { background: var(--btn); color: var(--btn-ink); }
+/* まとめの見出し（ほかの統計）：押すと下に項目が開く。中のページを開いているときは見出しも色で示す */
+.msub { position: relative; display: inline-flex; }
+.msub-btn { display: inline-flex; align-items: center; gap: 3px; min-height: 44px; padding: 4px 5px; border: 0; border-radius: 8px; background: none; color: var(--text);
+            font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.msub-btn::after { content: ""; width: 7px; height: 7px; margin: -4px 1px 0 2px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.msub.open .msub-btn::after { margin-top: 3px; transform: rotate(-135deg); }
+.msub-btn:hover { background: var(--btn-soft); }
+.msub.cur .msub-btn { background: var(--btn); color: var(--btn-ink); }
+.msub-list { display: none; position: absolute; top: 100%; left: 0; z-index: 40; min-width: 10em; flex-direction: column; gap: 2px; padding: 6px;
+             background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,.14); }
+.msub.open .msub-list, html:not(.js) .msub:hover .msub-list, html:not(.js) .msub:focus-within .msub-list { display: flex; }
 .menu-btn { display: none; }
 .menu-ic { display: inline-block; position: relative; width: 18px; height: 2px; background: currentColor; margin: 0 2px; }
 .menu-ic::before, .menu-ic::after { content: ""; position: absolute; left: 0; width: 18px; height: 2px; background: currentColor; }
 .menu-ic::before { top: -6px; } .menu-ic::after { top: 6px; }
 header.top.open .menu-ic { background: transparent; }
 header.top.open .menu-ic::before { top: 0; transform: rotate(45deg); } header.top.open .menu-ic::after { top: 0; transform: rotate(-45deg); }
-@media (max-width: 920px) {
+@media (max-width: 959px) { /* メニューが1行に入らない幅では「メニュー」ボタンで開く */
   header.top .in { min-height: 52px; }
   header.top a.home { font-size: 17px; }
   .js .menu-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px; font: inherit; font-size: 15px; font-weight: 700;
@@ -76,8 +87,13 @@ header.top.open .menu-ic::before { top: 0; transform: rotate(45deg); } header.to
   .js header.top.open nav.menu { display: flex; }
   .js nav.menu a { min-height: 50px; font-size: 17px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 10px; }
   .js nav.menu a[aria-current="page"] { border-color: var(--btn); }
+  /* スマホのメニュー：見出しは小さな字の区切りにして、中の項目を字下げして並べる */
+  .js nav.menu .msub { display: block; }
+  .js nav.menu .msub-btn { width: 100%; min-height: 40px; padding: 4px 14px; font-size: 15px; color: var(--sub); background: none; }
+  .js nav.menu .msub.cur .msub-btn { color: var(--sub); background: none; }
+  .js nav.menu .msub-list { position: static; min-width: 0; gap: 6px; padding: 0 0 0 18px; border: 0; box-shadow: none; background: none; }
 }
-@media (max-width: 920px) { html:not(.js) nav.menu { margin: 0 -10px; } html:not(.js) header.top .in { flex-wrap: wrap; } }
+@media (max-width: 959px) { html:not(.js) nav.menu { margin: 0 -10px; } html:not(.js) header.top .in { flex-wrap: wrap; } }
 
 /* いまいる所（パンくず） */
 nav.crumb { padding-top: 10px; padding-bottom: 0; }

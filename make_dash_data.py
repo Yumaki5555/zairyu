@@ -21,6 +21,7 @@
 #                          速報と確定統計は別々に持ち、混ぜない。速報は発表ごとの「その時点の数」と、発表にのった前の時点の数
 #     fuho.json            不法残留者数（データ/不法残留/、make_fuho.py が作る）。在留外国人統計とは別の統計
 #     kika.json            帰化の数（データ/帰化/、make_kika.py が作る）。在留外国人統計とは別の統計
+#     nanmin.json          難民認定などの数（データ/難民/、make_nanmin.py が作る）。在留外国人統計とは別の統計
 #   人口：総務省「住民基本台帳に基づく人口」（日本人住民と外国人住民の合計、翌年1月1日現在）を12月末の時点に合わせる
 import json
 import os
@@ -215,6 +216,56 @@ def kika():
             "topSaved": f"{saved[0]}〜{saved[-1]}" if len(saved) > 1 else "".join(str(y) for y in saved),
             "acq": {"Y": [int(y) for y in a.index], **{c: [int(v) for v in a[c]] for c in a.columns}},
             "page": "https://www.moj.go.jp/MINJI/toukei_t_minj03.html", "pdfTrend": url("帰化許可申請者数、帰化許可者数"), "pdfNat": url("国籍別帰化許可者数")}
+
+
+def nanmin():
+    """難民のページ（nanmin.html・nanmin.js）の数。Y：毎年の数のある年（1978年〜）。s：項目 → 年ごとの数（発表の表に数のない年は null。0人とは分ける）。
+    syr：（参考）シリア人留学生の受入れ（年度）。nat：項目（難民認定申請者数など）→ 年 → [[国籍・地域, 人数, うち審査請求 or null]]（表の順。「総数」は tot、
+    上位25に入らなかった国籍・地域の合計「その他」は other）。visa：年 → [[在留資格, 人数, 正規滞在の内わけか]]（申請したときの在留資格、2016年〜）。
+    proc：処理の状況（PY：2010年〜。one：一次審査、rev：審査請求、revSub：審査請求のうち補完的保護の申請に係る数）。hum：人道配慮数と、うち本国情勢等（2018年〜）"""
+    folder = os.path.join(DATA, "難民")
+    t = pd.read_csv(os.path.join(folder, "毎年の数.csv"))
+    nt = pd.read_csv(os.path.join(folder, "国籍別.csv"))
+    vs = pd.read_csv(os.path.join(folder, "申請時の在留資格.csv"))
+    pr = pd.read_csv(os.path.join(folder, "処理の状況.csv"))
+    src = pd.read_csv(os.path.join(BASE, "元データ", "難民_出どころ一覧.csv"))
+    syr_key = "（参考）シリア人留学生の受入れ"
+    yt = t[t["項目"] != syr_key]
+    Y = list(range(int(yt["年"].min()), int(yt["年"].max()) + 1))
+    s = {}
+    for y, item, v in zip(yt["年"], yt["項目"], yt["人数"]):
+        s.setdefault(item, [None] * len(Y))[Y.index(int(y))] = int(v)
+    label = dict(zip(yt["年"].astype(int), yt["年の書き方"]))
+    syr = {str(y): int(v) for y, v in zip(t.loc[t["項目"] == syr_key, "年"], t.loc[t["項目"] == syr_key, "人数"])}
+    nat = {}
+    for (item, y), g in nt.groupby(["項目", "年"], sort=False):
+        k = g["うち審査請求"]
+        rows = [[n, int(v), None if pd.isna(x) else int(x)] for n, v, x in zip(g["国籍・地域"], g["人数"], k) if n not in ("総数", "その他")]
+        tot = g[g["国籍・地域"] == "総数"].iloc[0]
+        other = g.loc[g["国籍・地域"] == "その他", "人数"]
+        nat.setdefault(item, {})[str(y)] = {"rows": rows, "tot": int(tot["人数"]), "totK": None if pd.isna(tot["うち審査請求"]) else int(tot["うち審査請求"]),
+                                             "other": int(other.iat[0]) if len(other) else None}
+    visa = {}
+    for y, g in vs.groupby("年"):
+        visa[str(y)] = [[n, int(v), isinstance(sb, str) and sb != ""] for n, v, sb in zip(g["在留資格"], g["人数"], g["種別"])]
+    PY = sorted(int(y) for y in pr.loc[pr["手続き"] != "人道配慮", "年"].unique())
+    proc = {"PY": PY}
+    for kind, key in (("難民認定申請（一次審査）", "one"), ("審査請求", "rev")):
+        q = pr[pr["手続き"] == kind]
+        proc[key] = {n: arr(dict(zip(g["年"], g["人数"])), PY) for n, g in q.groupby("項目", sort=False)}
+        if key == "rev":
+            sub = q[q["うち補完的保護の申請"].notna()]
+            proc["revSub"] = {n: arr(dict(zip(g["年"], g["うち補完的保護の申請"])), PY) for n, g in sub.groupby("項目", sort=False)}
+    h = pr[pr["手続き"] == "人道配慮"]
+    HY = sorted(int(y) for y in h["年"].unique())
+    hum = {"Y": HY, **{n: arr(dict(zip(g["年"], g["人数"])), HY) for n, g in h.groupby("項目", sort=False)}}
+    rel = []
+    for y, g in src.groupby("年"):
+        rel.append({"y": int(y), "pub": g["公表日"].iat[0], "page": g["発表のページ"].iat[0], "title": g["表題"].iat[0],
+                    "files": [[a, b] for a, b in zip(g["資料の名前"], g["資料のURL"])]})
+    chk = pd.read_csv(os.path.join(folder, "確かめ.csv"))
+    return {"Y": Y, "label": {str(y): label[y] for y in Y if y in label}, "s": s, "syr": syr, "nat": nat, "visa": visa, "proc": proc, "hum": hum,
+            "releases": rel, "checks": len(chk), "bad": int((chk["結果"] != "合う").sum())}
 
 
 # 特定活動の在留目的（ダッシュボードの「在留資格の内訳」で特定活動を選んだときの図）。まとめ方と名前は説明のページ（make_site.py の TK_GROUPS）と同じ。
@@ -481,6 +532,7 @@ def main():
     size["sokuho.json"] = dump("sokuho.json", sk)
     size["fuho.json"] = dump("fuho.json", fuho())
     size["kika.json"] = dump("kika.json", kika())
+    size["nanmin.json"] = dump("nanmin.json", nanmin())
     size["tokutei.json"] = dump("tokutei.json", tokutei())
     if ms.NO_REGION:
         print("地域区分の表にない国籍・地域：" + "、".join(sorted(ms.NO_REGION)))
