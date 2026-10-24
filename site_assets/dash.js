@@ -797,7 +797,7 @@
         (total ? '<span class="p">' + ((x[1] || 0) / total * 100).toFixed(1) + '%</span>' : '');
       if (opt.fit && x[2]) { li.title = x[2]; }
       if (opt.rank) { li.classList.add('ranked'); }
-      if (opt.mark && x[0] === opt.mark) { li.classList.add('me'); } // 上で選んだ地域
+      if (opt.mark && [].concat(opt.mark).indexOf(x[0]) >= 0) { li.classList.add('me'); } // 上で選んだ地域（在留資格の内訳では、上で選んだ在留資格）
       if (total) { li.classList.add('withp'); }
       if (x[4]) { li.querySelector('.dlink').addEventListener('click', x[4]); }
       ul.appendChild(li);
@@ -1069,7 +1069,7 @@
         var who = dim === 'visa' ? (S.nat.length ? S.nat.join('・') + 'の人' : '在留外国人') : (S.visa.length ? '在留資格「' + S.visa.join('・') + '」の人' : '在留外国人');
         var title = a.name + 'の' + who + 'の' + (dim === 'visa' ? '在留資格' : '国籍・地域') + '（' + wl(when) + '）';
         var c = card(title, null, srcNote(when));
-        if (dim === 'visa' && S.visa.length) { c.appendChild(el('p', 'dhelp', 'この画面では「在留資格」の絞り込みは使いません（すべての在留資格を並べます）。')); }
+        if (dim === 'visa' && S.visa.length) { c.appendChild(el('p', 'dhelp', '円グラフと一覧では「在留資格」の絞り込みは使いません（すべての在留資格を並べます）。選んだ在留資格は、一覧で色をつけて、下の折れ線に出ます。')); }
         if (dim === 'nat' && S.nat.length) { c.appendChild(el('p', 'dhelp', '円グラフと一覧では「国籍・地域」の絞り込みは使いません（すべての国籍・地域を並べます）。選んだ国籍・地域は、下の折れ線に出ます。')); }
         if (!b.items.length) { c.appendChild(nodata(b.why)); box.replaceChildren(c); setTable(title, [], []); return; }
         var total = b.total != null ? b.total : b.items.reduce(function (s, x) { return s + x[1]; }, 0);
@@ -1081,7 +1081,7 @@
         var pc = el('section', 'dsub'); pc.appendChild(el('h3', null, '円グラフ（多い7つと「その他」）')); pc.appendChild(pieChart(parts, total, title));
         var bc = el('section', 'dsub'); bc.appendChild(el('h3', null, dim === 'visa' ? '在留資格ごとの人数' : '国籍・地域ごとの人数（多い20）'));
         var bars = (dim === 'visa' ? b.items : b.items.slice(0, 20)).map(function (x) { return [x[0], x[1], '', dim === 'nat' && x[0] !== 'その他' ? 'nat-' + encodeURIComponent(x[0]) + '.html' : null]; });
-        bc.appendChild(barList(bars, total, { rank: true, f: fmt })); // 単位（人）は見出しにあるので、数だけにする
+        bc.appendChild(barList(bars, total, { rank: true, f: fmt, mark: dim === 'visa' ? [].concat.apply([], S.visa.map(rawVisas)) : null })); // 単位（人）は見出しにあるので、数だけにする。上で選んだ在留資格に色
         grid.appendChild(pc); grid.appendChild(bc); c.appendChild(grid);
         var nx = el('button', 'dlink', '国籍・地域と在留資格の組み合わせ（例：ベトナム（技能実習））で並べたランキングを見る'); nx.type = 'button';
         nx.addEventListener('click', function () { setS({ v: 'rank', rt: 'nx' }); });
@@ -1094,25 +1094,25 @@
         current.chart = { kind: 'pie', parts: parts, total: total, area: a.name, when: when, dim: dim, items: b.items.slice(0, 10) };
         c.appendChild(toolBar());
         var out = el('div'); out.appendChild(c);
-        if (dim === 'nat') {
-          return Promise.all([natLines(a, b.items, alive), stackChart(a, alive)]).then(function (r) {
-            if (!alive()) { return; }
-            r.forEach(function (x) { if (x) { out.appendChild(x); } });
-            box.replaceChildren(out);
-          });
-        }
-        box.replaceChildren(out);
+        return Promise.all(dim === 'nat' ? [breakLines(a, dim, b.items, alive), stackChart(a, alive)] : [breakLines(a, dim, b.items, alive)]).then(function (r) {
+          if (!alive()) { return; }
+          r.forEach(function (x) { if (x) { out.appendChild(x); } });
+          box.replaceChildren(out);
+        });
       });
     };
   }
-  // 国籍の構成：選んだ国籍・地域の1年ごと（12月末）の人数、または1年間の増減の折れ線。
-  // 選ぶのは上の「国籍・地域」と同じ（S.nat）。ここでは、その時点に多い20の国名のボタンで選べる（7つまで）。選んでいないときは多い3つ
+  // 国籍の構成・在留資格の内訳：選んだ国籍・地域（在留資格）の1年ごと（12月末）の人数、または1年間の増減の折れ線。
+  // 選ぶのは上の「国籍・地域」「在留資格」と同じ（S.nat・S.visa）。ここでは、その時点に多い20の名前のボタンで選べる（7つまで）。選んでいないときは多い3つ
   var NATLINE_DEF = 3;
-  function natLines(a, items, alive) {
+  function breakLines(a, dim, items, alive) {
+    var isNat = dim === 'nat', sel = S[dim], word = isNat ? '国籍・地域' : '在留資格', btnWord = isNat ? '国名' : '在留資格の名前';
     var top = items.map(function (x) { return x[0]; }).filter(function (n) { return n !== 'その他'; }).slice(0, 20);
-    var names = S.nat.length ? S.nat.slice(0, SLOTS) : top.slice(0, NATLINE_DEF), diff = S.lm === 'diff';
+    var names = sel.length ? sel.slice(0, SLOTS) : top.slice(0, NATLINE_DEF), diff = S.lm === 'diff';
     if (!names.length) { return Promise.resolve(null); }
-    return Promise.all(names.map(function (n) { return getSeries(a, [n], S.visa).then(function (s) { return explain(a, [n], S.visa, s); }); })).then(function (ss) {
+    function pick(n) { return isNat ? [[n], S.visa] : [S.nat, [n]]; } // その線の [国籍, 在留資格]（もう一方は上の絞り込み）
+    function setSel(v) { var p = {}; p[dim] = v; setS(p); }
+    return Promise.all(names.map(function (n) { var q = pick(n); return getSeries(a, q[0], q[1]).then(function (s) { return explain(a, q[0], q[1], s); }); })).then(function (ss) {
       if (!alive()) { return null; }
       var per = periodsOf(a), ys = [];
       per.forEach(function (w, i) { if (/-12$/.test(w)) { ys.push(i); } }); // 1年に1つ（12月末）
@@ -1135,32 +1135,36 @@
       if (first < 0) { first = 0; }
       series.forEach(function (s) { s.vals = s.vals.slice(first); var h = {}, wy = {}; Object.keys(s.hid).forEach(function (j) { if (j >= first) { h[j - first] = 1; } }); Object.keys(s.why).forEach(function (j) { if (j >= first) { wy[j - first] = s.why[j]; } }); s.hid = h; s.why = wy; });
       var sub = ys.slice(first).map(function (i) { return per[i]; });
-      var who = S.visa.length ? '在留資格「' + S.visa.join('・') + '」の人' : '在留外国人';
-      var title = a.name + 'の' + who + (diff ? 'の1年間の増減' : 'の数の移り変わり') + '（国籍・地域ごと、' + wl(sub[0]) + '〜' + wl(sub[sub.length - 1]) + '）';
+      var who = isNat ? (S.visa.length ? '在留資格「' + S.visa.join('・') + '」の人' : '在留外国人') : (S.nat.length ? S.nat.join('・') + 'の人' : '在留外国人');
+      var title = a.name + 'の' + who + (diff ? 'の1年間の増減' : 'の数の移り変わり') + '（' + (names.length > 1 ? word + 'ごと' : isNat ? names[0] : '在留資格「' + names[0] + '」') + '、' + wl(sub[0]) + '〜' + wl(sub[sub.length - 1]) + '）';
       var f = diff ? function (v) { return v === 0 ? '0人' : signed(v) + '人'; } : null;
       var c = card(title, null, srcNote(sub[sub.length - 1]));
       var ctl = el('div', 'dctlrow');
       ctl.appendChild(pickBtns([['count', '人数'], ['diff', '1年間の増減']], diff ? 'diff' : 'count', function (v) { setS({ lm: v }); }, '線で見せる数'));
       var pw = el('div', 'dctl dctl-pick'), g = el('div', 'dpick');
-      g.setAttribute('role', 'group'); g.setAttribute('aria-label', '線を出す国籍・地域');
-      top.concat(S.nat.filter(function (n) { return top.indexOf(n) < 0; })).forEach(function (n) {
-        var on = S.nat.indexOf(n) >= 0, bt = el('button', null, esc(n)); bt.type = 'button';
+      g.setAttribute('role', 'group'); g.setAttribute('aria-label', '線を出す' + word);
+      top.concat(sel.filter(function (n) { return top.indexOf(n) < 0; })).forEach(function (n) {
+        var on = sel.indexOf(n) >= 0, bt = el('button', null, esc(K.vs(n))); bt.type = 'button';
         bt.setAttribute('aria-pressed', on ? 'true' : 'false');
-        if (!on && S.nat.length >= SLOTS) { bt.disabled = true; bt.title = '選べるのは7つまでです'; }
-        bt.addEventListener('click', function () { setS({ nat: on ? S.nat.filter(function (x) { return x !== n; }) : S.nat.concat([n]) }); });
+        if (!on && sel.length >= SLOTS) { bt.disabled = true; bt.title = '選べるのは7つまでです'; }
+        bt.addEventListener('click', function () { setSel(on ? sel.filter(function (x) { return x !== n; }) : sel.concat([n])); });
         g.appendChild(bt);
       });
-      pw.appendChild(el('span', 'dlab', '線を出す国籍・地域（' + wl(whenOf(a)) + 'に多い20。7つまで）')); pw.appendChild(g);
+      pw.appendChild(el('span', 'dlab', '線を出す' + word + '（' + wl(whenOf(a)) + 'に多い20。7つまで）')); pw.appendChild(g);
       ctl.appendChild(pw);
       c.appendChild(ctl);
-      var help = el('p', 'dhelp', S.nat.length ? '国名を押すと、線を加えたり消したりできます。上の「国籍・地域」で選ぶと、20に入らない国籍・地域も出せます。' :
-        'いまは多い' + NATLINE_DEF + 'つを出しています。国名を押すと、選んだ国籍・地域だけの線になります（もう一度押すと外れます）。');
-      if (S.nat.length) {
+      var help = el('p', 'dhelp', sel.length ? btnWord + 'を押すと、線を加えたり消したりできます。上の「' + word + '」で選ぶと、20に入らない' + word + 'も出せます。' :
+        'いまは多い' + NATLINE_DEF + 'つを出しています。' + btnWord + 'を押すと、選んだ' + word + 'だけの線になります（もう一度押すと外れます）。');
+      if (sel.length) {
         var clr = el('button', 'dlink', '選ぶのをやめる（多い' + NATLINE_DEF + 'つに戻す）'); clr.type = 'button';
-        clr.addEventListener('click', function () { setS({ nat: [] }); });
+        clr.addEventListener('click', function () { setSel([]); });
         help.appendChild(document.createTextNode(' ')); help.appendChild(clr);
       }
       c.appendChild(help);
+      if (!isNat && names.indexOf('特定活動') >= 0) { // 説明のページ（tokutei.html）と同じ注意
+        c.appendChild(el('p', 'dhelp', '1993年〜2010年の「特定活動」には、技能実習生が入っています（研修のあとの技能実習は「特定活動（技能実習）」でした。2010年7月に在留資格「技能実習」ができて移りました）。'));
+        c.appendChild(el('p', 'dnav', '<a href="tokutei.html">「特定活動」はどんな在留資格か（中の内わけ・説明のページ）</a>'));
+      }
       var anyData = series.some(function (s) { return s.vals.some(function (v) { return v != null; }); });
       c.appendChild(anyData ? lineChart(sub, series, { title: title, f: f, zero: diff }) : nodata());
       c.appendChild(el('p', 'dhelp', '1年に1つ、12月末の数をつないでいます。' + (diff ? '1年間の増減は、前の年の12月末からの増え方（減ったときはマイナス）です。' : '') +
@@ -1171,7 +1175,7 @@
       var rows = sub.map(function (w, j) { return [wl(w)].concat(series.map(function (s) { var v = s.vals[j]; return v == null ? (s.hid[j] ? '公表されていない' : '') : v; })); });
       c.appendChild(details('グラフの数を表で見る', tableEl(head, rows.map(function (r) { return r.map(function (x, i) { return i && typeof x === 'number' ? (f ? f(x).replace(/人$/, '') : fmt(x)) : x; }); }), 1)));
       c.appendChild(toolBar({ title: title, head: head, rows: rows,
-        chart: { kind: 'line', per: sub, series: series, index: false, diff: diff, f: f, keys: diff ? [] : null, area: a.name, when: sub[sub.length - 1], from: sub[0], dim: 'nat' } }));
+        chart: { kind: 'line', per: sub, series: series, index: false, diff: diff, f: f, keys: diff ? [] : null, area: a.name, when: sub[sub.length - 1], from: sub[0], dim: dim } }));
       return c;
     });
   }
@@ -1182,7 +1186,7 @@
         var tot = ss[0], per = tot.per;
         var keep = per.map(function (w, i) { return tot.val[i] != null && ss.slice(1).every(function (s) { return s.val[i] != null; }); });
         var idx = per.map(function (w, i) { return i; }).filter(function (i) { return keep[i]; });
-        var title = a.name + 'の' + whoText() + 'の国籍・地域の構成の移り変わり';
+        var title = a.name + 'の' + (S.visa.length ? '在留資格「' + S.visa.join('・') + '」の人' : '在留外国人') + 'の国籍・地域の構成の移り変わり'; // 選んだ国籍・地域では絞らない
         var c = card(title, null, esc(SRC + '（' + (idx.length ? wl(per[idx[0]]) + '〜' + wl(per[idx[idx.length - 1]]) : '') + '）'));
         if (idx.length < 2) { c.appendChild(nodata('移り変わりを示せるだけのデータがありません（市区町村は、国籍別の数がそろうのが2023年12月末からです）')); return c; }
         var layers = top.map(function (n, k) { return { name: n, cls: String(k + 1), vals: idx.map(function (i) { return ss[k + 1].val[i]; }) }; });
