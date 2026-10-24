@@ -217,6 +217,54 @@ def kika():
             "page": "https://www.moj.go.jp/MINJI/toukei_t_minj03.html", "pdfTrend": url("帰化許可申請者数、帰化許可者数"), "pdfNat": url("国籍別帰化許可者数")}
 
 
+# 特定活動の在留目的（ダッシュボードの「在留資格の内訳」で特定活動を選んだときの図）。まとめ方と名前は説明のページ（make_site.py の TK_GROUPS）と同じ。
+# 前の時点の国の表の名前（本人と家族に分けていた頃など）は、今の名前に読みかえる（TK_OLD）。今は0人で TK_GROUPS にないまとまりは TK_MORE
+TK_OLD = {"ＥＰＡ対象者家族": "ＥＰＡ対象者配偶者・子", "アマスポーツ選手本人": "アマチュアスポーツ選手本人", "アマスポーツ選手家族": "アマチュアスポーツ選手配偶者・子",
+          "医療滞在・同伴者": "医療滞在本人", "特定研究等及び情報処理家族": "特定研究等及び情報処理配偶者・子",
+          "本邦大卒者": "本邦大学等卒業者本人", "本邦大卒者の家族": "本邦大学等卒業者配偶者・子"}
+TK_MORE = {"高度人材本人": "高度人材（2015年より前の制度）と家族など", "高度人材家族": "高度人材（2015年より前の制度）と家族など",
+           "高度人材家事使用人": "高度人材（2015年より前の制度）と家族など", "人身取引等": "人身取引等"}
+TK_OUT = {"総数", "デジタルノマド本人", "デジタルノマド配偶者・子"}  # 総数と、在留外国人の数に入らないもの（外数）
+# 棒の中に書く短い名前（入る幅のときだけ書く。8字まで）
+TK_SHORT = {"本国の情勢による在留（本国情勢等）": "本国情勢等", "特定技能1号への移行準備": "特定技能1号準備", "難民認定などの手続中": "難民認定手続中",
+            "高度専門職の外国人の親": "高度専門職の親", "EPAの看護師・介護福祉士など": "EPA看護・介護", "日本の大学などを出た留学生の就職活動": "卒業後の就職活動",
+            "日本の大学などを出た人の就職（本邦大学等卒業者）": "本邦大学等卒業者", "未来創造人材（J-Find）": "J-Find"}
+
+
+def tokutei():
+    """特定活動の在留目的ごとの数（全国。データ/特定活動/、make_tokutei.py が作る）。P：時点（1990年12月末〜）、t：特定活動の人数、
+    g：まとまり → 人数（その時点の表にどの名前もなければ null。0人とは分ける）。XP：国籍別のある時点（2022年12月末〜）、x：国籍・地域 → まとまり → 人数
+    （のっていない組み合わせは書かない＝0人）。s：棒の中に書く短い名前"""
+    folder = os.path.join(DATA, "特定活動")
+    tp = pd.read_csv(os.path.join(folder, "在留目的別.csv"))
+    tn = pd.read_csv(os.path.join(folder, "国籍_在留目的.csv"))
+    group = {raw: name for name, raws, _, _ in ms.TK_GROUPS for raw in raws}
+    group.update({old: group[new] for old, new in TK_OLD.items()})
+    group.update(TK_MORE)
+    unknown = sorted(set(tp["在留目的"]) - set(group) - TK_OUT)
+    if unknown:
+        sys.exit("特定活動の在留目的に、まとめ方の決まっていない名前があります（make_dash_data.py の TK_OLD・TK_MORE か make_site.py の TK_GROUPS に足す）：" + "、".join(unknown))
+    P = sorted(tp["時点"].unique())
+    t = dict(zip(tp.loc[tp["在留目的"] == "総数", "時点"], tp.loc[tp["在留目的"] == "総数", "人数"]))
+    g = defaultdict(dict)
+    for w, p, v in zip(tp["時点"], tp["在留目的"], tp["人数"]):
+        if p not in TK_OUT:
+            g[group[p]][w] = g[group[p]].get(w, 0) + int(v)
+    for w in P:
+        if sum(s.get(w, 0) for s in g.values()) != t[w]:
+            sys.exit(f"特定活動の在留目的の合計が総数と合いません（{w}）")
+    XP = sorted(tn["時点"].unique())
+    x = defaultdict(lambda: defaultdict(lambda: [0] * len(XP)))
+    for w, n, p, v in zip(tn["時点"], tn["国籍・地域"], tn["在留目的"], tn["人数"]):
+        if p not in TK_OUT and v:
+            x[n][group[p]][XP.index(w)] += int(v)
+    for i, w in enumerate(XP):
+        if sum(a[i] for m in x.values() for a in m.values()) != t[w]:
+            sys.exit(f"特定活動の国籍・地域ごとの在留目的の合計が総数と合いません（{w}）")
+    return {"P": P, "t": [int(t[w]) for w in P], "g": {k: arr(s, P) for k, s in g.items()}, "XP": XP,
+            "x": {n: dict(m) for n, m in x.items()}, "s": TK_SHORT}
+
+
 def main():
     d = ms.load()
     d.areas = {p: ms.area_list(d, p) for p in ms.PREFS}
@@ -433,6 +481,7 @@ def main():
     size["sokuho.json"] = dump("sokuho.json", sk)
     size["fuho.json"] = dump("fuho.json", fuho())
     size["kika.json"] = dump("kika.json", kika())
+    size["tokutei.json"] = dump("tokutei.json", tokutei())
     if ms.NO_REGION:
         print("地域区分の表にない国籍・地域：" + "、".join(sorted(ms.NO_REGION)))
     total = sum(size.values())

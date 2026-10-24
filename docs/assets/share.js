@@ -740,8 +740,8 @@
     '特定技能': ['#b8234a', '#fff'], '特別永住者': ['#6c3596', '#fff'], '家族滞在': ['#5cc2dc', '#1d2330'], '定住者': ['#8f741c', '#fff'],
     '日本人の配偶者等': ['#ee9cc0', '#1d2330'], '特定活動': ['#6b7480', '#fff'] }; // 地の色と字の色（style.css の .vc-〇〇 と同じ）
   var CROSS_NOTE = '棒の全体（100%）が、その国籍・地域の人数です。';
-  function crossFill(ctx, s, x, y, w, h, u) { // 区分をぬって、字の色を返す。決まった色のない在留資格は、ページと同じしま模様
-    var c = VC[s.full || s.name];
+  function crossFill(ctx, s, x, y, w, h, u) { // 区分をぬって、字の色を返す。決まった色のない在留資格は、ページと同じしま模様。s.col：ページが決めた色（特定活動の在留目的）
+    var c = s.col || VC[s.full || s.name];
     if (c) { ctx.fillStyle = c[0]; ctx.fillRect(x, y, w, h); return c[1]; }
     ctx.fillStyle = '#e3e6eb'; ctx.fillRect(x, y, w, h);
     ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
@@ -763,8 +763,10 @@
     if (!bars.length) { noData(ctx, x, y, w, h, u); return; }
     var order = Object.keys(VC), leg = [], seen = {};
     bars.forEach(function (b) { b.segs.forEach(function (s) { var k = s.full || s.name; if (!seen[k]) { seen[k] = 1; leg.push({ t: s.name, k: k, s: s }); } }); });
-    var fixed = leg.filter(function (it) { return VC[it.k]; }).sort(function (p, q) { return order.indexOf(p.k) - order.indexOf(q.k); }), other = leg.filter(function (it) { return !VC[it.k]; });
-    leg = fixed.concat(other.length ? [{ t: other.map(function (it) { return it.t; }).join('・'), s: other[0].s }] : []).concat([{ t: '上位3つ以外', rest: true }]);
+    var rank = function (it) { return it.s.col ? it.s.ci : order.indexOf(it.k); }; // ページが色を決めた区分（s.col）は、ページの凡例の順（s.ci）
+    var fixed = leg.filter(function (it) { return VC[it.k] || it.s.col; }).sort(function (p, q) { return rank(p) - rank(q); }), other = leg.filter(function (it) { return !VC[it.k] && !it.s.col; });
+    // 色のない区分：在留資格は名前を並べる。特定活動の在留目的（ch.segWord）は数が多く名前も長いので「そのほかの在留目的」とだけ書く
+    leg = fixed.concat(other.length ? [{ t: ch.segWord ? 'そのほかの' + ch.segWord : other.map(function (it) { return it.t; }).join('・'), s: other[0].s }] : []).concat([{ t: '上位3つ以外', rest: true }]);
     // 凡例（上に。2行までに入る大きさ）
     var lf, sw, lines;
     for (lf = px('small', u); ; lf -= 0.05 * u) {
@@ -808,7 +810,7 @@
       var sx = bx, used = 0;
       b.segs.forEach(function (s) {
         var p = s.v / b.total * 100, sw2 = s.v / b.total * bw, ink = crossFill(ctx, s, sx, by, sw2, bh, u);
-        segLabel(ctx, [s.name + ' ' + Math.round(p) + '%', Math.round(p) + '%'], sx, cy, sw2, lab, ink);
+        segLabel(ctx, [(s.lab || s.name) + ' ' + Math.round(p) + '%', Math.round(p) + '%'], sx, cy, sw2, lab, ink); // s.lab：棒の中に書く短い名前
         sx += sw2; used += s.v;
         ctx.fillStyle = C.bg; ctx.fillRect(sx - gap, by, 2 * gap, bh); // 区分のあいだに細いすき間
       });
@@ -914,7 +916,7 @@
       k = sortName(ch) + '：' + ch.rows.slice(0, 3).map(function (r, i) { return (i + 1) + '. ' + r[0] + ' ' + (r[1] == null ? '比較不可' : diffT(r[1]) + '（' + rateT(r[4]) + '）'); }).join('、');
     }
     if (ch.kind === 'cross') { // 国籍・地域ごとの主な在留資格：上の3つの、いちばん多い在留資格とその割合
-      k = 'いちばん多い在留資格：' + ch.bars.slice(0, 3).map(function (b) { var s = b.segs[0]; return b.name + ' ' + (s ? vs(s.name) + Math.round(s.v / b.total * 100) + '%' : '—'); }).join('、');
+      k = 'いちばん多い' + (ch.segWord || '在留資格') + '：' + ch.bars.slice(0, 3).map(function (b) { var s = b.segs[0]; return b.name + ' ' + (s ? vs(s.name) + Math.round(s.v / b.total * 100) + '%' : '—'); }).join('、');
     }
     return title + '\n' + (k ? k + '\n' : '') + '統計時点：' + period(ch) + (meta(cur).status ? '（' + meta(cur).status + '）' : '') + '\n出典：' + srcOf(meta(cur).src, firstWhen(ch)) + '\n' + (cur.tag || '#在留外国人'); // 在留外国人統計ではない図は、ページが渡すハッシュタグ（#不法残留 など）
   }

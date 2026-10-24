@@ -95,6 +95,8 @@ ul.dbars li.me { background: var(--btn-soft); box-shadow: inset 4px 0 0 var(--bt
 svg.pie .dring { cursor: pointer; }
 ul.dbars .rk { color: var(--sub); text-align: right; font-variant-numeric: tabular-nums; }
 ul.dbars .nm { overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 601px) { ul.dbars.tkbars li.ranked.withp { grid-template-columns: 2.2em minmax(10em, 44%) 1fr auto 52px; } } /* 特定活動の在留目的：名前が長いので広く */
+ul.dbars.tkbars .nm .sub { display: block; font-size: 13px; line-height: 1.4; } /* 多い国籍・地域は名前の下の行に */
 .hbars .fill.neg { background: var(--d3); }
 .dlink { font: inherit; background: none; border: 0; padding: 4px 0; color: var(--accent); text-decoration: underline; cursor: pointer; text-align: left; min-height: 40px; }
 

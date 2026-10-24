@@ -777,7 +777,7 @@
     wrap.appendChild(g); wrap.appendChild(ul);
     return wrap;
   }
-  function barList(items, total, opt) { // items：[名前, 値, 補足, リンク, クリック, 値がないときの言葉]
+  function barList(items, total, opt) { // items：[名前, 値, 補足, リンク, クリック, 値がないときの言葉]。opt.from：順位の前に並べた数（たたんだ続きの一覧）
     opt = opt || {};
     var f = opt.f || function (v) { return fmt(v) + '人'; };
     var ul = el('ul', 'hbars dbars'), max = Math.max.apply(null, items.map(function (x) { return Math.abs(x[1] || 0); }).concat([1]));
@@ -792,7 +792,7 @@
       var li = el('li'), w = Math.abs(x[1] || 0) / max * 100;
       var nm = esc(K.vs(x[0]));
       var name = x[4] ? '<button type="button" class="dlink">' + nm + '</button>' : x[3] ? '<a href="' + esc(x[3]) + '">' + nm + '</a>' : nm;
-      li.innerHTML = (opt.rank ? '<span class="rk">' + (i + 1) + '</span>' : '') + '<span class="nm">' + name + (x[2] && !opt.fit ? ' <span class="sub">' + esc(x[2]) + '</span>' : '') + '</span>' +
+      li.innerHTML = (opt.rank ? '<span class="rk">' + (i + 1 + (opt.from || 0)) + '</span>' : '') + '<span class="nm">' + name + (x[2] && !opt.fit ? ' <span class="sub">' + esc(x[2]) + '</span>' : '') + '</span>' +
         '<span class="track"><span class="fill' + ((x[1] || 0) < 0 ? ' neg' : '') + '" style="width:' + w.toFixed(1) + '%"></span></span><span class="v">' + esc(vt(x)) + '</span>' +
         (total ? '<span class="p">' + ((x[1] || 0) / total * 100).toFixed(1) + '%</span>' : '');
       if (opt.fit && x[2]) { li.title = x[2]; }
@@ -1094,7 +1094,8 @@
         current.chart = { kind: 'pie', parts: parts, total: total, area: a.name, when: when, dim: dim, items: b.items.slice(0, 10) };
         c.appendChild(toolBar());
         var out = el('div'); out.appendChild(c);
-        return Promise.all(dim === 'nat' ? [breakLines(a, dim, b.items, alive), stackChart(a, alive)] : [breakLines(a, dim, b.items, alive)]).then(function (r) {
+        var more = dim === 'nat' ? [breakLines(a, dim, b.items, alive), stackChart(a, alive)] : [S.visa.indexOf(TK) >= 0 ? tokuteiCard(a, alive) : null, breakLines(a, dim, b.items, alive)];
+        return Promise.all(more).then(function (r) {
           if (!alive()) { return; }
           r.forEach(function (x) { if (x) { out.appendChild(x); } });
           box.replaceChildren(out);
@@ -1176,6 +1177,112 @@
       c.appendChild(details('グラフの数を表で見る', tableEl(head, rows.map(function (r) { return r.map(function (x, i) { return i && typeof x === 'number' ? (f ? f(x).replace(/人$/, '') : fmt(x)) : x; }); }), 1)));
       c.appendChild(toolBar({ title: title, head: head, rows: rows,
         chart: { kind: 'line', per: sub, series: series, index: false, diff: diff, f: f, keys: diff ? [] : null, area: a.name, when: sub[sub.length - 1], from: sub[0], dim: dim } }));
+      return c;
+    });
+  }
+  // 在留資格の内訳で「特定活動」を選んだとき：特定活動の中身（在留目的）ごとの人数と、国籍・地域ごとの主な在留目的
+  // （国は全国の数だけ発表。tokutei.json は make_dash_data.py の tokutei。在留目的のまとめ方と名前は説明のページ tokutei.html と同じ）
+  var TK = '特定活動';
+  var PCOL = [['#2a78d6', '#fff'], ['#eb6834', '#1d2330'], ['#1baf7a', '#1d2330'], ['#eda100', '#1d2330'], ['#e87ba4', '#1d2330'], ['#008300', '#fff'], ['#6250d6', '#fff']]; // style.css の --c1〜--c7 と、その上の字の色
+  var PCOL_OTHER = ['#9aa1ab', '#1d2330']; // 在留目的の「その他」
+  function tokuteiCard(a, alive) {
+    return load('tokutei.json').then(function (d) {
+      if (!alive()) { return null; }
+      var when = whenOf(a), nats = S.nat, i = d.P.indexOf(when), xi = d.XP.indexOf(when);
+      var who = (nats.length ? nats.join('・') + 'の人の' : '') + '在留資格「特定活動」';
+      var c = card(a.type === 'japan' ? '全国の' + who + 'の中身（在留目的）と国籍・地域（' + wl(when) + '）' : '在留資格「特定活動」の中身（在留目的）と国籍・地域', null, srcNote(when));
+      c.appendChild(el('p', 'dhelp', '「特定活動」は、ほかの在留資格に当てはまらない活動を、法務大臣が一人ひとりについて決めて認める在留資格です。' +
+        '中身は、国の表の「在留目的」ごとに示します（本人と配偶者・子などはまとめています）。 <a href="tokutei.html#who">それぞれの在留目的の説明（説明のページ）</a>'));
+      if (a.type !== 'japan') {
+        c.appendChild(nodata('在留目的ごとの数は、国が全国の分しか発表していません。'));
+        var jp = el('button', 'dlink', '全国で見る'); jp.type = 'button';
+        jp.addEventListener('click', function () { setS({ pref: '', muni: '' }); });
+        c.appendChild(jp);
+        return c;
+      }
+      if (i < 0) { c.appendChild(nodata('この時点の在留目的ごとの数はありません（' + wl(d.P[0]) + 'からです。1991年と1993年はありません）')); return c; }
+      if (nats.length && xi < 0) { c.appendChild(nodata('国籍・地域ごとの在留目的の数は' + wl(d.XP[0]) + 'からです。上の「時点」で選び直してください。')); return c; }
+      var keys = Object.keys(d.g).filter(function (k) { return d.g[k][i] != null; });
+      function nv(n, k) { return ((d.x[n] || {})[k] || [])[xi] || 0; } // 国籍・地域 n の、在留目的 k の人数
+      var items = keys.map(function (k) { return [k, nats.length ? nats.reduce(function (s, n) { return s + nv(n, k); }, 0) : d.g[k][i]]; })
+        .filter(function (x) { return x[1] > 0; }).sort(function (p, q) { return q[1] - p[1]; });
+      if (!items.length) { c.appendChild(nodata('この時点の表に、選んだ国籍・地域の特定活動の人はいません')); return c; }
+      var total = nats.length ? items.reduce(function (s, x) { return s + x[1]; }, 0) : d.t[i];
+      var col = {}, ci = 0; // 在留目的の色：多い順に7つ（「その他」は灰色）。ほかはしま模様
+      items.forEach(function (x) { if (x[0] === 'その他') { col[x[0]] = PCOL_OTHER; } else if (ci < PCOL.length) { col[x[0]] = PCOL[ci++]; } });
+      var pool = nats.length ? nats : Object.keys(d.x);
+      function topNats(k) { // その在留目的に多い国籍・地域（2つ）
+        var r = pool.map(function (n) { return [n, nv(n, k)]; }).filter(function (x) { return x[1] > 0; }).sort(function (p, q) { return q[1] - p[1]; }).slice(0, 2);
+        return r.length ? '多い国籍・地域：' + r.map(function (x) { return x[0] + ' ' + fmt(x[1]) + '人'; }).join('、') : '';
+      }
+      c.appendChild(el('p', 'dkpi', '合計 <b>' + fmt(total) + '人</b>　<span class="sub">統計時点：' + esc(wl(when)) + '</span>'));
+      // ① 在留目的ごとの人数
+      var sa = el('section', 'dsub'), ta = '全国の' + who + 'の在留目的ごとの人数（' + wl(when) + '）';
+      sa.appendChild(el('h3', null, '在留目的ごとの人数'));
+      var rowsA = items.map(function (x) { return [x[0], x[1], xi >= 0 && nats.length !== 1 ? topNats(x[0]) : '']; });
+      var la = barList(rowsA.slice(0, 10), total, { rank: true, f: fmt });
+      la.classList.add('tkbars'); sa.appendChild(la);
+      if (rowsA.length > 10) { // 多い10のあとは、たたむ（下の国籍・地域の図が遠くならないように）
+        var lb = barList(rowsA.slice(10), total, { rank: true, f: fmt, from: 10 });
+        lb.classList.add('tkbars'); sa.appendChild(details('ほかの在留目的を見る（' + (rowsA.length - 10) + '）', lb));
+      }
+      var notes = ['「その他」は、国の表でほかのどの在留目的にも入らないもので、内わけは発表されていません。'];
+      if (when < '2012-12') { notes.push('2011年12月末までの国の表の内わけは「ワーキング・ホリデー」と「その他」の2つだけです。' + (when >= '1993' && when < '2011' ? '1993〜2010年は、技能実習生が「その他」に入っています。' : '')); }
+      else if (when < '2023-12') { notes.push('「本国情勢等」「特定技能1号への移行準備」などは、この時点ではまだ分けて数えられず、「その他」に入っています（分けて数えるのは2023年12月末・2024年12月末から）。'); }
+      else if (when < '2024-12') { notes.push('「本国情勢等」は、この時点ではまだ分けて数えられず、「その他」に入っています（分けて数えるのは2024年12月末から）。'); }
+      if (when >= '2024-12') { notes.push('デジタルノマド（在留カードが出ない特定活動）は、国の表のとおり入れていません。'); }
+      sa.appendChild(el('p', 'dhelp', esc(notes.join(''))));
+      sa.appendChild(toolBar({ title: ta, head: ['順位', '在留目的', '人数', '割合（%）', '統計時点'], rows: items.map(function (x, j) { return [j + 1, x[0], x[1], (x[1] / total * 100).toFixed(2), wl(when)]; }),
+        chart: { kind: 'rank', rows: items.slice(0, 10).map(function (x) { return [x[0], x[1]]; }), f: function (v) { return fmt(v) + '人'; }, metric: '人数', when: when, area: '全国', what: '在留目的' },
+        autoTitle: '全国｜' + who + 'の在留目的別の人数' + (items.length > 10 ? '（多い10）' : '') }));
+      c.appendChild(sa);
+      // ② 国籍・地域ごとの主な在留目的（積み上げ横棒。ページの「国籍・地域ごとの主な在留資格」と同じ形）
+      var sb = el('section', 'dsub');
+      sb.appendChild(el('h3', null, nats.length ? '国籍・地域ごとの主な在留目的' : '国籍・地域ごとの主な在留目的（特定活動の人が多い10の国籍・地域）'));
+      if (xi < 0) { sb.appendChild(nodata('国籍・地域ごとの在留目的の数は' + wl(d.XP[0]) + 'からです')); c.appendChild(sb); return c; }
+      var all = (nats.length ? nats : Object.keys(d.x)).map(function (n) {
+        var segs = keys.map(function (k) { return { name: k, v: nv(n, k) }; }).filter(function (s) { return s.v > 0; }).sort(function (p, q) { return q.v - p.v; });
+        return { name: n, total: segs.reduce(function (s, x) { return s + x.v; }, 0), all: segs };
+      }).filter(function (b) { return b.total > 0; }).sort(function (p, q) { return q.total - p.total; }).slice(0, nats.length ? SLOTS : 10);
+      var bars = all.map(function (b) { return { name: b.name, total: b.total, segs: b.all.slice(0, 3) }; });
+      var used = {}, striped = false;
+      bars.forEach(function (b) { b.segs.forEach(function (s) { if (col[s.name]) { used[s.name] = 1; } else { striped = true; } }); });
+      var w = el('div', 'xwrap');
+      w.appendChild(el('p', 'xintro', 'それぞれの国籍・地域の特定活動の人の中で、多い在留目的3つの割合です。棒の全体（100%）が、その国籍・地域の特定活動の人数です。在留目的の色は、どの国籍・地域でも同じです。'));
+      var lg = el('ul', 'xlegend'); lg.setAttribute('aria-label', '色の見方');
+      function sw(k) { var s = el('span', 'xsw' + (col[k] ? '' : ' vc-x')); if (col[k]) { s.style.background = col[k][0]; } return s; }
+      items.forEach(function (x) { if (used[x[0]]) { var li = el('li'); li.appendChild(sw(x[0])); li.appendChild(el('span', null, esc(x[0]))); lg.appendChild(li); } });
+      if (striped) { lg.appendChild(el('li', null, '<span class="xsw vc-x"></span><span>そのほかの在留目的（しま模様）</span>')); }
+      lg.appendChild(el('li', null, '<span class="xsw xr"></span><span>上位3つ以外の在留目的（色なし）</span>'));
+      w.appendChild(lg);
+      var ol = el('ol', 'xlist');
+      bars.forEach(function (b) {
+        var li = el('li', 'xrow'), bar = el('div', 'xbar'), det = el('ul', 'xdet'), usedV = 0;
+        li.appendChild(el('div', 'xhd', '<span class="xnm">' + esc(b.name) + '</span><span class="xtot">' + fmt(b.total) + '人</span>'));
+        bar.setAttribute('aria-hidden', 'true');
+        b.segs.forEach(function (s) {
+          var p = s.v / b.total * 100, short = d.s[s.name] || s.name, html = '<b>' + esc(b.name) + '</b><br>' + esc(s.name) + '：' + fmt(s.v) + '人（' + Math.round(p) + '%）';
+          var sp = el('span', 'xs nl' + Math.min(short.length, 8) + (col[s.name] ? '' : ' vc-x'), '<span class="xl"><span class="xn">' + esc(short) + '</span> ' + Math.round(p) + '%</span>');
+          sp.style.width = p.toFixed(3) + '%';
+          if (col[s.name]) { sp.style.background = col[s.name][0]; sp.style.color = col[s.name][1]; }
+          sp.addEventListener('mousemove', function (ev) { K.showTip(ev, html); }); sp.addEventListener('click', function (ev) { K.showTip(ev, html); }); sp.addEventListener('mouseleave', K.hideTip);
+          bar.appendChild(sp); usedV += s.v;
+          var dl = el('li'); dl.appendChild(sw(s.name));
+          dl.appendChild(el('span', 'xv', esc(s.name))); dl.appendChild(el('span', 'xc', fmt(s.v) + '人（' + Math.round(p) + '%）'));
+          det.appendChild(dl);
+        });
+        var rest = 100 - usedV / b.total * 100;
+        if (rest >= 0.05) { bar.appendChild(el('span', 'xs xr nl6', '<span class="xl">上位3つ以外 ' + Math.round(rest) + '%</span>')).style.width = rest.toFixed(3) + '%'; }
+        li.appendChild(bar); li.appendChild(det); ol.appendChild(li);
+      });
+      w.appendChild(ol); sb.appendChild(w);
+      var tb = '全国の' + who + 'の国籍・地域ごとの在留目的（' + wl(when) + '）', rowsB = [];
+      all.forEach(function (b) { b.all.forEach(function (s) { rowsB.push([b.name, b.total, s.name, s.v, (s.v / b.total * 100).toFixed(2), wl(when)]); }); });
+      sb.appendChild(toolBar({ title: tb, head: ['国籍・地域', '特定活動の人数', '在留目的', '人数', '割合（%）', '統計時点'], rows: rowsB,
+        chart: { kind: 'cross', area: '全国', when: when, segWord: '在留目的', markNote: '棒の全体（100%）が、その国籍・地域の特定活動の人数です。',
+          bars: bars.map(function (b) { return { name: b.name, total: b.total, segs: b.segs.map(function (s) { return { name: s.name, v: s.v, lab: d.s[s.name], col: col[s.name], ci: items.findIndex(function (x) { return x[0] === s.name; }) }; }) }; }) },
+        autoTitle: '全国｜' + (nats.length ? nats.join('・') + 'の人の' : '') + '在留資格「特定活動」の国籍・地域ごとの主な在留目的' }));
+      c.appendChild(sb);
       return c;
     });
   }
