@@ -58,8 +58,8 @@
   };
 
   // ---------- 選んだ条件（アドレスの # のあとに残す）
-  var DEF = { v: 'map', pref: '', muni: '', nat: [], visa: [], when: '', metric: 'count', cmp: 'nat', areas: [], from: '', to: '', idx: '0', rt: '', rm: 'count', all: '0', mn: '0', lm: 'count', tp: '' };
-  var LISTS = { nat: 1, visa: 1, areas: 1 };
+  var DEF = { v: 'map', pref: '', muni: '', nat: [], visa: [], when: '', metric: 'count', cmp: 'nat', areas: [], from: '', to: '', idx: '0', rt: '', rm: 'count', all: '0', mn: '0', lm: 'count', tp: '', tm: 'p', tl: [], tn: [] };
+  var LISTS = { nat: 1, visa: 1, areas: 1, tl: 1, tn: 1 };
   var S = {};
   function readHash() {
     var q = new URLSearchParams(location.hash.slice(1));
@@ -1094,7 +1094,9 @@
         current.chart = { kind: 'pie', parts: parts, total: total, area: a.name, when: when, dim: dim, items: b.items.slice(0, 10) };
         c.appendChild(toolBar());
         var out = el('div'); out.appendChild(c);
-        var more = dim === 'nat' ? [breakLines(a, dim, b.items, alive), stackChart(a, alive)] : [S.visa.indexOf(TK) >= 0 ? tokuteiCard(a, alive) : null, breakLines(a, dim, b.items, alive)];
+        var onlyTK = S.visa.length === 1 && S.visa[0] === TK; // 特定活動だけを選んだときは、ほかの在留資格の線の代わりに、特定活動の在留目的・国籍・地域の線
+        var more = dim === 'nat' ? [breakLines(a, dim, b.items, alive), stackChart(a, alive)] :
+          [S.visa.indexOf(TK) >= 0 ? tokuteiCard(a, alive) : null, onlyTK ? tokuteiLines(a, alive) : breakLines(a, dim, b.items, alive)];
         return Promise.all(more).then(function (r) {
           if (!alive()) { return; }
           r.forEach(function (x) { if (x) { out.appendChild(x); } });
@@ -1312,6 +1314,138 @@
         autoTitle: '全国｜' + (nats.length ? nats.join('・') + 'の人の' : '') + '在留資格「特定活動」の国籍・地域ごとの主な在留目的' }));
       c.appendChild(sb);
       return c;
+    });
+  }
+  // 在留資格の内訳で「特定活動」だけを選んだときの折れ線：1年ごと（12月末）の人数、または1年間の増減を、
+  //   在留目的ごと（S.tm＝'p'。tokutei.json。全国だけ。上の「国籍・地域」を選んでいれば、その人たちの数で2022年12月末から）か、
+  //   国籍・地域ごと（S.tm＝'n'。国籍×在留資格の表）に。線にするものは S.tl・S.tn（7つまで）。選んでいないときは多い3つ
+  var TK_TOTAL = '特定活動の合計';
+  function tokuteiLines(a, alive) {
+    var byNat = S.tm === 'n', diff = S.lm === 'diff', when = whenOf(a), nats = S.nat;
+    return Promise.all([load('tokutei.json'), byNat ? getBreakdown(a, 'nat', when, [TK]) : null]).then(function (r) {
+      if (!alive()) { return null; }
+      var d = r[0], word = byNat ? '国籍・地域' : '在留目的';
+      var ctl = el('div', 'dctlrow');
+      ctl.appendChild(pickBtns([['p', '在留目的ごと'], ['n', '国籍・地域ごと']], byNat ? 'n' : 'p', function (v) { setS({ tm: v }); }, '線の分け方'));
+      ctl.appendChild(pickBtns([['count', '人数'], ['diff', '1年間の増減']], diff ? 'diff' : 'count', function (v) { setS({ lm: v }); }, '線で見せる数'));
+      function shell(title, note) { var c = card(title, null, note); c.appendChild(ctl); return c; }
+      if (!byNat && a.type !== 'japan') {
+        var c0 = shell('在留資格「特定活動」の在留目的ごとの移り変わり');
+        c0.appendChild(nodata('在留目的ごとの数は、国が全国の分しか発表していません。上の「国籍・地域ごと」なら、この地域の線が出せます。'));
+        var jp = el('button', 'dlink', '全国で見る'); jp.type = 'button';
+        jp.addEventListener('click', function () { setS({ pref: '', muni: '' }); });
+        c0.appendChild(jp);
+        return c0;
+      }
+      // 線にする候補（その時点に多い順）と、1年ごとの数を作る → { per: 12月末の時点, rows: 名前 → { vals, hid, why } }
+      var choices, picked, data;
+      if (byNat) {
+        choices = r[1].items.map(function (x) { return x[0]; }).filter(function (n) { return n !== 'その他'; }).slice(0, 20);
+        picked = S.tn.length ? S.tn.slice(0, SLOTS) : choices.slice(0, NATLINE_DEF);
+        choices = choices.concat(S.tn.filter(function (n) { return choices.indexOf(n) < 0; }));
+        data = Promise.all(picked.map(function (n) { return getSeries(a, [n], [TK]).then(function (s) { return explain(a, [n], [TK], s); }); })).then(function (ss) {
+          var per = periodsOf(a), ys = per.map(function (w, i) { return i; }).filter(function (i) { return /-12$/.test(per[i]); }), rows = {};
+          picked.forEach(function (n, k) {
+            var s = ss[k], o = { vals: [], hid: {}, why: {} };
+            ys.forEach(function (i, j) { o.vals.push(s.val[i]); if (s.hid[i]) { o.hid[j] = 1; } if (s.why[i]) { o.why[j] = s.why[i]; } });
+            rows[n] = o;
+          });
+          return { per: ys.map(function (i) { return per[i]; }), rows: rows };
+        });
+      } else {
+        var useX = nats.length > 0, P0 = useX ? d.XP : d.P, wi = P0.indexOf(when) >= 0 ? P0.indexOf(when) : P0.length - 1;
+        var val = function (k, i) { // P0[i] の在留目的 k の人数（国の表がまだ分けて数えていない時点は null）。k が TK_TOTAL のときは合計
+          var gi = d.P.indexOf(P0[i]), ks = k === TK_TOTAL ? Object.keys(d.g) : [k];
+          if (gi < 0 || (k !== TK_TOTAL && (!d.g[k] || d.g[k][gi] == null))) { return null; }
+          if (!useX) { return k === TK_TOTAL ? d.t[gi] : d.g[k][gi]; }
+          return nats.reduce(function (s, n) { return s + ks.reduce(function (s2, kk) { return s2 + (((d.x[n] || {})[kk] || [])[i] || 0); }, 0); }, 0);
+        };
+        choices = Object.keys(d.g).filter(function (k) { return val(k, wi) > 0; }).sort(function (p, q) { return val(q, wi) - val(p, wi); });
+        picked = S.tl.filter(function (k) { return k === TK_TOTAL || choices.indexOf(k) >= 0; }).slice(0, SLOTS);
+        if (!picked.length) { picked = choices.slice(0, NATLINE_DEF); }
+        picked.sort(function (p, q) { return p === TK_TOTAL ? -1 : q === TK_TOTAL ? 1 : choices.indexOf(p) - choices.indexOf(q); }); // 合計 → 多い順（色は上の図とおおむね同じになる）
+        choices = [TK_TOTAL].concat(choices);
+        var ys2 = P0.map(function (w, i) { return i; }).filter(function (i) { return /-12$/.test(P0[i]); }), rows2 = {};
+        picked.forEach(function (k) {
+          var o = { vals: [], hid: {}, why: {} };
+          ys2.forEach(function (i, j) { var v = val(k, i); o.vals.push(v); if (v == null) { o.why[j] = 'この時点の国の表では、まだ分けて数えていません（「その他」などに入っています）'; } });
+          rows2[k] = o;
+        });
+        data = Promise.resolve({ per: ys2.map(function (i) { return P0[i]; }), rows: rows2 });
+      }
+      return data.then(function (res) {
+        if (!alive()) { return null; }
+        var per = res.per;
+        var series = picked.map(function (k, idx) {
+          var o = res.rows[k], vals = [], hid = {}, why = {};
+          per.forEach(function (w, j) {
+            var v = o.vals[j], t = null, pj = per.indexOf((+w.slice(0, 4) - 1) + '-12');
+            if (v == null) { if (o.hid[j]) { hid[j] = 1; } else { t = o.why[j]; } }
+            else if (diff) {
+              if (w === '2012-12') { t = '2011年までと2012年からは数え方が違うので、増減は出していません'; }
+              else if (pj < 0) { t = '1年前（' + (+w.slice(0, 4) - 1) + '年12月末）の数は国の表にありません'; }
+              else if (o.vals[pj] == null || o.hid[pj]) { t = '1年前（' + wl(per[pj]) + '）の数がありません'; }
+              v = t ? null : v - o.vals[pj];
+            }
+            vals.push(v); if (t) { why[j] = t; }
+          });
+          return k === TK_TOTAL ? { name: k, vals: vals, hid: hid, why: why, cls: 'o', dash: true } : { name: k, vals: vals, hid: hid, why: why, cls: String(picked.filter(function (x) { return x !== TK_TOTAL; }).indexOf(k) + 1) };
+        });
+        var first = per.findIndex(function (w, j) { return series.some(function (s) { return s.vals[j] != null; }); });
+        if (first < 0) { first = 0; }
+        var all = per.slice(first);
+        if (all.indexOf(S.from) > 0) { first = per.indexOf(S.from); } // いつから（年別の推移の画面と同じ S.from。その年がないときは、はじめから）
+        series.forEach(function (s) { s.vals = s.vals.slice(first); var h = {}, wy = {}; Object.keys(s.hid).forEach(function (j) { if (j >= first) { h[j - first] = 1; } }); Object.keys(s.why).forEach(function (j) { if (j >= first) { wy[j - first] = s.why[j]; } }); s.hid = h; s.why = wy; });
+        var sub = per.slice(first);
+        if (all.length > 2) { ctl.appendChild(selectEl(all.slice(0, -1).map(function (w) { return [w, wl(w)]; }), sub[0], function (v) { setS({ from: v }); }, 'いつから')); }
+        var who = !byNat && nats.length ? nats.join('・') + 'の人の在留資格「特定活動」' : '在留資格「特定活動」の人';
+        var title = a.name + 'の' + who + (diff ? 'の1年間の増減' : 'の数の移り変わり') + '（' + word + 'ごと、' + wl(sub[0]) + '〜' + wl(sub[sub.length - 1]) + '）';
+        var f = diff ? function (v) { return v === 0 ? '0人' : signed(v) + '人'; } : null;
+        var c = shell(title, srcNote(sub[sub.length - 1]));
+        c.insertBefore(el('p', 'dhelp', 'ほかの在留資格は出さず、「特定活動」の中を、在留目的（中身）ごと、または国籍・地域ごとの線で見せます。'), ctl);
+        var pw = el('div', 'dctl dctl-pick'), g = el('div', 'dpick'), sel = byNat ? S.tn : picked.filter(function (k) { return S.tl.indexOf(k) >= 0; });
+        g.setAttribute('role', 'group'); g.setAttribute('aria-label', '線を出す' + word);
+        choices.forEach(function (k) {
+          var on = picked.indexOf(k) >= 0, bt = el('button', null, esc(k)); bt.type = 'button';
+          bt.setAttribute('aria-pressed', on ? 'true' : 'false');
+          if (!on && picked.length >= SLOTS) { bt.disabled = true; bt.title = '選べるのは7つまでです'; }
+          bt.addEventListener('click', function () {
+            var next = (on ? picked.filter(function (x) { return x !== k; }) : picked.concat([k]));
+            setS(byNat ? { tn: next } : { tl: next.length ? next : [] });
+          });
+          g.appendChild(bt);
+        });
+        pw.appendChild(el('span', 'dlab', '線を出す' + word + '（' + wl(when) + 'に多い順' + (byNat ? '、20まで' : '') + '。7つまで）')); pw.appendChild(g);
+        c.appendChild(pw);
+        var help = el('p', 'dhelp', (sel.length ? '名前を押すと、線を加えたり消したりできます。' : 'いまは多い' + NATLINE_DEF + 'つを出しています。名前を押すと、線を加えたり消したりできます。') +
+          (byNat ? '' : '「' + TK_TOTAL + '」は点線です。'));
+        if (sel.length) {
+          var clr = el('button', 'dlink', '選ぶのをやめる（多い' + NATLINE_DEF + 'つに戻す）'); clr.type = 'button';
+          clr.addEventListener('click', function () { setS(byNat ? { tn: [] } : { tl: [] }); });
+          help.appendChild(document.createTextNode(' ')); help.appendChild(clr);
+        }
+        c.appendChild(help);
+        var anyData = series.some(function (s) { return s.vals.some(function (v) { return v != null; }); });
+        c.appendChild(anyData ? lineChart(sub, series, { title: title, f: f, zero: diff }) : nodata());
+        var notes = '1年に1つ、12月末の数をつないでいます。' + (diff ? '1年間の増減は、前の年の12月末からの増え方（減ったときはマイナス）です。' : '');
+        if (!byNat) {
+          notes += '線がとちゅうから始まる在留目的は、国の表がそのときから分けて数えるようになったものです（それより前は「その他」などに入っていて、0人だったわけではありません）。「その他」の中身の範囲も、時点によって変わります。';
+          if (nats.length) { notes += '国籍・地域ごとの在留目的の数は' + wl(d.XP[0]) + 'からです。'; }
+          else { notes += '1993年〜2010年の「その他」と合計には、技能実習生が入っています（2010年7月に在留資格「技能実習」ができて移りました）。'; }
+        }
+        notes += (sub[0] < '2012-12' ? '2012年12月末から数え方が変わりました（2011年までは登録外国人統計）。' : '') + 'データのない時点は線を切っています（推測で埋めていません）。';
+        c.appendChild(el('p', 'dhelp', esc(notes)));
+        var wl2 = whyList(sub, series);
+        if (wl2) { c.appendChild(details('データがない時点とその理由', wl2)); }
+        var head = ['時点'].concat(series.map(function (s) { return s.name; }));
+        var rows = sub.map(function (w, j) { return [wl(w)].concat(series.map(function (s) { var v = s.vals[j]; return v == null ? (s.hid[j] ? '公表されていない' : '') : v; })); });
+        c.appendChild(details('グラフの数を表で見る', tableEl(head, rows.map(function (r2) { return r2.map(function (x, i) { return i && typeof x === 'number' ? (f ? f(x).replace(/人$/, '') : fmt(x)) : x; }); }), 1)));
+        c.appendChild(toolBar({ title: title, head: head, rows: rows,
+          chart: { kind: 'line', per: sub, series: series, index: false, diff: diff, f: f, keys: diff ? [] : null, area: a.name, when: sub[sub.length - 1], from: sub[0], dim: byNat ? 'nat' : 'tk',
+            markNote: byNat ? '' : 'とちゅうから始まる線は、国の表がそのときから分けて数えるようになった在留目的です（それより前は「その他」などに入っています）。' },
+          autoTitle: a.name + '｜' + who + 'の' + word + '別の' + (diff ? '1年間の増減' : '移り変わり') }));
+        return c;
+      });
     });
   }
   function stackChart(a, alive) { // 国籍の構成の移り変わり（積み上げ面グラフ）
