@@ -58,7 +58,7 @@
   };
 
   // ---------- 選んだ条件（アドレスの # のあとに残す）
-  var DEF = { v: 'map', pref: '', muni: '', nat: [], visa: [], when: '', metric: 'count', cmp: 'nat', areas: [], from: '', to: '', idx: '0', rt: '', rm: 'count', all: '0', mn: '0', lm: 'count' };
+  var DEF = { v: 'map', pref: '', muni: '', nat: [], visa: [], when: '', metric: 'count', cmp: 'nat', areas: [], from: '', to: '', idx: '0', rt: '', rm: 'count', all: '0', mn: '0', lm: 'count', tp: '' };
   var LISTS = { nat: 1, visa: 1, areas: 1 };
   var S = {};
   function readHash() {
@@ -1185,6 +1185,8 @@
   var TK = '特定活動';
   var PCOL = [['#2a78d6', '#fff'], ['#eb6834', '#1d2330'], ['#1baf7a', '#1d2330'], ['#eda100', '#1d2330'], ['#e87ba4', '#1d2330'], ['#008300', '#fff'], ['#6250d6', '#fff']]; // style.css の --c1〜--c7 と、その上の字の色
   var PCOL_OTHER = ['#9aa1ab', '#1d2330']; // 在留目的の「その他」
+  var tkJump = false; // 一覧の在留目的の名前を押したとき：書き直したあと、その目的の国籍・地域の所まで動かす
+  function whenShown(node, f) { var n = 0; (function t() { if (node.isConnected) { f(); } else if (n++ < 60) { setTimeout(t, 50); } })(); } // 画面に入ったら f
   function tokuteiCard(a, alive) {
     return load('tokutei.json').then(function (d) {
       if (!alive()) { return null; }
@@ -1219,13 +1221,13 @@
       // ① 在留目的ごとの人数
       var sa = el('section', 'dsub'), ta = '全国の' + who + 'の在留目的ごとの人数（' + wl(when) + '）';
       sa.appendChild(el('h3', null, '在留目的ごとの人数'));
-      var rowsA = items.map(function (x) { return [x[0], x[1], xi >= 0 && nats.length !== 1 ? topNats(x[0]) : '']; });
-      var la = barList(rowsA.slice(0, 10), total, { rank: true, f: fmt });
+      // 在留目的を選ぶ（S.tp。アドレスに残る）。選んだ目的の国籍・地域は ② に出る。その時点にない目的のときは、いちばん多い目的
+      var sel = items.some(function (x) { return x[0] === S.tp; }) ? S.tp : items[0][0];
+      function pick(k) { tkJump = xi >= 0; setS({ tp: k }); }
+      if (xi >= 0) { sa.appendChild(el('p', 'dhelp', '在留目的の名前を押すと、その目的の人の国籍・地域が、すぐ下に出ます。')); }
+      var la = barList(items.map(function (x) { return [x[0], x[1], xi >= 0 && nats.length !== 1 ? topNats(x[0]) : '', null, xi >= 0 ? function () { pick(x[0]); } : null]; }), total,
+        { rank: true, f: fmt, mark: xi >= 0 ? sel : null });
       la.classList.add('tkbars'); sa.appendChild(la);
-      if (rowsA.length > 10) { // 多い10のあとは、たたむ（下の国籍・地域の図が遠くならないように）
-        var lb = barList(rowsA.slice(10), total, { rank: true, f: fmt, from: 10 });
-        lb.classList.add('tkbars'); sa.appendChild(details('ほかの在留目的を見る（' + (rowsA.length - 10) + '）', lb));
-      }
       var notes = ['「その他」は、国の表でほかのどの在留目的にも入らないもので、内わけは発表されていません。'];
       if (when < '2012-12') { notes.push('2011年12月末までの国の表の内わけは「ワーキング・ホリデー」と「その他」の2つだけです。' + (when >= '1993' && when < '2011' ? '1993〜2010年は、技能実習生が「その他」に入っています。' : '')); }
       else if (when < '2023-12') { notes.push('「本国情勢等」「特定技能1号への移行準備」などは、この時点ではまだ分けて数えられず、「その他」に入っています（分けて数えるのは2023年12月末・2024年12月末から）。'); }
@@ -1236,6 +1238,32 @@
         chart: { kind: 'rank', rows: items.slice(0, 10).map(function (x) { return [x[0], x[1]]; }), f: function (v) { return fmt(v) + '人'; }, metric: '人数', when: when, area: '全国', what: '在留目的' },
         autoTitle: '全国｜' + who + 'の在留目的別の人数' + (items.length > 10 ? '（多い10）' : '') }));
       c.appendChild(sa);
+      // ② 選んだ在留目的の、国籍・地域ごとの人数
+      var sp = el('section', 'dsub');
+      sp.appendChild(el('h3', null, '在留目的を選んで、国籍・地域を見る'));
+      if (xi < 0) { sp.appendChild(nodata('国籍・地域ごとの在留目的の数は' + wl(d.XP[0]) + 'からです')); }
+      else {
+        var tot2 = items.filter(function (x) { return x[0] === sel; })[0][1];
+        sp.appendChild(selectEl(items.map(function (x) { return [x[0], x[0] + '（' + fmt(x[1]) + '人）']; }), sel, pick, '在留目的（' + items.length + '）'));
+        var nl = pool.map(function (n) { return [n, nv(n, sel)]; }).filter(function (x) { return x[1] > 0; }).sort(function (p, q) { return q[1] - p[1]; });
+        sp.appendChild(el('p', 'dkpi', '「' + esc(sel) + '」の人 <b>' + fmt(tot2) + '人</b>　<span class="sub">特定活動' + (nats.length ? '（選んだ国籍・地域）' : '') + 'の' + (tot2 / total * 100).toFixed(1) + '%、' + nl.length + 'の国籍・地域</span>'));
+        var nbar = function (r) { return [r[0], r[1], '', r[0] !== 'その他' ? 'nat-' + encodeURIComponent(r[0]) + '.html' : null]; }; // 国籍・地域のページへ（国籍の構成と同じ）
+        sp.appendChild(barList(nl.slice(0, 20).map(nbar), tot2, { rank: true, f: fmt }));
+        if (nl.length > 20) { sp.appendChild(details('ほかの国籍・地域も見る（あと' + (nl.length - 20) + '）', barList(nl.slice(20).map(nbar), tot2, { rank: true, f: fmt, from: 20 }))); }
+        sp.appendChild(el('p', 'dhelp', '割合は、「' + esc(sel) + '」の人（' + fmt(tot2) + '人）のうちの割合です。'));
+        var tp2 = '全国の' + (nats.length ? nats.join('・') + 'の人の' : '') + '特定活動「' + sel + '」の国籍・地域ごとの人数（' + wl(when) + '）';
+        sp.appendChild(toolBar({ title: tp2, head: ['順位', '国籍・地域', '人数', '割合（%）', '統計時点'], rows: nl.map(function (x, j) { return [j + 1, x[0], x[1], (x[1] / tot2 * 100).toFixed(2), wl(when)]; }),
+          chart: { kind: 'rank', rows: nl.slice(0, 10).map(function (x) { return [x[0], x[1]]; }), f: function (v) { return fmt(v) + '人'; }, metric: '人数', when: when, area: '全国', what: '国籍・地域' },
+          autoTitle: '全国｜' + (nats.length ? nats.join('・') + 'の人の' : '') + '特定活動「' + (d.s[sel] || sel) + '」の国籍・地域別の人数' + (nl.length > 10 ? '（多い10）' : '') }));
+        if (tkJump) {
+          tkJump = false;
+          whenShown(sp, function () {
+            var hh = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hdr'), 10) || 56) + (getComputedStyle(filterBox).position === 'sticky' ? filterBox.offsetHeight + 4 : 0); // 上に止まるヘッダーと絞り込みの欄の下
+            window.scrollTo({ top: sp.getBoundingClientRect().top + window.scrollY - hh - 8 });
+          });
+        }
+      }
+      c.appendChild(sp);
       // ② 国籍・地域ごとの主な在留目的（積み上げ横棒。ページの「国籍・地域ごとの主な在留資格」と同じ形）
       var sb = el('section', 'dsub');
       sb.appendChild(el('h3', null, nats.length ? '国籍・地域ごとの主な在留目的' : '国籍・地域ごとの主な在留目的（特定活動の人が多い10の国籍・地域）'));
