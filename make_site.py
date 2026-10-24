@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "20"
+CSS_VER = "21"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 NAV = (("japan", "index.html", "日本全体"), ("area", "area-index.html", "地域から探す"), ("nat", "nat-index.html", "国籍から探す"),
@@ -2100,7 +2100,8 @@ def visa_index_page(d):
     for i, (v, c, _) in enumerate(vi, 1):
         links = (f"<a href='{dash_link(v='map', visa=v)}'>地図</a>・<a href='{dash_link(v='nat', visa=v)}'>国籍</a>・"
                  f"<a href='{dash_link(v='trend', cmp='none', visa=v)}'>移り変わり</a>")
-        rows.append((v, [(str(i), i), (f"<a href='{dash_link(v='area', visa=v)}'>{esc(v)}</a>", None), (num(c), c), (f"{c / now * 100:.1f}%", f"{c / now * 100:.3f}")] +
+        about = "<br><span class='sub'><a href='tokutei.html'>どんな資格？（説明のページ）</a></span>" if v == "特定活動" else ""  # 中身がさまざまな資格は説明のページへ
+        rows.append((v, [(str(i), i), (f"<a href='{dash_link(v='area', visa=v)}'>{esc(v)}</a>{about}", None), (num(c), c), (f"{c / now * 100:.1f}%", f"{c / now * 100:.3f}")] +
                      diff_cells(c, year.get(v)) + [diff_cells(c, ten.get(v))[0], (links, None)]))
     head = [("順位", True), ("在留資格", False), ("人数", True), ("割合", True), ("1年前から", True), ("増減の割合", True), ("10年前から", True), ("ダッシュボードで見る", False)]
     sorts = [("人数の多い順", 2, -1), ("人数の少ない順", 2, 1), ("1年間の増加数の多い順", 4, -1), ("1年間の増加率の高い順", 5, -1),
@@ -2108,6 +2109,7 @@ def visa_index_page(d):
     body = f"""<h1>在留資格から探す</h1>
 {meta_line(f"日本に住む外国人（全国、{len(vi)}の在留資格）")}
 <p class="lead">在留資格は、外国人が日本でどんな活動をして暮らすかを決める資格です（例：永住者、留学、技能実習）。資格の名前を押すと、ダッシュボードでその資格の人の地域・国籍・移り変わりが見られます。</p>
+<p class="lead">「特定活動」は、ワーキング・ホリデーや難民認定の申請中など、中身がさまざまな在留資格です。対象・できた年・目的ごとの人数は<a href="tokutei.html">在留資格「特定活動」とは</a>で説明しています。</p>
 {jump([("pie", "人数と割合"), ("list", "在留資格の一覧"), ("visa-trend", "移り変わり")])}
 <section class="card" id="pie"><h2>在留資格ごとの人数と割合</h2><p class="cardmeta">対象：全国　集計時点：{when_label(LATEST)}</p>{breakdown("在留資格の内わけ", vi, now, "在留資格", "全国", "visa")}</section>
 <section class="card" id="list"><h2>在留資格の一覧</h2><p class="cardmeta">順位は人数の多い順。「—」は前の時点にはなかった在留資格（特定技能は2019年から）。増加率は、もとの人数が少ないと大きく出ます。</p>

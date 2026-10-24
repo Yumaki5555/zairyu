@@ -186,7 +186,7 @@
       var v = s.vals[i], t = ch.index ? v.toFixed(1) : ch.f ? noUnit(ch.f(v)) : fmt(Math.round(v));
       return i === last ? t : t + '（' + lab(ch, i) + '）';
     }
-    var head = lab(ch, last) + (ch.index ? 'の指数　はじめの時点＝100' : 'の数'); // 「　」の所で2行に分けられる。単位はタイトルの下
+    var head = lab(ch, last) + (ch.index ? 'の指数　はじめの時点＝100' : ch.diff ? 'の1年間の増減' : 'の数'); // 「　」の所で2行に分けられる。単位はタイトルの下
     // 凡例（線が2本以上）：横長の画像で図が広ければ右、ほかは下。右のときは、名前と数がちょうど入る幅にする（すき間を空けない。図の幅の4割まで）
     // 正方形・縦長の画像は、いつも下にしてグラフの横幅を広くとる（2026年10月 作った人の指示）
     var legRight = multi && wide && w >= 42 * u, legW = 0, leg = null, lg = null;
@@ -218,7 +218,8 @@
     var X = function (q) { return L + (x1 > x0 ? (q - x0) / (x1 - x0) : 0.5) * (R - L); }, Y = function (q) { return T + (1 - (q - y0) / (y1 - y0)) * (B - T); };
     ctx.fillStyle = C.sub; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     ticks.forEach(function (t) {
-      ctx.strokeStyle = C.grid; ctx.lineWidth = Math.max(1, u * 0.08); ctx.beginPath(); ctx.moveTo(L, Y(t[0])); ctx.lineTo(R, Y(t[0])); ctx.stroke();
+      ctx.strokeStyle = ch.diff && y0 < 0 && Math.abs(t[0]) < 1e-9 ? C.sub : C.grid; // 増減の線は0の線を濃く
+      ctx.lineWidth = Math.max(1, u * 0.08); ctx.beginPath(); ctx.moveTo(L, Y(t[0])); ctx.lineTo(R, Y(t[0])); ctx.stroke();
       ctx.fillText(t[1], L - 0.5 * u, Y(t[0]));
     });
     // 年の目もり：字が重ならない間かくを選ぶ
@@ -842,12 +843,12 @@
     if (cur.autoTitle) { return cur.autoTitle; }
     var ch = cur.chart, m = meta(cur), w = ch.who || whoT(m), area = ch.area || '全国';
     if (ch.kind === 'line') {
-      var idx = ch.index ? '（指数）' : '';
-      if (ch.series.length === 1) { return area + '｜' + w + 'の移り変わり' + idx; }
+      var idx = ch.index ? '（指数）' : '', mv = ch.diff ? '1年間の増減' : '移り変わり'; // ch.diff：1年前からの増減の線（ダッシュボードの国籍の構成）
+      if (ch.series.length === 1) { return area + '｜' + w + 'の' + mv + idx; }
       // 線が何本か：何ごとに分けた線かを書く。選んだものどうしを比べるときは「〜別」を付けない。分け方が分からないときは線の名前を並べる
       var by = { nat: m.nat.length ? '' : '国籍・地域別の', visa: m.visa.length ? '' : '在留資格別の', area: '地域別の', pref: '都道府県別の', nx: '国籍・地域×在留資格別の' }[ch.dim];
-      if (by != null) { return (ch.dim === 'area' ? '' : area + '｜') + w + 'の' + by + '移り変わり' + idx; }
-      return area + '｜' + ch.series.map(function (s) { return s.name; }).slice(0, 3).join('・') + (ch.series.length > 3 ? 'など' : '') + 'の移り変わり' + idx;
+      if (by != null) { return (ch.dim === 'area' ? '' : area + '｜') + w + 'の' + by + mv + idx; }
+      return area + '｜' + ch.series.map(function (s) { return s.name; }).slice(0, 3).join('・') + (ch.series.length > 3 ? 'など' : '') + 'の' + mv + idx;
     }
     if (ch.kind === 'pie') {
       if (ch.dim === 'visa') { return area + '｜' + (m.nat.length ? m.nat.map(person).join('・') : '在留外国人') + 'の在留資格別構成'; }

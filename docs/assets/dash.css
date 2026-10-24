@@ -61,6 +61,8 @@ ul.dwhy { margin: 6px 0 0; padding-left: 1.2em; font-size: 15px; line-height: 1.
 .dpick button:hover:not([aria-pressed="true"]) { background: var(--btn-soft); }
 .dpick button[aria-pressed="true"] { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); font-weight: 700; }
 .dpick button[aria-pressed="true"]::before { content: "✓ "; }
+.dpick button:disabled { color: var(--sub); border-style: dashed; cursor: not-allowed; }
+svg .grid.zero { stroke: var(--sub); } /* 増減の折れ線の0の線 */
 .dnav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
 .dpath { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 8px; font-size: 15px; }
 .dpath .dsep { color: var(--sub); margin: 0 4px; }
