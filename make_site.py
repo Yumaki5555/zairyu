@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "25"
+CSS_VER = "26"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 # ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
@@ -777,11 +777,17 @@ def ten_card(dim, what, rows, link):
 
 # ---------------------------------------------------------------- ページ
 # トップページのいちばん上：グラフの画像を作る（X投稿用）。中身（選ぶボタン・画像）は xmaker.js が作る
-# （数の取り出し方はダッシュボードの dash.js、画像は share.js と同じ）。2026年10月 作った人の希望「X用の機能をトップページの最初に」
-XMAKER = """<section class="card xm" id="xmaker" aria-labelledby="xm-h"><h2 id="xm-h">グラフの画像を作る（X投稿用）</h2>
-<p class="xm-lead">①〜③を選ぶと、右（スマホでは下）にX投稿用の画像ができます。そのまま保存・コピーして投稿できます。</p>
+# （数の取り出し方はダッシュボードの dash.js、画像は share.js と同じ）。2026年10月 作った人の希望「X用の機能をトップページの最初に」。
+# はじめは閉じた帯だけ（押すと開く。下の数がすぐ見えるように。2026年10月 作った人の希望）。開いたときに xmaker.js がデータを読み込む
+def xmaker():
+    sk = pd.read_csv(os.path.join(DATA, "半期速報", "半期速報.csv"))
+    sw = sk["発表の時点"].max()  # いちばん新しい速報の時点（確定統計より新しいときだけ、帯に書く）
+    sp = f"{when_label(sw)}の速報も使えます。" if sw > LATEST else ""
+    return f"""<details class="card xm" id="xmaker"><summary><h2 id="xm-h">グラフの画像を作る<span class="xm-x">（X投稿用）</span></h2>
+<span class="xm-sub">国籍・在留資格・地域のグラフを選んで、Xに投稿できる画像にします。{sp}</span><span class="xm-tog" aria-hidden="true"></span></summary>
+<div class="xm-in"><p class="xm-lead">①〜③を選ぶと、右（スマホでは下）にX投稿用の画像ができます。そのまま保存・コピーして投稿できます。</p>
 <div class="xm-body"><p class="dhelp">読み込み中…</p></div>
-<noscript><p class="note">この部分は JavaScript を使います。JavaScript が動かないときは、下の表で数をご覧ください。</p></noscript></section>"""
+<noscript><p class="note">この部分は JavaScript を使います。JavaScript が動かないときは、下の表で数をご覧ください。</p></noscript></div></details>"""
 
 
 def top_page(d):
@@ -807,7 +813,7 @@ def top_page(d):
     sets += [visa_set(d, n, lambda w, n=n: d.nat_visa.get((w, n)), nat=n) for n, _, _ in ni[:20]]
     body = f"""<h1>日本に住む外国人の数</h1>
 <p class="lead">出入国在留管理庁が発表している在留外国人の数を、国籍・在留資格・都道府県・市区町村ごとに見られるサイトです。</p>
-{XMAKER}
+{xmaker()}
 <section class="ask" aria-labelledby="ask-h"><h2 id="ask-h">何を調べますか？</h2>{ENTRIES}</section>
 <section id="japan" aria-labelledby="japan-h"><h2 id="japan-h" style="margin-top:22px">日本全体の在留外国人</h2>
 {meta_line("日本全体", '<span>もっと新しい数（速報）：<a href="sokuho.html">半期速報</a></span>')}

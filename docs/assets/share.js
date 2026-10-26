@@ -946,8 +946,9 @@
     var t = fitOne(ctx, title || autoTitle(cur), W - 2 * pad, px('title', u), true, 48 * k);
     ctx.fillStyle = C.text; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     t.lines.forEach(function (l) { ctx.font = font(t.size, true); ctx.fillText(l, pad, y); y += t.size * 1.28; });
-    // タイトルの下：時点だけ（増減の棒は並び順も。半期速報は「（速報）」）
-    var sub = one && ch.kind === 'diff' ? whenT(ch) + (sortName(ch) ? '（' + sortName(ch) + '）' : '') :
+    // タイトルの下：時点だけ（増減の棒は並び順も。半期速報は「（速報）」。増減の棒はまとめて「（速報・増加人数順）」）
+    var dtag = one && ch.kind === 'diff' ? [m.status, sortName(ch)].filter(Boolean).join('・') : '';
+    var sub = one && ch.kind === 'diff' ? whenT(ch) + (dtag ? '（' + dtag + '）' : '') :
       items.map(function (x) { return whenT(x.chart); }).filter(function (v, i, a) { return v && a.indexOf(v) === i; }).join('・') + (m.status ? '（' + m.status + '）' : '');
     var units = items.map(function (x) { return unitOf(x.chart); }).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
     if (units.length) { sub += '　単位：' + units.join('・'); } // グラフの中の数には付けない単位を、ここにまとめて書く

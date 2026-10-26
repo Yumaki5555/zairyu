@@ -140,9 +140,23 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 @media (max-width: 400px) { .entries { gap: 10px; } .entries a { padding: 12px; min-height: 128px; } .entries b { font-size: 17px; } .entries .ed { font-size: 14px; } }
 
 /* トップページのいちばん上：グラフの画像を作る（X投稿用。xmaker.js）。パソコンでは左に選ぶもの・右に画像（画像は止めておく）、
-   スマホ（860px より狭い）では上に選ぶもの・下に画像。ボタンは緑、選んでいるものは緑でぬり「✓」も付ける */
-section.xm { border: 2px solid var(--btn); padding: 18px; }
-.xm h2 { font-size: 23px; margin-bottom: 4px; }
+   スマホ（860px より狭い）では上に選ぶもの・下に画像。ボタンは緑、選んでいるものは緑でぬり「✓」も付ける。
+   はじめは閉じた帯（見出し・一言・「ひらく」）だけ。帯のどこを押しても開け閉めできる */
+details.xm { background: var(--card); border: 2px solid var(--btn); border-radius: 12px; margin: 14px 0; font-size: inherit; }
+details.xm > summary { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 16px;
+                       padding: 16px 18px; color: var(--text); font-weight: 400; border-radius: 10px; }
+details.xm > summary::-webkit-details-marker { display: none; }
+details.xm > summary:hover { background: var(--btn-soft); }
+details.xm[open] > summary { border-radius: 10px 10px 0 0; }
+.xm h2 { font-size: 23px; margin: 0; grid-column: 1; }
+.xm-x { white-space: nowrap; } /* 「（X投稿用）」は分けない */
+.xm-sub { grid-column: 1; color: var(--sub); font-size: 15px; line-height: 1.6; }
+.xm-tog { grid-column: 2; grid-row: 1 / span 2; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--btn); background: var(--btn); color: var(--btn-ink); font-weight: 700; font-size: 16px; white-space: nowrap; }
+.xm-tog::after { content: "ひらく ▼"; }
+details.xm[open] .xm-tog { background: var(--card); color: var(--btn); border-color: var(--btn-line); }
+details.xm[open] .xm-tog::after { content: "とじる ▲"; }
+.xm-in { padding: 4px 18px 18px; }
+@media (max-width: 560px) { .xm-tog { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 8px; } }
 .xm-lead { color: var(--sub); margin: 0 0 14px; font-size: 15px; }
 .xm-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
 .xm-step { border: 0; margin: 0 0 16px; padding: 0; min-width: 0; }
@@ -182,9 +196,13 @@ a.xm-off { pointer-events: none; opacity: .45; }
 .xm-pick.xm-chips button:hover { background: var(--btn); filter: brightness(1.1); }
 .xm-xn .dctl { margin-top: 8px; }
 .xm-reset { margin-top: 8px; }
+.xm-spbtn { margin: 0 0 10px; } /* ③のいちばん上：最新の速報で作る（速報のときは、確定した統計に戻す） */
+.xm-step .xm-sphelp { margin: -4px 0 10px; }
 @media (max-width: 860px) { .xm-grid { grid-template-columns: minmax(0, 1fr); } .xm-out { position: static; } }
 @media (max-width: 420px) {
-  section.xm { padding: 14px 12px; }
+  details.xm > summary { padding: 14px 12px; }
+  .xm h2 { font-size: 20px; }
+  .xm-in { padding: 4px 12px 14px; }
   .xm-sels select { font-size: 15px; padding: 6px 8px; }
   .xm-kinds button small { display: none; }
   .xm-kinds button { min-height: 52px; }
