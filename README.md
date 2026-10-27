@@ -39,7 +39,7 @@ Python 3 と pandas・openpyxl・xlrd・pbixray を使います（古い表の�
    `python download_fuho.py` → `python make_fuho.py` … 不法残留者数（報道発表の資料、`データ/不法残留/`）。
    `python download_kika.py` → `python make_kika.py` … 帰化の数（法務省民事局の PDF、`データ/帰化/`）。
    `python download_nanmin.py` → `python make_nanmin.py` … 難民認定などの数（報道発表の PDF、`データ/難民/`）。どれも内わけの合計などを確かめる（サイトの「不法残留」「帰化」「難民」のページに使う）
-   `python make_tokutei.py` … 在留資格「特定活動」の在留目的ごとの数（e-Stat の表から、`データ/特定活動/`。サイトの「在留資格「特定活動」とは」のページに使う）
+   `python download_nyukoku.py` → `python make_tokutei.py` … 在留資格「特定活動」の在留目的ごとの数と、新しく入国した人の入国目的ごとの数（e-Stat の在留外国人統計・出入国管理統計の表から、`データ/特定活動/`。サイトの「在留資格「特定活動」とは」のページに使う）
 7. `python make_site.py` … `site/` にサイトのページを作る
 8. `python make_dash_data.py` … ダッシュボードが読む小さな表（`site/data/*.json`）を作る
 9. `python copy_public.py <写す先>` … 公開するものだけを写す（`site/` は `docs/` になる）。`upload_github.py` はこれをして GitHub に上げる
@@ -48,6 +48,7 @@ Python 3 と pandas・openpyxl・xlrd・pbixray を使います（古い表の�
 
 - 出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat、https://www.e-stat.go.jp/ ）を加工して作成。e-Stat の利用規約に従い、出典を示して使っています
 - 人口：総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」（e-Stat）を加工して作成（外国人の割合の分母）
+- 特定活動の新しく入国した人：出入国在留管理庁「出入国管理統計」（e-Stat）を加工して作成
 - 半期速報：出入国在留管理庁「〇年〇月末現在における在留外国人数について」（報道発表、https://www.moj.go.jp/isa/ ）
 - 不法残留者数：出入国在留管理庁「本邦における不法残留者数について（〇年〇月１日現在）」（報道発表、https://www.moj.go.jp/isa/ ）
 - 帰化：法務省民事局「帰化許可申請者数等の推移」（https://www.moj.go.jp/MINJI/toukei_t_minj03.html ）

@@ -7,7 +7,7 @@
 #     site_assets/ のグラフの部品と見た目（app.js・style.css）と地図の形（map/*.json。make_map.py で国土地理院「地球地図日本」から、world.json は make_world_map.py で Natural Earth から作ったもの）、サイトのしるし（favicon.*・apple-touch-icon.png。make_favicon.py で作ったもの）
 #     site/ のサイトのページ → 写す先では docs/（GitHub Pages で docs/ を公開する）。docs/.nojekyll も作る（GitHub に手を加えさせず、そのまま出す印）
 #     元データ/ のうち、人が手で作った一覧と出どころ一覧だけ
-#       出どころ一覧.csv（e-Stat の番号・URL・公開日。元のファイルはここから取り直せる）
+#       出どころ一覧.csv（e-Stat の番号・URL・公開日。元のファイルはここから取り直せる）・出入国管理統計_出どころ一覧.csv（特定活動の新しく入国した人の表）
 #       人口_出どころ一覧.csv・半期速報_出どころ一覧.csv（住民基本台帳人口と法務省の半期速報の資料の URL・公表日）
 #       不法残留_出どころ一覧.csv・帰化_出どころ一覧.csv（不法残留者数の報道発表と、帰化の数の資料の URL）
 #       OCR直し.csv・印刷のまま.csv・名前の直し.csv（画像で確かめて直した所・印刷のまま残した所・市区の名前の直し）
@@ -21,7 +21,7 @@ import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 HAND_MADE = ["出どころ一覧.csv", "OCR直し.csv", "印刷のまま.csv", "名前の直し.csv", "人口_出どころ一覧.csv", "半期速報_出どころ一覧.csv",
-             "不法残留_出どころ一覧.csv", "帰化_出どころ一覧.csv", "難民_出どころ一覧.csv"]
+             "不法残留_出どころ一覧.csv", "帰化_出どころ一覧.csv", "難民_出どころ一覧.csv", "出入国管理統計_出どころ一覧.csv"]
 KEEP = {".git", ".gitignore", "LICENSE"}  # 写す先で別に作るもの（消さない）
 EMPTY = object()  # 中身のないファイルを作る印
 

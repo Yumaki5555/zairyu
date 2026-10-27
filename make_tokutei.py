@@ -9,12 +9,16 @@
 #                     「家族」の列を読んでいないので、ここでは表から読み直す。特定活動の合計の数は同じ）
 #     2022年12月末・2023年6月末  同じ表（〇-01m.xlsx。1行に1つの数の形）
 #     2023年12月末から  「国籍・地域別 在留目的別 在留外国人（特定活動・日本人の配偶者等・定住者）」（〇-02m.xlsx）
+#     新しく入国した人  出入国管理統計「国籍・地域別 入国目的別 新規入国外国人（短期滞在・特定活動等）」（download_nyukoku.py が
+#                     元データ/出入国管理統計/ に落とした表。1年間の数）の「総数」の行の、特定活動の列
 #   書き出す表（データ/特定活動/）
 #     在留目的別.csv    列：時点・統計・在留目的・人数・出どころ（全国。在留目的は国の表の名前のまま、空白は除く。「総数」は特定活動の合計）
 #     国籍_在留目的.csv 列：時点・国籍・地域・在留目的・人数・出どころ（2022年12月末から。0人の行は書かない。「うち中国〔香港〕」などの内わけの行は入れない）
+#     新規入国_入国目的.csv 列：年・入国目的・告示の号・人数・出どころ（全国。入国目的は見出しの2段を「アマチュアスポーツ選手（本人）」のようにつなぐ。
+#                     告示の号は見出しの（告示〇号）を「1号・2号の2」のように書く。「総数」は特定活動の合計で、デジタルノマドも入る）
 #   確かめ: データ/特定活動/確かめ.csv
 #     時点ごとに、在留目的の合計＝総数（デジタルノマドは中長期在留者ではないので総数の外。表の注のとおり）、
-#     総数＝データ/全国_国籍_在留資格.csv（または古い表）の特定活動の数、国籍ごとの合計＝全国の数
+#     総数＝データ/全国_国籍_在留資格.csv（または古い表）の特定活動の数、国籍ごとの合計＝全国の数。新しく入国した人は、入国目的の合計＝総数
 import csv
 import os
 import re
@@ -32,6 +36,8 @@ OUT = os.path.join(DATA, "特定活動")
 TOTAL = "総数"
 OUTSIDE = ("デジタルノマド",)  # 総数の外（外数）の在留目的
 NEXT_VISA = {"永住者", "日本人の配偶者等", "永住者の配偶者等", "定住者", "特別永住者"}  # 表で特定活動の右にある在留資格
+ENTRY_LIST = os.path.join(SRC, "出入国管理統計_出どころ一覧.csv")
+Z2H = str.maketrans("０１２３４５６７８９", "0123456789")
 CHECKS = []
 
 
@@ -93,6 +99,24 @@ def read_long(path, kind):
     return japan, by_nat
 
 
+def read_entry(path):
+    """新しく入国した人の表：見出しの2段（入国目的・本人などの分け方）と告示の号を読み、「総数」の行の特定活動の列の数を返す"""
+    rows = list(openpyxl.load_workbook(path, read_only=True, data_only=True).worksheets[0].iter_rows(values_only=True))
+    first = next(i for i, r in enumerate(rows) if norm(r[0]) == TOTAL)
+    head = [[norm(c) for c in r] for r in rows[:first]]
+    top = next(i for i, r in enumerate(head) if "特定活動" in r)
+    c0 = head[top].index("特定活動")
+    c1 = next((c for c in range(c0 + 1, len(head[top])) if head[top][c]), len(head[top]))
+    out, l2 = [], ""
+    for c in range(c0, c1):
+        l2 = head[top + 1][c] or l2
+        l3 = head[top + 2][c] if top + 2 < first else ""
+        no = re.findall(r"（告示(.+?)）", l3 or l2)
+        name = re.sub(r"（告示.+?）", "", l2) + (f"（{re.sub(r'（告示.+?）', '', l3)}）" if l3 else "")
+        out.append((name, no[0].replace("告示", "").translate(Z2H).replace("、", "・") if no else "", to_int(rows[first][c])))
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rows, nat_rows = [], []
@@ -138,11 +162,21 @@ def main():
         CHECKS.append([w, "在留目的の合計＝総数", s, d[TOTAL], s - d[TOTAL]])
         if w in ref:
             CHECKS.append([w, "総数＝在留資格の表の特定活動", d[TOTAL], ref[w], d[TOTAL] - ref[w]])
+    # 新しく入国した人（1年間）
+    entry_rows = []
+    for r in csv.DictReader(open(ENTRY_LIST, encoding="utf-8-sig")):
+        f = "出入国管理統計/" + r["ファイル"]
+        got = read_entry(os.path.join(SRC, f))
+        entry_rows += [[r["年"], p, no, v, f] for p, no, v in got]
+        total = next(v for p, _, v in got if p == TOTAL)
+        s = sum(v for p, _, v in got if p != TOTAL)
+        CHECKS.append([r["年"], "新しく入国した人：入国目的の合計＝総数", s, total, s - total])
     pd.DataFrame(rows, columns=["時点", "統計", "在留目的", "人数", "出どころ"]).to_csv(os.path.join(OUT, "在留目的別.csv"), index=False, encoding="utf-8-sig")
     pd.DataFrame(nat_rows, columns=["時点", "国籍・地域", "在留目的", "人数", "出どころ"]).to_csv(os.path.join(OUT, "国籍_在留目的.csv"), index=False, encoding="utf-8-sig")
+    pd.DataFrame(entry_rows, columns=["年", "入国目的", "告示の号", "人数", "出どころ"]).to_csv(os.path.join(OUT, "新規入国_入国目的.csv"), index=False, encoding="utf-8-sig")
     pd.DataFrame(CHECKS, columns=["時点", "確かめ", "数", "比べる数", "差"]).to_csv(os.path.join(OUT, "確かめ.csv"), index=False, encoding="utf-8-sig")
     bad = [c for c in CHECKS if c[4]]
-    print(f"在留目的別 {len(rows)} 行（{len(byw)} 時点）、国籍_在留目的 {len(nat_rows)} 行")
+    print(f"在留目的別 {len(rows)} 行（{len(byw)} 時点）、国籍_在留目的 {len(nat_rows)} 行、新規入国_入国目的 {len(entry_rows)} 行")
     print("確かめ：" + ("すべて合っています" if not bad else f"合わない所 {len(bad)}"))
     for c in bad:
         print("  ", c)
