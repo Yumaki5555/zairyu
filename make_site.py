@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "29"
+CSS_VER = "30"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 # ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
@@ -2082,6 +2082,8 @@ SP_ICON = {
     "work": '<rect class="f" x="8" y="18" width="40" height="28" rx="4"/><path class="h" d="M20 18v-6h16v6"/><path class="hw" d="M8 30h40"/>',
     "family": '<circle class="f" cx="19" cy="15" r="7"/><path class="f" d="M6 48c0-11 6-18 13-18s13 7 13 18z"/><circle class="f" cx="39" cy="24" r="6"/><path class="f" d="M28 48c0-9 5-15 11-15s11 6 11 15z"/>',
     "study": '<path class="f" d="M4 20l24-10 24 10-24 10z"/><path class="f" d="M14 25v11c0 4 7 8 14 8s14-4 14-8V25l-14 6z"/><path class="h" d="M48 22v13"/>',
+    "doc": '<path class="f" d="M12 4h22l12 12v36H12z"/><path class="hw" d="M19 24h20M19 32h20M19 40h13"/>',  # 告示（前もって決めた文書）
+    "one": '<circle class="f" cx="21" cy="15" r="9"/><path class="f" d="M5 50c0-12 7-20 16-20s16 8 16 20z"/><circle class="w h" cx="40" cy="36" r="9"/><path class="h hb" d="M46 43l6 7"/>',  # 一人ひとりの審査
 }
 
 
@@ -2090,10 +2092,12 @@ def sp_icon(name, cls=""):
 
 
 def sp_person(cls, mark):
-    """3分でわかる STEP 1 の人の絵：人（服の色 cls：g・b・o）と、右下に活動のしるし（mark：work・study・stay）"""
+    """3分でわかる STEP 1 の人の絵：人（服の色 cls：g・b・o）と、右下に活動のしるし（mark：work・study・stay。定住者のページは cal＝期限あり・inf＝期限なし）"""
     sym = {"work": '<rect x="63" y="47" width="20" height="13" rx="2"/><path class="ln" d="M69 47v-3h8v3"/>',
            "study": '<path d="M62 46c4-2 8-2 11 1v13c-3-3-7-3-11-1z"/><path d="M84 46c-4-2-8-2-11 1v13c3-3 7-3 11-1z"/>',
-           "stay": '<path d="M61 53a12 12 0 0 1 24 0z"/><path class="ln" d="M73 53v6a3 3 0 0 1-6 0"/>'}[mark]
+           "stay": '<path d="M61 53a12 12 0 0 1 24 0z"/><path class="ln" d="M73 53v6a3 3 0 0 1-6 0"/>',
+           "cal": '<rect x="62" y="44" width="22" height="18" rx="2"/><path class="ln" d="M67 40v6M79 40v6"/><path class="lb" d="M62 50h22M67 55h3M72 55h3M77 55h3M67 59h3M72 59h3"/>',
+           "inf": '<path class="ln" d="M64 52c0-5 7-5 9 0s9 5 9 0-7-5-9 0-9 5-9 0z"/>'}[mark]
     return (f'<svg class="sp-man {cls}" viewBox="0 0 96 72" aria-hidden="true" focusable="false"><circle class="sk" cx="34" cy="20" r="12"/>'
             '<path class="hr" d="M22 19a12 12 0 0 1 24 0c-6-5-17-5-24 0z"/><path class="sh" d="M12 70c0-14 10-24 22-24s22 10 22 24z"/>'
             f'<circle class="bd" cx="73" cy="52" r="18"/><g class="mk">{sym}</g></svg>')
@@ -2589,7 +2593,10 @@ TJ_GROUPS = [
      "日本人や永住者の夫・妻は、在留資格「日本人の配偶者等」「永住者の配偶者等」で、ここには入りません。"),
     ("未成年で未婚の実子", "未成年未婚の実子", "6号",
      "日本人・永住者・特別永住者・在留期間が1年以上の定住者や、日本人などと結婚している外国人に養われて暮らす、未成年で結婚していない実の子（日本人と結婚した外国人の、前の結婚のときの子など）。"
-     "この「未成年」は、2022年4月から18歳未満になりました（それより前は20歳未満）。"),
+     "この「未成年」は、2022年4月から18歳未満になりました（それより前は20歳未満）。"
+     "18歳未満かどうかは、この区分で新しく入国するときの条件です。すでに定住者として住んでいる人が18歳になっても、それだけで在留資格がなくなることはありません"
+     "（在留資格は決められた在留期間の終わりまで続き、入管法の在留資格の取消しの理由に年齢はありません。国も、すでに「定住者」を持ち再入国許可で出国している人には影響がないと説明しています）。"
+     "そのあと在留期間の更新が認められるかは、ほかの更新と同じく一人ひとりの審査で決まります（入管法第21条）。"),
     ("その他", "その他", "—",
      "上の3つに入らない定住者です。告示にあるもの（第三国定住難民・6歳未満の養子・中国残留邦人とその家族）と、告示にないもの（難民と認定された人、日本人などと離婚したあとも日本に住む人など）が入ります。"
      "内わけは発表されていません（くわしくは下の「「その他」には何が入っている？」に）。"),
@@ -2600,26 +2607,27 @@ TJ_KOKUJI_OTHER = [
     ("6歳未満の養子", "7号", "日本人・永住者・特別永住者・在留期間が1年以上の定住者に養われて暮らす、6歳未満の養子。"),
     ("中国残留邦人とその家族", "8号", "1945年8月9日以後の混乱などで日本に引き揚げられず、中国に住み続けた日本人（中国残留邦人）とその子や、日本に永住帰国した中国残留邦人と一緒に暮らすために来る配偶者・子など。"),
 ]
-# 告示にない定住者（国の表では「その他」）：(名前, 説明, [(出典の名前, URL)])。説明の中の {cr}・{cp}・{hum}・{hy} は難民の認定の数（データ/難民/）
+# 告示にない定住者（国の表では「その他」）：(鍵, 名前, 説明, [(出典の名前, URL)])。説明の中の {cr}・{cp}・{hum}・{hy} は難民の認定の数（データ/難民/）。
+# 鍵は「その他」の説明の行の id（tjo-鍵。3分でわかるの STEP 4 から飛ぶ）
 TJ_OUTSIDE = [
-    ("難民・補完的保護対象者と認定された人",
+    ("nanmin", "難民・補完的保護対象者と認定された人",
      "難民と認定された人と、補完的保護対象者（難民条約の5つの理由には当たらないものの、迫害を受けるおそれがあるとして認定された人。2023年12月から）には、"
      "入管法で、決められた罪を犯した人などをのぞき「定住者」を許可することになっています（第61条の2の2・第61条の2の3）。"
      "{hy}年までに認定された人は、難民（条約難民）が{cr}人（1982年から）、補完的保護対象者が{cp}人（2023年から）です（認定した人の数で、いま定住者として住んでいる人の数ではありません）。",
      [("入管法（e-Gov 法令検索）", NYUKANHO), ("出入国在留管理庁「令和7年における難民認定者数等について」", NANMIN_PRESS)]),
-    ("難民とは認められなかったが、人道上の配慮で在留を認められた人",
+    ("jindo", "難民とは認められなかったが、人道上の配慮で在留を認められた人",
      "難民とは認定されなかったものの、人道上の配慮で在留を認められた人には、「定住者」か「特定活動」が許可されます（2013年11月27日の国会での政府の答弁）。"
      "人道上の配慮で在留を認めた人（その他の保護）は、{hy}年に{hum}人です（「定住者」と「特定活動」の内わけは発表されていません）。",
      [("衆議院外務委員会（2013年11月27日）", KOKKAI + "118503968X00720131127/103"), ("出入国在留管理庁「令和7年における難民認定者数等について」", NANMIN_PRESS)]),
-    ("日本人・永住者などと離婚した人、配偶者が亡くなった人",
+    ("rikon", "日本人・永住者などと離婚した人、配偶者が亡くなった人",
      "日本人・永住者・特別永住者の配偶者として住んでいた外国人が、離婚したあとや、配偶者が亡くなったあとも日本に住み続けるとき、在留資格を「定住者」に変えることが認められる場合があります。"
      "法務省入国管理局（いまの出入国在留管理庁）は、認められた例と認められなかった例を公表しています（2012年7月。2017年3月改訂）。"
      "国会では、生計を立てる資産や技能があるか、日本人や永住者との間の子を日本で育てているかなどを総合的に考えて判断し、子がいなくても日本にかなり定着していれば認めている、と答弁されています（2009年6月30日）。",
      [("出入国在留管理庁（認められた例・認められなかった例）", TJ_CASES), ("参議院法務委員会（2009年6月30日）", KOKKAI + "117115206X01320090630/291")]),
-    ("日本人の子を育てている外国人の親",
+    ("kosodate", "日本人の子を育てている外国人の親",
      "日本人と結婚していない外国人が、日本人との間に生まれた子（日本人の実子）を育てている場合など、人道的な配慮が必要と認められるときに、事情を考えて「定住者」が認められる場合があります（2018年12月6日の国会での政府の答弁）。",
      [("参議院法務委員会（2018年12月6日）", KOKKAI + "119715206X00820181206/272")]),
-    ("配偶者からの暴力（DV）の被害を受けた人",
+    ("dv", "配偶者からの暴力（DV）の被害を受けた人",
      "法務省入国管理局は2008年7月に「DV事案に関する措置要領」をつくりました。2009年5月末までに被害を申し立てた外国人40人のうち、在留資格を変えたのは9人で、"
      "7人が「定住者」、2人が「特定活動」でした（2009年6月30日の国会での政府の答弁）。",
      [("参議院法務委員会（2009年6月30日）", KOKKAI + "117115206X01320090630/295")]),
@@ -2639,10 +2647,206 @@ TJ_EVENTS = [
     ("2010年", "第三国定住による難民の受入れが始まる", [("出入国在留管理庁「令和7年における難民認定者数等について」", NANMIN_PRESS)]),
     ("2012年7月", "「日本人の配偶者等」「永住者の配偶者等」から「定住者」への変更が認められた例・認められなかった例を公表（2017年3月改訂）", [("出入国在留管理庁", TJ_CASES)]),
     ("2021年10月", "いちばん新しい定住者告示の改正（法務省告示第220号、10月28日）", [("定住者告示", TJ_KOKUJI)]),
-    ("2022年4月", "成年の年齢の引下げで、告示6号の「未成年」が20歳未満から18歳未満になる", [("出入国在留管理庁「定住者」", TJ_PAGE)]),
+    ("2022年4月", "成年の年齢の引下げで、告示6号の「未成年」が20歳未満から18歳未満になる。18歳以上の人は、この区分で新しく入国できなくなった"
+                  "（すでに「定住者」を持ち再入国許可で出国している人には影響がないと国は説明）", [("出入国在留管理庁「定住者」", TJ_PAGE)]),
     ("2023年12月", "補完的保護の制度が始まり、補完的保護対象者と認定された人にも「定住者」を許可する（2023年の入管法の改正、令和5年法律第56号）",
      [("衆議院「制定法律」", "https://www.shugiin.go.jp/internet/itdb_housei.nsf/html/housei/21120230616056.htm"), ("入管法（e-Gov 法令検索）", NYUKANHO)]),
 ]
+
+# ---- 3分でわかる（定住者のページのいちばん上の5つの図。見た目は特定活動の「3分でわかる」と同じ .sp-*、定住者だけの図は style.css の .tj-*）
+# STEP 2・4 の告示にある人：(告示の号, 名前, ひとこと, 国の表の区分)。国の表の区分が「その他」の人は、下の TJ_KOKUJI_OTHER の説明（id tjk-号の数）へ飛ぶ
+TJ_SP_IN = [("1号", "第三国定住難民", "国連（UNHCR）が日本に推薦した、外国にいる難民と、その家族", "その他"),
+            ("3号・4号", "日系3世", "祖父母が日本人の日系人", "日系３世"),
+            ("5号", "日系人や定住者の夫・妻", "日系2世・日系3世・定住者の配偶者", "配偶者"),
+            ("6号", "未成年（18歳未満）で未婚の実子", "日本人・永住者・定住者などに養われて暮らす実の子", "未成年未婚の実子"),
+            ("7号", "6歳未満の養子", "日本人・永住者・定住者などに養われて暮らす養子", "その他"),
+            ("8号", "中国残留邦人とその家族", "戦後の混乱で中国に残った日本人（中国残留邦人）などと、その家族", "その他")]
+# STEP 2・4 の告示にない人の例：(TJ_OUTSIDE の鍵, 短い名前, ひとこと)。ひとことは下の説明を短くしたもの
+TJ_SP_OUT = [("nanmin", "難民・補完的保護対象者と認定された人", "決められた罪を犯した人などをのぞき、法律で「定住者」が許可される"),
+             ("rikon", "離婚・死別のあとも日本で暮らす人", "日本人・永住者などの配偶者だった人。暮らしを立てられるか、子育て、日本への定着などを見て判断"),
+             ("kosodate", "日本人の子を育てている親など", "日本人との間に生まれた子を育てている外国人の親など。事情を考えて判断"),
+             ("jindo", "そのほか、人道上の事情などで認められた人", "難民とは認められなかったが人道上の配慮で在留を認められた人、DVの被害を受けた人など")]
+TJ_SP_SUB = {"配偶者": "日系人や定住者の夫・妻"}  # STEP 3 の区分の名前の下に書くひとこと
+TJ_Z2H = str.maketrans("０１２３４５６７８９", "0123456789")
+
+
+def teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url):
+    """定住者のページのいちばん上の「3分でわかる」（5つのステップの図）。数はどれも teiju_page が国の表から計算して渡す。
+    P：時点 → {国の表の区分: 人数}（「総数」は定住者の合計）、gid：国の表の区分 → 下の「それぞれの中身」の行の id、sw・sv：速報の時点と人数"""
+    fw, swl = when_label(first_w), when_label(sw)
+
+    def pc(v, tot=now):
+        return f"{v / tot * 100:.1f}%"
+
+    def kid(kj):  # 「7号」→ 下の説明の行の id
+        return "tjk-" + re.sub(r"\D", "", kj)
+    if {kj for kj, _, _, k in TJ_SP_IN if k == "その他"} != {kj for _, kj, _ in TJ_KOKUJI_OTHER}:
+        sys.exit("3分でわかる（TJ_SP_IN）の「その他」の告示の号が、TJ_KOKUJI_OTHER と合いません")
+    if any(k not in {o[0] for o in TJ_OUTSIDE} for k, _, _ in TJ_SP_OUT):
+        sys.exit("3分でわかる（TJ_SP_OUT）に、TJ_OUTSIDE にない鍵があります")
+
+    def step(n, title, ans, fig, point, more_href, more_text, cls=""):
+        """1つのステップ。下に「前へ・詳しく見る・次へ」"""
+        pv = (f'<a class="pv" href="#sanpun-{n - 1}"><span aria-hidden="true">←</span> 前のSTEP</a>' if n > 1
+              else '<a class="pv" href="#sanpun"><span aria-hidden="true">↑</span> はじめに</a>')
+        nx = (f'<a class="nx" href="#sanpun-{n + 1}">次のSTEP <span aria-hidden="true">→</span></a>' if n < 5
+              else '<a class="nx" href="#sanpun-next">まとめ <span aria-hidden="true">→</span></a>')
+        return (f'<article class="sp-s{cls}" id="sanpun-{n}" aria-labelledby="sanpun-{n}-h"><div class="sp-hd"><span class="sp-no" aria-hidden="true">STEP<b>{n}</b></span>'
+                f'<h3 id="sanpun-{n}-h"><span class="nvh">STEP {n}　</span>{title}</h3></div><p class="sp-ans">{ans}</p>{fig}'
+                f'<div class="sp-pt"><b>ここがポイント</b><p>{point}</p></div>'
+                f'<nav class="tj-pn" aria-label="STEP {n} から移る">{pv}<a class="dt" href="#{more_href}">{more_text} <span aria-hidden="true">↓</span></a>{nx}</nav></article>')
+
+    # STEP 1：定住者と永住者のちがい（在留期間・更新・働くこと）
+    cmp_rows = [("在留期間", ("期限あり", "5年・3年・1年・6月など"), ("期限なし", "在留期間の決まりがない"), "d"),
+                ("更新", ("必要", "期限までに申請して、審査を受ける"), ("不要", "在留カードの有効期間の更新は7年ごと（16歳以上）"), "d"),
+                ("働くこと", ("制限なし", "仕事の種類・時間の制限がない"), ("制限なし", "仕事の種類・時間の制限がない"), "s")]
+
+    def cell(c, big, small):
+        return f'<span role="cell" class="{c}"><b>{big}</b><small>{small}</small></span>'
+    fig1 = ('<p class="tj-def">法務大臣が、一人ひとりの事情（特別な理由）を考えて、期間を決めて日本に住むことを認める在留資格です（入管法）。</p>'
+            '<div class="tj-cmp" role="table" aria-label="定住者と永住者のちがい"><div role="row" class="r h"><span role="columnheader" class="c0"><span class="nvh">項目</span></span>'
+            f'<span role="columnheader" class="g">{sp_person("g", "cal")}<b>定住者</b></span><span role="columnheader" class="b">{sp_person("b", "inf")}<b>永住者</b></span></div>'
+            + "".join(f'<div role="row" class="r {k}"><span role="rowheader" class="c0">{h}</span>{cell("g", *a)}{cell("b", *b)}</div>' for h, a, b, k in cmp_rows)
+            + '</div><p class="sp-say">違いは、<em>期限と更新</em>があるかどうか</p>'
+            '<p class="sp-cap">定住者・永住者・日本人の配偶者等・永住者の配偶者等の4つは、身分や立場にもとづく在留資格（入管法の別表第二）で、'
+            '入管法の「仕事の種類や時間」の制限がありません。留学や特定活動など、ほかの在留資格とは決まりが違います。</p>')
+    s1 = step(1, "定住者って何？", "日本で暮らすことを、<em>特別な理由から</em>認められた人です。", fig1,
+              "定住者は、在留期間が終わる前に更新を申請し、認められれば住み続けられます。永住者には在留期間の期限がありません。"
+              "どちらも、働く仕事の種類や時間に入管法の制限はありません。",
+              "what", "制度を詳しく見る")
+
+    # STEP 2：告示にある人・告示にない人
+    ins = "".join(f'<li><a href="#{kid(kj) if k == "その他" else gid[k]}"><span class="kb">告示{kj}</span><b>{esc(n)}</b><span class="ds">{esc(x)}</span>'
+                  + ('<span class="so">統計では「その他」</span>' if k == "その他" else "") + "</a></li>" for kj, n, x, k in TJ_SP_IN)
+    outs = "".join(f'<li><a href="#tjo-{k}"><b>{esc(n)}</b><span class="ds">{esc(x)}</span><span class="so">統計では「その他」</span></a></li>' for k, n, x in TJ_SP_OUT)
+    fig2 = ('<div class="sp-two tj-two">'
+            f'<div class="sp-card g"><h4>{sp_icon("doc", "g")}<span><span class="n" aria-hidden="true">①</span> 告示にある人</span></h4>'
+            '<p>法務省の告示（「定住者告示」。国が決まりを広く知らせる文書）で、<b>前もって決められた人</b>です。</p>'
+            f'<ul class="tj-who">{ins}</ul>'
+            '<p class="sm">外国から新しく「定住者」で来られるのは、原則としてこちらの人だけです。</p></div>'
+            f'<div class="sp-card b"><h4>{sp_icon("one", "b")}<span><span class="n" aria-hidden="true">②</span> 告示にない人</span></h4>'
+            '<p>すでに日本にいる人などについて、法務大臣が<b>一人ひとりの事情を見て</b>決めます（個別の審査）。</p>'
+            f'<ul class="tj-who">{outs}</ul>'
+            '<p class="sm tj-caution"><span aria-hidden="true">！</span>ここに挙げた人が、必ず許可されるわけではありません。</p></div></div>'
+            '<p class="sp-both">①も②も、どちらも正式な在留資格「定住者」です</p>'
+            '<p class="sp-cap">名前を押すと、下の詳しい説明に移ります。告示6号の「18歳未満」は、新しく入国するときの条件です。'
+            'すでに定住者として住んでいる人が18歳になっても、それだけで在留資格はなくなりません。</p>')
+    s2 = step(2, "どんな人が対象？", "対象は<em>2つの系統</em>に分かれます。告示で<em>前もって決められた人</em>と、<em>告示にない人</em>です。", fig2,
+              "②の告示にない人は、一人ひとりの審査で決まります。例に当てはまっても、必ず「定住者」が許可されるわけではありません"
+              "（難民と認定された人も、決められた罪を犯した人などは除かれます）。",
+              "what", "告示の号と国の表の区分を詳しく見る")
+
+    # STEP 3：4つの区分（100%の積み上げ棒。棒の長さ＝割合。区分を押すと説明へ）
+    segs = [{"k": k, "name": k.translate(TJ_Z2H), "kj": kj, "v": P[LATEST][k], "href": "#sanpun-4" if k == "その他" else f"#{gid[k]}",
+             "cls": "so" if k == "その他" else f"s{i + 1}"} for i, (_, k, kj, _) in enumerate(TJ_GROUPS)]
+    big = max(segs, key=lambda s: s["v"])
+    b_left = sum(s["v"] for s in segs[:segs.index(big)]) / now * 100  # いちばん多い区分の左はし（%）。棒の上に「いちばん多い」の枠を付ける
+    b_w = big["v"] / now * 100
+    brace = (f'<div class="tj-brace" aria-hidden="true"><span class="{"rt" if b_left + b_w / 2 > 50 else "lt"}" style="left:{b_left:.3f}%;width:{b_w:.3f}%">'
+             '<b>いちばん多い</b></span></div>')
+    bar = "".join(f'<a class="{s["cls"]}{" nar" if s["v"] / now < 0.15 else ""}" href="{s["href"]}" tabindex="-1" style="width:{s["v"] / now * 100:.3f}%">'
+                  f'<span class="nm">{esc(s["name"])}</span><span class="pc">{pc(s["v"])}</span></a>' for s in segs)
+
+    def sub(s):
+        t = "告示にある人・ない人の両方" if s["kj"] == "—" else f"告示{s['kj']}"
+        return f"{TJ_SP_SUB[s['k']]}（{t}）" if s["k"] in TJ_SP_SUB else t
+    leg = "".join(f'<li class="{s["cls"]}"><a href="{s["href"]}"><i class="sw" aria-hidden="true"></i><span class="nm">{esc(s["name"])}'
+                  + ('<span class="sp-tg">いちばん多い</span>' if s is big else "")
+                  + f'<small>{esc(sub(s))}</small></span><span class="v"><b>{num(s["v"])}</b>人<em>{pc(s["v"])}</em></span></a></li>' for s in segs)
+    fig3 = (f'<p class="sp-tot">定住者の合計<b>{num(now)}</b>人<span>（{lw}・確定した統計）</span></p>'
+            f'{brace}<div class="tj-stack" aria-hidden="true">{bar}</div>'
+            f'<ol class="tj-leg">{leg}</ol>'
+            '<p class="sp-cap">棒の長さは割合と同じです。区分を押すと、その説明に移ります（「その他」は次の STEP 4 へ）。</p>'
+            f'<p class="gsrc">時点：{lw}（確定した統計）／割合の分母：定住者の合計 {num(now)}人／出典：{TK_ORG}の「国籍・地域別 在留目的別 在留外国人」の表</p>'
+            f'<div class="tj-sk"><b>{swl}の速報</b><span>定住者の合計は<b>{num(sv)}</b>人です。速報には区分ごとの数がないので、上の図（{lw}）には入れていません。</span></div>')
+    s3 = step(3, "何人いて、どんな内訳？",
+              f"{lw}は<em>{num(now)}人</em>。国の表の4つの区分で、<em>いちばん多いのは「{esc(big['name'])}」</em>（{pc(big['v'])}）です。", fig3,
+              "「その他」は、日系3世・配偶者・未成年未婚の実子のどれにも入らない人をまとめた欄です。その中身は、次の STEP 4 で説明します。",
+              "who", "4つの区分の人数と説明を詳しく見る")
+
+    # STEP 4：「その他」（いちばん大事なステップ。省かない。内わけの数は国が出していないので、推定の数は書かない）
+    oth, oth0 = P[LATEST]["その他"], P[first_w]["その他"]
+    rank = sorted((s["v"] for s in segs), reverse=True).index(oth) + 1
+    a_no = "・".join(kj for kj, _, _, k in TJ_SP_IN if k == "その他")
+    ga = "".join(f'<li><a href="#{kid(kj)}"><b>{esc(n)}</b><span>告示{kj}。{esc(x)}</span><span class="go">くわしい説明 ↓</span></a></li>'
+                 for kj, n, x, k in TJ_SP_IN if k == "その他")
+    gb = "".join(f'<li><a href="#tjo-{k}"><b>{esc(n)}</b><span>{esc(x)}</span><span class="go">くわしい説明と出典 ↓</span></a></li>' for k, n, x in TJ_SP_OUT)
+    fig4 = (f'<div class="sp-kpis"><div><span>「その他」の人数（{lw}）</span><b>{num(oth)}<small>人</small></b></div>'
+            f'<div><span>定住者全体の</span><b>{oth / now * 100:.1f}<small>%</small></b></div>'
+            f'<div><span>国の表の4つの区分で</span><b class="tj-w">{"いちばん多い" if rank == 1 else f"{rank}番目に多い"}</b></div></div>'
+            '<p class="sp-say">「その他」＝難民、<em>ではありません</em></p>'
+            '<p>国の表で、日系3世・配偶者・未成年未婚の実子の3つに入らない定住者を、まとめて数えた欄です。中には、次の<b>2つのグループ</b>の人が入ります。</p>'
+            '<div class="sp-grps tj-grps">'
+            f'<section class="sp-grp g"><h4>{sp_icon("doc", "g")}<span class="gl" aria-hidden="true">A</span>告示にあるが、国の表で分けていない人</h4><ul>{ga}</ul></section>'
+            f'<section class="sp-grp b"><h4>{sp_icon("one", "b")}<span class="gl" aria-hidden="true">B</span>告示にない人（一人ひとりの審査）</h4><ul>{gb}</ul></section></div>'
+            '<h4 class="sp-sub">分かること・分からないことを分けると</h4><div class="tj-know">'
+            f'<div class="k1"><h5><span class="tj-tag f">統計で確認</span>国の数で分かること</h5><ul><li>{lw}の「その他」は{num(oth)}人（定住者全体の{pc(oth)}）</li>'
+            f'<li>4つの区分の中で{"いちばん多い" if rank == 1 else f"{rank}番目に多い"}</li><li>{fw}（{num(oth0)}人）から{signed(oth - oth0)}人</li></ul></div>'
+            f'<div class="k2"><h5><span class="tj-tag s">制度上の例</span>「その他」に入る人</h5><ul><li>上の A（告示{a_no}の人）と B（告示にない人）</li>'
+            f'<li>国の表の<a href="{notes_url}">利用上の注意</a>に、表に区分のない告示の人と、告示にない人は「その他」に入れる、と書かれています</li></ul></div>'
+            '<div class="k3"><h5><span class="tj-tag u">分からない</span>国が発表していないこと</h5><ul><li>A・B のそれぞれが何人いるか、どんな割合か</li>'
+            '<li>増えた「その他」が、A・B のどの人か</li><li>このサイトでは、推定の人数や割合は作っていません</li></ul></div></div>'
+            '<div class="sp-warn"><b class="wl">注意</b><ul>'
+            f'<li><b>国は「その他」{num(oth)}人の内わけを発表していません。</b>A・B は「その他」に入る人の例で、それぞれ何人いるかは分かりません。</li>'
+            '<li>「その他」の全員が、難民や告示にない人というわけではありません。A の告示にある人も入ります。</li>'
+            '<li>B は一人ひとりの事情を見て決めるもので、例に当てはまる人がみな認められるわけではありません。</li>'
+            '<li>難民と認定された人などの数（毎年の認定の数）は、いま「その他」として住んでいる人の数とは別のものです。</li></ul></div>')
+    s4 = step(4, "「その他」には誰がいる？",
+              f"国の表で、ほかの3つの区分に入らない定住者を<em>まとめた欄</em>です。{lw}は{num(oth)}人で、中には<em>2つのグループ</em>の人が入ります。", fig4,
+              "「その他」には、告示にあるが国の表で分けていない人（A）と、告示にない人（B）の両方が入ります。それぞれ何人いるかは、国が発表していないので分かりません。",
+              "other", "「その他」の中身と出典を詳しく見る", cls=" o")
+
+    # STEP 5：増減（確定した2つの時点。ほかの3区分は合計で）
+    others = [g[1] for g in TJ_GROUPS if g[1] != "その他"]
+    d_all, d_oth = now - P[first_w]["総数"], oth - oth0
+    d_rest = sum(P[LATEST][k] - P[first_w][k] for k in others)
+    if d_oth + d_rest != d_all:
+        sys.exit("定住者の区分ごとの増減の合計が、全体の増減と合いません")
+    yrs = int(LATEST[:4]) - int(first_w[:4])
+    rows5 = [("定住者全体", d_all, "t"), ("「その他」", d_oth, "o"), ("ほかの3区分の合計", d_rest, "x")]
+    pos, neg = max([0] + [v for _, v, _ in rows5]), max([0] + [-v for _, v, _ in rows5])
+    span = (pos + neg) or 1
+    z = neg / span * 100  # 0の線の位置（左から何%）。棒の長さは増減の人数に比例する
+
+    def drow(n, v, c):
+        w = abs(v) / span * 100
+        return (f'<div class="r {c}"><span class="nm">{esc(n)}</span><span class="tr"><span class="bar" style="left:{(z - w) if v < 0 else z:.2f}%;width:{w:.2f}%"></span></span>'
+                f'<span class="v">{signed(v)}<small>人</small></span></div>')
+    brk = "、".join(f"{esc(k.translate(TJ_Z2H))} {signed(P[LATEST][k] - P[first_w][k])}人" for k in others)
+    over = d_oth > d_all
+    fig5 = (f'<p class="tj-per">{fw} → {lw}（{yrs}年間の増減。確定した統計）</p>'
+            f'<div class="tj-eq"><div class="o"><span>「その他」</span><b>{signed(d_oth)}<small>人</small></b></div><span class="op" aria-hidden="true">＋</span>'
+            f'<div class="x"><span>ほかの3区分の合計</span><b>{signed(d_rest)}<small>人</small></b></div><span class="op" aria-hidden="true">＝</span>'
+            f'<div class="t"><span>定住者全体</span><b>{signed(d_all)}<small>人</small></b></div></div>'
+            f'<div class="tj-div" role="img" aria-label="{fw}から{lw}の増減：定住者全体 {signed(d_all)}人、「その他」 {signed(d_oth)}人、ほかの3区分の合計 {signed(d_rest)}人" style="--z:{z:.2f}%">'
+            + "".join(drow(*r) for r in rows5)
+            + '<div class="r ax" aria-hidden="true"><span></span><span class="tr"><span class="zl">0</span></span><span></span></div></div>'
+            '<p class="sp-cap">0の線より右は増えた人数、左は減った人数です。棒の長さは人数に比例しています。</p>'
+            f'<p class="sp-cap">ほかの3区分の内わけ：{brk}。「その他」の割合は、{fw}の{pc(oth0, P[first_w]["総数"])}から{lw}の{pc(oth)}になりました。</p>'
+            f'<p class="gsrc">時点：{fw}と{lw}（確定した統計）／単位：人（{yrs}年間の増減）／出典：{TK_ORG}の「国籍・地域別 在留目的別 在留外国人」の表</p>'
+            '<ul class="sp-notes">'
+            '<li><b>増えた理由や、増えたのがどんな人かは分かりません。</b>国は「その他」の内わけを発表していないので、難民と認定された人が増えたのか、ほかの人が増えたのかは、国の統計からは特定できません。</li>'
+            f'<li>{swl}の速報（{num(sv)}人）は、定住者全体の数だけです。区分ごとの増減は、確定した統計（{fw}と{lw}）で比べています。</li>'
+            f'<li>区分ごとの数は{fw}の表から出ています。それより前の区分ごとの増減は分かりません。</li></ul>')
+    s5 = step(5, "定住者はどう変わった？",
+              f"{fw}から{lw}の{yrs}年間で、定住者全体は<em>{signed(d_all)}人</em>。"
+              + (f"<em>「その他」の増加（{signed(d_oth)}人）が、全体の増加を上回りました。</em>" if over else f"そのうち「その他」は<em>{signed(d_oth)}人</em>でした。"), fig5,
+              (f"ほかの3区分は、合わせて減りました（{signed(d_rest)}人）。" if d_rest < 0 else f"ほかの3区分は、合わせて{signed(d_rest)}人でした。")
+              + "ただし、増えた「その他」がどんな人かは、国の統計からは分かりません。",
+              "history", "1990年からの人数の推移を見る")
+
+    nexts = [("now", "現在の人数と速報", "確定した統計と速報の数・区分ごとの移り変わり"), ("what", "制度と告示", "どんな資格？告示の号と国の表の区分"),
+             ("history", "人数の推移", "1990年からの移り変わり"), ("who", "国の4区分", "区分ごとの人数・説明・多い国籍"),
+             ("other", "「その他」の詳しい説明", "告示にある人・ない人の例と出典"), ("entry", "新しく入国した人", "1年間に外国から来た人の区分ごとの数"),
+             ("nat", "国籍・地域別", "どの国籍・地域の人が多い？"), ("events", "主な出来事", "法律・告示・取扱いの変わり目（1989年から）"),
+             ("notes", "出典と注意", "統計表・法令・国の資料と、数を見るときの注意")]
+    nav = ('<div class="sp-next related" id="sanpun-next"><h3>もっと詳しく調べる</h3><p class="sp-cap">このページの下の、詳しい説明に移ります。</p><ul>'
+           + "".join(f'<li><a href="#{h}"><span>{t}<span class="rs">{s}</span></span></a></li>' for h, t, s in nexts) + "</ul></div>")
+    steps = "".join(f'<a href="#sanpun-{i}"{c}><b>{i}</b>{t}</a>' for i, (t, c) in
+                    enumerate((("定住者って何？", ""), ("どんな人？", ""), ("何人？", ""), ("「その他」とは", ' class="o"'), ("どう変わった？", "")), 1))
+    return (f'<section class="sp" id="sanpun" aria-labelledby="sanpun-h"><div class="sp-band"><span class="sp-k">3分でわかる</span>'
+            f'<h2 id="sanpun-h">定住者を、5つのステップで</h2><p>数は{TK_ORG}（確定した統計）の{lw}の数です。{swl}の速報は、合計の数だけを分けて書いています。</p></div>'
+            f'<nav class="sp-steps" aria-label="5つのステップ">{steps}</nav>{s1}{s2}{s3}{s4}{s5}{nav}</section>')
 
 
 def teiju_page(d):
@@ -2685,8 +2889,17 @@ def teiju_page(d):
           f'<div class="kpi"><div class="lab">1年前（{when_label(YEAR_AGO)}）から</div><div class="mid">{signed(now - year)}人</div>'
           f'<div class="lab">増減の割合 {pct_signed(now - year, year)}（{num(year)}人から）</div></div>'
           f'<div class="kpi"><div class="lab">{when_label(sw)}（速報）</div><div class="mid">{num(sv)}人</div>'
-          f'<div class="lab">法務省の<a href="sokuho.html">半期速報</a>（{ymd_text(sk["公表日"])}公表）</div></div></div>')
+          f'<div class="lab">法務省の<a href="sokuho.html">半期速報</a>（{ymd_text(sk["公表日"])}公表）。合計だけで、区分ごとの数はありません</div></div></div>')
+    kinds = (f'<div class="tj-kind"><div><b>確定した統計（{lw}）</b><span>定住者の合計と、4つの区分ごとの数・国籍ごとの数があります。'
+             f'このページの区分と国籍の数は、すべてこちらです。</span></div>'
+             f'<div class="q"><b>速報（{when_label(sw)}）</b><span>法務省の半期速報で、定住者の合計の数だけです。区分ごとの数はないので、確定した統計の区分の数とは混ぜません。</span></div></div>')
     ws = sorted(P)
+    gid = {k: f"tjp-{i}" for i, (_, k, _, _) in enumerate(TJ_GROUPS)}  # 「それぞれの中身」の行の id（3分でわかるの棒から飛ぶ）
+    lines4 = static_lines([{"name": k.translate(TJ_Z2H), "cls": c, "pts": [(when_x(w), P[w][k], when_label(w)) for w in ws]}
+                           for (_, k, _, _), c in zip(TJ_GROUPS, ("1", "3", "7", "2"))],
+                          "在留資格「定住者」の国の表の区分ごとの人数", [(when_x(w), f"{w[:4]}年") for w in ws if w.endswith("-12")],  # 目もりは12月末（ほかのグラフと同じ）
+                          save={**TJ_SAVE, "title": "全国｜在留資格「定住者」の区分ごとの人数"})
+    src2 = f"{TK_ORG}の「国籍・地域別 在留目的別 在留外国人」の表"  # 区分ごとの数の出典（グラフの下に書く）
     p_rows = "".join(f"<tr><td>{esc(n)}<br><span class='note'>{'告示 ' + kj if kj != '—' else '告示にない人などもふくむ'}</span></td>"
                      + "".join(f"<td class='n'>{num(P[w][k])}</td>" for w in ws) + f"<td class='n'>{signed(P[LATEST][k] - P[first_w][k])}</td></tr>"
                      for n, k, kj, _ in TJ_GROUPS)
@@ -2711,11 +2924,12 @@ def teiju_page(d):
 
     def top_nats(k, n=3):
         return "、".join(f"{esc(a)} {num(v)}人" for a, v in sorted(by[k].items(), key=lambda a: -a[1])[:n])
-    items = "".join(f'<li><div class="tkh"><b>{esc(n)}</b><span class="v">{num(P[LATEST][k])}人</span></div><p>{esc(text)}</p>'
+    items = "".join(f'<li id="{gid[k]}"><div class="tkh"><b>{esc(n)}</b><span class="v">{num(P[LATEST][k])}人</span></div><p>{esc(text)}</p>'
                     f'<p class="note">{"定住者告示 " + kj + "　" if kj != "—" else ""}多い国籍・地域：{top_nats(k)}</p></li>' for n, k, kj, text in TJ_GROUPS)
-    kokuji_items = "".join(f'<li><div class="tkh"><b>{esc(n)}</b></div><p>{esc(text)}</p><p class="note">定住者告示 {kj}</p></li>' for n, kj, text in TJ_KOKUJI_OTHER)
-    outside = "".join(f'<li><div class="tkh"><b>{esc(n)}</b></div><p>{esc(text.format(**nums))}</p><p class="note">出典：'
-                      + "・".join(f'<a href="{u}">{esc(s)}</a>' for s, u in src) + "</p></li>" for n, text, src in TJ_OUTSIDE)
+    kokuji_items = "".join(f'<li id="tjk-{re.sub(r"[^0-9]", "", kj)}"><div class="tkh"><b>{esc(n)}</b></div><p>{esc(text)}</p><p class="note">定住者告示 {kj}</p></li>'
+                           for n, kj, text in TJ_KOKUJI_OTHER)
+    outside = "".join(f'<li id="tjo-{key}"><div class="tkh"><b>{esc(n)}</b></div><p>{esc(text.format(**nums))}</p><p class="note">出典：'
+                      + "・".join(f'<a href="{u}">{esc(s)}</a>' for s, u in src) + "</p></li>" for key, n, text, src in TJ_OUTSIDE)
     srcs = pd.read_csv(os.path.join(BASE, "元データ", "出どころ一覧.csv"))  # 国の表の「利用上の注意」（いちばん新しい時点）
     notes_url = srcs[(srcs["時点"] == LATEST) & srcs["表題"].str.contains("利用上の注意")]["URL"].iloc[0]
 
@@ -2748,29 +2962,53 @@ def teiju_page(d):
 
     ev = "".join(f"<tr><td>{esc(t)}</td><td>{esc(x)}<br><span class='note'>出典：" +
                  "・".join(f'<a href="{u}">{esc(s)}</a>' for s, u in src) + "</span></td></tr>" for t, x, src in TJ_EVENTS)
-    up = '<p class="kup"><a href="#toc">↑ 上に戻る（目次）</a></p>'
+    def up(n=None):
+        """セクションの下：3分でわかるの同じ話のステップへ戻る・目次へ戻る"""
+        back = f'<a href="#sanpun-{n}">← 3分でわかる STEP {n}</a>' if n else '<a href="#sanpun">← 3分でわかる</a>'
+        return f'<p class="kup kup2">{back}<a href="#toc">↑ 上に戻る（目次）</a></p>'
+
+    def gsrc(when, denom, src):
+        """グラフの下に書く、時点・割合の分母・出典"""
+        return f'<p class="gsrc">時点：{when}' + (f"／割合の分母：{denom}" if denom else "") + f"／出典：{src}</p>"
+    sanpun = teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url)
+    fw = when_label(first_w)
+    yrs = f"{int(LATEST[:4]) - int(first_w[:4])}年間"
     body = f"""<h1>在留資格「定住者」とは</h1>
+<nav class="gates" aria-label="このページの読み方">
+<a class="gate gate-g" href="#sanpun">{sp_icon("clock", "g")}<span class="gt"><small>はじめての人に</small><b>3分でわかる</b><span class="gd">5つの図で、定住者の全体をつかむ</span></span><span class="ga" aria-hidden="true">↓</span></a>
+<a class="gate gate-b" href="#detail">{sp_icon("search", "b")}<span class="gt"><small>調べたい人に</small><b>詳しく調べる</b><span class="gd">人数・制度・内訳・国籍・歴史・資料</span></span><span class="ga" aria-hidden="true">↓</span></a>
+</nav>
+{sanpun}
+<div class="sp-band sp-band-b" id="detail"><span class="sp-k">詳しく調べる</span><h2>人数・制度・内訳・国籍・歴史・資料</h2></div>
 <p class="lead">「定住者」は、法務大臣が特別な理由を考えて、一定の在留期間を決めて日本に住むことを認める在留資格です。
 日系3世、日系人などの夫や妻、日本人などと結婚した外国人の連れ子、難民と認定された人、日本人と離婚したあとも日本で子を育てる人など、中身はさまざまです。
 このページでは、どんな資格か・いつできたか・どんな人が何人いるか（国の表の「その他」の中身も）を、法務省（出入国在留管理庁）の資料と統計からまとめました。</p>
-<p class="meta"><span>対象：<b>日本全体</b></span><span>集計時点：<b>{lw}</b>（確定した統計）</span><span>速報：<b>{when_label(sw)}</b></span></p>
-{jump([("now", "① いま何人？"), ("what", "② どんな資格？"), ("history", "③ いつできた？移り変わり"), ("who", "④ どんな人が？"),
-       ("other", "⑤ 「その他」の中身"), ("entry", "⑥ 新しく来た人"), ("nat", "⑦ 国籍・地域"), ("events", "⑧ 主な出来事"), ("notes", "⑨ 出典と注意")], nid="toc")}
-<section class="card" id="now"><h2>いま何人？</h2>
+<p class="meta"><span>対象：<b>日本全体</b></span><span>集計時点：<b>{lw}</b>（確定した統計）</span><span>速報：<b>{when_label(sw)}</b>（合計だけ）</span></p>
+{jump([("now", "① 現在の人数と速報"), ("what", "② 制度と告示"), ("history", "③ 人数の推移"), ("who", "④ 国の4区分"),
+       ("other", "⑤ 「その他」の詳しい説明"), ("entry", "⑥ 新しく入国した人"), ("nat", "⑦ 国籍・地域別"), ("events", "⑧ 主な出来事"), ("notes", "⑨ 出典と注意"),
+       ("sanpun", "↑ 3分でわかる")], nid="toc")}
+<section class="card" id="now"><h2>現在の人数と速報</h2>
 {kp}
+{kinds}
 <p>在留資格「定住者」の人は、{lw}に{num(now)}人でした。国の表は定住者を4つの区分に分けていて、いちばん多いのは<b>「その他」の{num(oth)}人（{oth / now * 100:.1f}%）</b>です。
-{when_label(sw)}の速報では{num(sv)}人です。</p>
-<h3>国の表の区分ごとの移り変わり（{when_label(first_w)}〜{lw}）</h3>
-<p class="note">定住者を区分に分けた数は、{when_label(first_w)}の表から出ています。{when_label(first_w)}からの2年間で、定住者全体は{signed(now - P[first_w]["総数"])}人、
+{when_label(sw)}の速報では{num(sv)}人です（合計の数だけ）。</p>
+<h3>国の表の区分ごとの移り変わり（{fw}〜{lw}）</h3>
+<p class="note">定住者を区分に分けた数は、{fw}の表から出ています。{fw}からの{yrs}で、定住者全体は{signed(now - P[first_w]["総数"])}人、
 「その他」は{signed(oth - P[first_w]["その他"])}人でした。</p>
-{p_table}{up}</section>
-<section class="card" id="what"><h2>どんな資格？</h2>
+{lines4}
+{gsrc(f"{fw}〜{lw}（6月末・12月末の半年ごと。目もりの「〇〇年」は12月末。確定した統計）", "", src2)}
+<details class="kfold"><summary>区分ごとの人数の表を開く（{len(ws)}つの時点）</summary><div class="kfoldin">{p_table}</div></details>{up(3)}</section>
+<section class="card" id="what"><h2>制度と告示（どんな資格？）</h2>
 <p>在留資格は、外国人が日本でどんな活動をして暮らせるかを決めたものです（例：留学、永住者、技能実習）。
 「定住者」は、入管法（出入国管理及び難民認定法）で「<b>法務大臣が特別な理由を考慮し一定の在留期間を指定して居住を認める者</b>」とされています。
-仕事の中身で決まる在留資格（留学・技能実習など）ではなく、身分や立場で決まる在留資格（永住者・日本人の配偶者等などと同じなかま）です。</p>
+入管法の在留資格は、日本でする活動で決まるもの（入管法の別表第一。技術・人文知識・国際業務、留学、技能実習、特定活動など）と、
+身分や立場で決まるもの（別表第二。永住者・日本人の配偶者等・永住者の配偶者等・定住者の4つ）に分かれていて、定住者は身分や立場で決まるほうです。</p>
 <ul>
-<li><b>働くことに制限はありません。</b>仕事の種類や時間の制限は、仕事の中身で決まる在留資格の人だけにあります（入管法第19条）。</li>
-<li><b>在留期間</b>は、5年・3年・1年・6月、または法務大臣が一人ひとりに決める期間（5年まで）です。</li>
+<li><b>働くことに制限はありません。</b>入管法第19条の制限（在留資格で決められた活動のほかに、収入や報酬を得る活動をしてはいけない）は、別表第一の在留資格の人にかかるもので、別表第二の定住者にはかかりません。
+別表第一の人の制限の中身は、在留資格ごとに違います（仕事の在留資格は、その在留資格の活動の範囲だけ。留学・家族滞在などは原則として働けず、許可（資格外活動許可）を受けた範囲だけ。特定活動は、一人ひとりの指定しだい）。</li>
+<li><b>在留期間</b>は、5年・3年・1年・6月、または法務大臣が一人ひとりに決める期間（5年まで）です。期限が来る前に更新を申請し、認められれば住み続けられます（入管法第21条）。</li>
+<li><b>永住者との違い</b>：永住者には在留期間の期限がなく、在留期間の更新はいりません（16歳以上の人は、在留カードの有効期間の更新が7年ごとにあります）。
+定住者は、在留期間ごとに更新の審査を受けます。どちらも、働くことに入管法の制限はありません。</li>
 <li><b>2つの種類があります。</b>
 <br>① <b>告示で前もって決めた人</b>：法務省の告示（「定住者告示」、平成2年法務省告示第132号）に、日系3世や第三国定住難民などが号ごとに書かれています（1号〜8号。2号は削除されています）。
 外国から新しく「定住者」で日本に来られるのは、原則としてこの告示にある人だけです（入管法第7条第1項第2号）。
@@ -2782,83 +3020,104 @@ def teiju_page(d):
 <tr><td>1号</td><td>第三国定住難民（アジアの国に一時的にいる難民のうち、国連難民高等弁務官事務所が日本に推薦した人と、その家族）</td><td>その他</td></tr>
 <tr><td>3号・4号</td><td>日系3世（素行が善良な人）</td><td>日系３世</td></tr>
 <tr><td>5号</td><td>日系2世・日系3世・在留期間1年以上の定住者の夫や妻</td><td>配偶者</td></tr>
-<tr><td>6号</td><td>日本人・永住者・定住者などに養われる、未成年で未婚の実子</td><td>未成年未婚の実子</td></tr>
+<tr><td>6号</td><td>日本人・永住者・定住者などに養われる、未成年（18歳未満）で未婚の実子</td><td>未成年未婚の実子</td></tr>
 <tr><td>7号</td><td>日本人・永住者・定住者などに養われる、6歳未満の養子</td><td>その他</td></tr>
 <tr><td>8号</td><td>中国残留邦人とその家族</td><td>その他</td></tr>
 <tr><td>告示にない</td><td>難民と認定された人、日本人などと離婚したあとも日本に住む人など</td><td>その他</td></tr>
 </tbody></table></div>
-<p class="note">国の表の区分と告示の号の関係は、{when_label(first_w)}の表と、新しく入国した人の表の見出しに書かれているものです。表にない告示の号と告示にない人が「その他」に入ることは、国の表の<a href="{notes_url}">利用上の注意</a>に書かれています。</p>{up}</section>
-<section class="card" id="history"><h2>いつできた？どう移り変わった？</h2>
+<p class="note">国の表の区分と告示の号の関係は、{fw}の表と、新しく入国した人の表の見出しに書かれているものです。表にない告示の号と告示にない人が「その他」に入ることは、国の表の<a href="{notes_url}">利用上の注意</a>に書かれています。
+告示6号の「18歳未満」は、この区分で新しく入国するときの条件です。すでに定住者として住んでいる人が18歳になっても、それだけで在留資格はなくなりません（くわしくは<a href="#{gid["未成年未婚の実子"]}">④の「未成年で未婚の実子」</a>）。</p>{up(2)}</section>
+<section class="card" id="history"><h2>人数の推移（いつできた？）</h2>
 <p>「定住者」は、<b>1989年12月</b>に公布された入管法の改正（平成元年法律第79号）で、在留資格が全面的に見直されたときにできました。
 <b>1990年（平成2年）6月</b>から、前もって決めた告示とあわせて使われています。</p>
 <h3>定住者の人数（{when_label(since_w)}〜{lw}）</h3>
 {chart_total}
+{gsrc(f"{when_label(since_w)}〜{lw}（確定した統計。1991年・1993年はなし）", "", f"{TK_ORG}（1990〜2005年末は統計書、2011年末までは登録外国人統計）")}
 <p>{when_label(since_w)}は{num(T[since_w])}人でした。いちばん多かったのは{when_label(peak_w)}の{num(T[peak_w])}人で、そのあと減って{when_label(low_w)}に{num(T[low_w])}人になり、
 そこからまた増えています（{lw}は{num(now)}人）。2009年には、仕事を失った日系人の帰国を国が支援する事業がありました（下の「主な出来事」）。</p>
 <ul class="note">
 <li>2011年までは登録外国人統計、2012年からは在留外国人統計で、数え方が違います。1991年と1993年は元の統計書がないため、数がありません。</li>
-<li>区分ごとの数は{when_label(first_w)}からしかないため、それより前にどの区分が増えた・減ったかは分かりません。</li>
-</ul>{up}</section>
-<section class="card" id="who"><h2>どんな人が？（国の表の区分、{lw}）</h2>
+<li>区分ごとの数は{fw}からしかないため、それより前にどの区分が増えた・減ったかは分かりません。</li>
+</ul>{up(5)}</section>
+<section class="card" id="who"><h2>国の4区分（どんな人が？　{lw}）</h2>
 <p class="note">国の統計表「国籍・地域別 在留目的別 在留外国人（特定活動・日本人の配偶者等・定住者）」の、定住者の4つの区分の人数です。割合は定住者の合計（{num(now)}人）に対する割合です。</p>
 {bars}
+{gsrc(f"{lw}（確定した統計）", f"定住者の合計 {num(now)}人", src2)}
 <h3>それぞれの中身</h3>
 <p class="note">「定住者告示 〇号」は、告示のどの号にあたるかです。多い国籍・地域は{lw}の数です。</p>
-<ul class="tkl">{items}</ul>{up}</section>
+<ul class="tkl">{items}</ul>{up(3)}</section>
 <section class="card" id="other"><h2>「その他」には何が入っている？</h2>
-<p>国の表の「その他」（{lw}に{num(oth)}人）は、定住者のうち<b>いちばん多い区分</b>です。
+<p class="tj-lg">ここでは、書いてあることの確かさを3つに分けています。<span><span class="tj-tag f">統計で確認</span>国の統計で確かめられる事実</span>
+<span><span class="tj-tag s">制度上の例</span>法律・告示・国の資料にある、「その他」に入りうる人の例</span><span><span class="tj-tag u">分からない</span>国が発表しておらず、分からないこと</span></p>
+<h3><span class="tj-tag f">統計で確認</span>国の表で分かること</h3>
+<p>国の表の「その他」（{lw}に{num(oth)}人、定住者の{oth / now * 100:.1f}%）は、定住者のうち<b>いちばん多い区分</b>です。{fw}（{num(P[first_w]["その他"])}人）からは{signed(oth - P[first_w]["その他"])}人でした。
 国の表の<a href="{notes_url}">利用上の注意</a>に、2024年6月末から「表にない定住者の告示と、告示にない定住者は『その他』に入れる」と書かれています。
-国は「その他」の内わけを発表していないので、それぞれの人数は分かりません。</p>
-<h3>告示にあるが、国の表で分けていないもの</h3>
+つまり「その他」には、告示にある人と告示にない人の両方が入ります。<b>全員が難民や、告示にない人というわけではありません。</b></p>
+<h3><span class="tj-tag s">制度上の例</span>告示にあるが、国の表で分けていないもの</h3>
 <ul class="tkl">{kokuji_items}</ul>
 <p class="note">第三国定住で受け入れた難民は、2010年から{hy}年までに{num(resettle)}人です（<a href="nanmin.html">難民の認定と保護の数</a>の「定住難民」。いま定住者として住んでいる人の数ではありません）。</p>
-<h3>告示にないもの（法務大臣が一人ひとりの事情を見て認めるもの）</h3>
-<p>たとえば、次のような人がいます。</p>
+<h3><span class="tj-tag s">制度上の例</span>告示にないもの（法務大臣が一人ひとりの事情を見て認めるもの）</h3>
+<p>たとえば、次のような人がいます。どれも一人ひとりの審査で決まり、例に当てはまる人がみな認められるわけではありません。</p>
 <ul class="tkl">{outside}</ul>
 <p class="note">告示にない定住者は、決まった一覧も、審査のくわしい基準（入管の内部の「在留審査要領」）も、国から公開されていません。
 行政書士の解説には、ほかに特別養子の縁組を解消した人や、頼れる家族のいない未成年の子なども挙げられていますが、国の公開資料では確かめられませんでした（例：<a href="{TJ_OUTSIDE_LIST}">ワンツーコール行政書士事務所</a>のページの左の一覧）。
-外国から新しく「定住者」で来られるのは原則として告示にある人だけなので、告示にない定住者の多くは、日本に来たあとにほかの在留資格から変えた人などです（下の「新しく来た人」）。</p>{up}</section>
-<section class="card" id="entry"><h2>外国から新しく来た人は？（{ey}年の1年間）</h2>
+制度上、告示にない人は外国から新しく「定住者」として入国できない（入管法第7条第1項第2号）ので、告示にない定住者は、日本にいる間にほかの在留資格から変えるなどして「定住者」になった人です。</p>
+<h3><span class="tj-tag u">分からない</span>国が発表していないこと</h3>
+<ul>
+<li>「その他」の内わけ（上の例のそれぞれが何人いるか、どんな割合か）。</li>
+<li>「その他」が増えた理由と、増えたのがどの人か。</li>
+<li>上に書いた難民の認定などの数は、その年に認定・受入れをした人の数で、いま「その他」として住んでいる人の数ではありません。これらの数を足したり引いたりして、「その他」の中身を推定することはできません（このサイトでは推定の数を作っていません）。</li>
+</ul>{up(4)}</section>
+<section class="card" id="entry"><h2>新しく入国した人（{ey}年の1年間）</h2>
 <p>{ey}年の1年間に、外国から新しく「定住者」で日本に来た人は{num(E[ey]["総数"][1])}人でした（{ey0}年は{num(E[ey0]["総数"][1])}人）。
-入管法で、外国から新しく「定住者」で来られるのは<b>原則として告示にある人だけ</b>なので、「その他」には、表で分けていない告示の人（第三国定住難民・6歳未満の養子・中国残留邦人とその家族）などが入ります。</p>
+入管法で、外国から新しく「定住者」で来られるのは<b>原則として告示にある人だけ</b>なので、入国した人の「その他」には、制度上、表で分けていない告示の人（第三国定住難民・6歳未満の養子・中国残留邦人とその家族）などが入ります。</p>
 {e_table}
-<p>新しく来た「その他」の人は{ey}年に{num(E[ey]["その他"][1])}人（{ey0}年は{num(E[ey0]["その他"][1])}人）で、いま住んでいる「その他」の人（{num(oth)}人）にくらべてずっと少ない数です。
-「その他」の多くは、日本に来たあとにほかの在留資格から「定住者」に変えた人や、日本で難民と認定された人など、告示にない定住者だと考えられます（国は内わけを発表していないので、人数は分かりません）。</p>
-<p class="note">{TK_ENTRY_ORG}の表「{TK_ENTRY_TABLE}」の数です。上の「いま日本にいる人」の数（在留外国人統計）とは数え方が違います（1年間に来た人の数で、そのあと帰った人も入ります）。
-名前の下の「告示 〇号」は、表の見出しに書かれた定住者告示の号です。
-新しく来た「その他」の人のうちいちばん多い国籍・地域は、{ey}年は{esc(eo_top[ey]["国籍・地域"])}（{num(eo_top[ey]["人数"])}人）、{ey0}年は{esc(eo_top[ey0]["国籍・地域"])}（{num(eo_top[ey0]["人数"])}人）です。どの告示の人かは、表からは分かりません。</p>{up}</section>
-<section class="card" id="nat"><h2>どの国籍・地域の人が多い？</h2>
-<p class="note">割合は、{lw}の定住者の合計（{num(now)}人）に対する割合です。</p>
+<p>新しく来た「その他」の人は、{ey}年に{num(E[ey]["その他"][1])}人（{ey0}年は{num(E[ey0]["その他"][1])}人）でした。
+新しく来た「その他」の人のうちいちばん多い国籍・地域は、{ey}年は{esc(eo_top[ey]["国籍・地域"])}（{num(eo_top[ey]["人数"])}人）、{ey0}年は{esc(eo_top[ey0]["国籍・地域"])}（{num(eo_top[ey0]["人数"])}人）です。どの告示の人かは、表からは分かりません。</p>
+<div class="tj-diff"><b>新しく入国した人の数と、いま住んでいる人の数は、別の統計です</b><ul>
+<li><b>新しく入国した人</b>（出入国管理統計）：1年間に、外国から「定住者」として入国した人の数です。そのあと帰国した人も入ります。</li>
+<li><b>いま住んでいる人</b>（在留外国人統計）：ある日（6月末・12月末）に日本に住んでいる人の数です。日本に来たあとに、ほかの在留資格から「定住者」に変えた人も入ります。</li>
+<li>このため、1年間に入国した人の数から、いま住んでいる定住者（「その他」もふくむ）の中身を決めることはできません。</li></ul></div>
+<p class="note">{TK_ENTRY_ORG}の表「{TK_ENTRY_TABLE}」の数です。名前の下の「告示 〇号」は、表の見出しに書かれた定住者告示の号です。</p>{up(2)}</section>
+<section class="card" id="nat"><h2>国籍・地域別</h2>
+<p class="note">どの国籍・地域の人が多いかです。割合は、{lw}の定住者の合計（{num(now)}人）に対する割合です。</p>
 {nat_bars}
+{gsrc(f"{lw}（確定した統計）", f"定住者の合計 {num(now)}人", f"{TK_ORG}の国籍・地域別 在留資格別の表")}
 <h3>国籍・地域ごとの区分（定住者の多い15の国籍・地域、{lw}）</h3>
-<p class="note">「その他の割合」は、その国籍・地域の定住者の中の「その他」の割合です。いちばん右は、「その他」の人数の{when_label(first_w)}から{lw}までの増減です。</p>
-{x_table}
-<p>{when_label(first_w)}から{lw}までに「その他」がいちばん増えたのは、{"、".join(f"{esc(n)}（{signed(dv)}人）" for dv, n in oth_up)}です。
-{ua}の人の「その他」は{num(first_oth.get(ua, 0))}人から{num(by["その他"].get(ua, 0))}人になりました。補完的保護対象者と認定された{ua}の人は、{hy}年までに{num(ua_cp)}人です（<a href="nanmin.html">難民の認定と保護の数</a>）。
-ほかの国籍・地域の「その他」にどんな人が多いかは、国の資料からは分かりません。</p>
-<p>国籍・地域ごとの数や移り変わりは、ダッシュボードでも見られます：<a href="{dash_link(v='nat', visa='定住者')}">国籍・地域別</a>・<a href="{dash_link(v='map', visa='定住者')}">都道府県の地図</a>・<a href="{dash_link(v='trend', cmp='none', visa='定住者')}">移り変わり</a></p>{up}</section>
+<p>{fw}から{lw}までに「その他」がいちばん増えたのは、{"、".join(f"{esc(n)}（{signed(dv)}人）" for dv, n in oth_up)}です。
+{ua}の人の「その他」は{num(first_oth.get(ua, 0))}人から{num(by["その他"].get(ua, 0))}人になりました。
+参考に、補完的保護対象者と認定された{ua}の人は、{hy}年までに{num(ua_cp)}人です（<a href="nanmin.html">難民の認定と保護の数</a>。認定した人の数で、いま定住者として住んでいる人の数ではありません）。
+どの国籍・地域についても、「その他」の人がどんな事情で定住者になったかは、国の表からは分かりません。</p>
+<details class="kfold"><summary>国籍・地域ごとの区分の表を開く（{len(nat_top[:15])}の国籍・地域）</summary><div class="kfoldin">
+<p class="note">「その他の割合」は、その国籍・地域の定住者の中の「その他」の割合です。いちばん右は、「その他」の人数の{fw}から{lw}までの増減です。</p>
+{x_table}</div></details>
+<p>国籍・地域ごとの数や移り変わりは、ダッシュボードでも見られます：<a href="{dash_link(v='nat', visa='定住者')}">国籍・地域別</a>・<a href="{dash_link(v='map', visa='定住者')}">都道府県の地図</a>・<a href="{dash_link(v='trend', cmp='none', visa='定住者')}">移り変わり</a></p>{up()}</section>
 <section class="card" id="events"><h2>主な出来事</h2>
 <p class="note">定住者の数や中身にかかわる、法律・告示・取扱いの主な変わり目です。どれも法務省・出入国在留管理庁の資料や国会の会議録からまとめました。</p>
-<div class="scroll"><table class="t"><thead><tr><th>いつ</th><th>出来事</th></tr></thead><tbody>{ev}</tbody></table></div>{up}</section>
-<section class="card" id="notes"><h2>出典と、数を見るときの注意</h2>
+<div class="scroll"><table class="t"><thead><tr><th>いつ</th><th>出来事</th></tr></thead><tbody>{ev}</tbody></table></div>{up()}</section>
+<section class="card" id="notes" data-open><h2>出典と、数を見るときの注意</h2>
 <details class="kfold"><summary>出典と注意を開く</summary><ul class="note">
 <li>人数：{TK_ORG}（政府統計の総合窓口 e-Stat）。1990〜2005年末は統計書の「定住者」、2006〜2011年末は都道府県・国籍ごとの表、2012年12月末からは在留資格別の表です。
-区分ごとの数は、{when_label(first_w)}からの「国籍・地域別 在留目的別 在留外国人（特定活動・日本人の配偶者等・定住者）」の表です。速報は出入国在留管理庁の報道発表「在留外国人数について」です。</li>
-<li>新しく来た人の数：{TK_ENTRY_ORG}（e-Stat）の「{TK_ENTRY_TABLE}」（年に1回、1年間の数。{ey0}年から）。見出しに定住者告示の号が書かれている表です。</li>
-<li>国の表の区分の名前は、{when_label(first_w)}の表では「日系３世（告示３・４号）」のように告示の号つき、2024年6月末からは号のない名前です。中身は同じものとして並べています。</li>
+区分ごとの数は、{fw}からの「国籍・地域別 在留目的別 在留外国人（特定活動・日本人の配偶者等・定住者）」の表です。速報は出入国在留管理庁の報道発表「在留外国人数について」です。</li>
+<li>確定した統計と速報：区分ごとの数・国籍ごとの数は、どれも確定した統計（{lw}まで）です。速報（{when_label(sw)}）は定住者の合計の数だけで、区分ごとの数はありません。このページでは、速報の合計と、確定した統計の区分の数を混ぜていません。</li>
+<li>新しく来た人の数：{TK_ENTRY_ORG}（e-Stat）の「{TK_ENTRY_TABLE}」（年に1回、1年間の数。{ey0}年から）。見出しに定住者告示の号が書かれている表です。いま住んでいる人の数（在留外国人統計）とは別の統計です。</li>
+<li>国の表の区分の名前は、{fw}の表では「日系３世（告示３・４号）」のように告示の号つき、2024年6月末からは号のない名前です。中身は同じものとして並べています（{fw}の表から、定住者は同じ4つの区分です）。</li>
 <li>難民の認定・補完的保護・人道上の配慮・第三国定住の数：出入国在留管理庁の報道発表「令和〇年における難民認定者数等について」（<a href="nanmin.html">難民の認定と保護の数</a>と同じ表）。どれもその年に認定・受入れをした人の数で、いま定住者として住んでいる人の数ではありません。</li>
 <li>説明の文は、入管法（<a href="{NYUKANHO}">e-Gov 法令検索</a>）、定住者告示（<a href="{TJ_KOKUJI}">出入国在留管理庁、最近の改正 令和3年10月28日法務省告示第220号</a>）、
 在留資格「定住者」のページ（<a href="{TJ_PAGE}">出入国在留管理庁</a>）と、「「その他」には何が入っている？」「主な出来事」に書いた出典（出入国在留管理庁の資料、国会の会議録）から。</li>
+<li>働くことの制限は入管法第19条（別表第一の在留資格の人にかかる）、在留期間の更新は第21条、在留資格の取消しの理由は第22条の4、在留カードの有効期間は第19条の5から。
+告示6号の「18歳未満」と、すでに「定住者」を持ち再入国許可で出国している人への影響がないことは、在留資格「定住者」のページ（<a href="{TJ_PAGE}">出入国在留管理庁</a>）から。</li>
 <li>表にない告示の号と告示にない定住者が「その他」に入ることは、在留外国人統計の<a href="{notes_url}">利用上の注意</a>から。</li>
 <li>取り込むときに、どの時点も 区分の合計＝定住者の合計、定住者の合計＝在留資格の表の定住者の数、国籍ごとの合計＝全国の数 になっているかを確かめています。
 新しく来た人の表も、区分の合計＝定住者の合計、国籍ごとの合計＝全国の数 になっているかを確かめています（make_teiju.py）。</li>
 <li>表（1行に1つの数の CSV）は GitHub の「データ/定住者/」にあります：<a href="{REPO_URL}">{REPO_URL}</a></li>
-</ul></details>{up}</section>
+</ul></details>{up()}</section>
 {related([("visa-index.html", "在留資格から探す", "ほかの在留資格の人数と割合"), ("tokutei.html", "在留資格「特定活動」とは", "中身がさまざまな「特定活動」の対象・できた年・目的ごとの人数"),
           ("nanmin.html", "難民の認定と保護の数", "難民認定の申請・認定、補完的保護、人道配慮、第三国定住の数"),
           ("sokuho.html", "法務省・半期速報", "確定統計より新しい在留資格別の数"), ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("在留資格「定住者」とは", [("日本全体", "index.html"), ("在留資格から探す", "visa-index.html"), ("定住者とは", None)], body,
-                f"在留資格「定住者」の対象・できた年（1990年）・国の表の区分ごとの人数と「その他」の中身。{lw}は{num(now)}人。", css=("dash.css",), active="teiju")
+                f"在留資格「定住者」を3分でわかる5つの図と、対象・できた年（1990年）・国の表の区分ごとの人数と「その他」の中身。{lw}は{num(now)}人。",
+                css=("dash.css",), js=("tokutei.js",), active="teiju")
 
 
 # ---------------------------------------------------------------- 難民の申請と、手続き中のくらし（決まりの説明）
