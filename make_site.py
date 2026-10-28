@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "28"
+CSS_VER = "29"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 # ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
@@ -2002,10 +2002,10 @@ TK_GROUPS = [
     ("特定研究・特定情報処理", ("特定研究等及び情報処理本人", "特定研究等及び情報処理配偶者・子", "特定研究等及び情報処理親"), "36〜39号",
      "法務大臣が指定した機関で、研究や情報処理の仕事をする人と、その配偶者・子・親。"),
 ]
-# 告示にない活動のうち、国の表で別の名前で数えられていないもの：(名前, 説明, [(出典の名前, URL)])
+# 告示にない活動のうち、国の表で別の名前で数えられていないもの：(鍵（ページの中のリンク先 #out-鍵）, 名前, 説明, [(出典の名前, URL)])
 # 国の表の「利用上の注意」（令和6年6月末から）のとおり、表に欄のない特定活動は「その他」に入る。在留期間が3月以下の人は表に入らない
 TK_OUTSIDE = [
-    ("ハラール牛肉の生産", "イスラム教の決まり（ハラール）に合った牛肉を作るため、ハラール認証の機関から「と畜などの知識と技能があるイスラム教徒」として推薦された外国人が、"
+    ("halal", "ハラール牛肉の生産", "イスラム教の決まり（ハラール）に合った牛肉を作るため、ハラール認証の機関から「と畜などの知識と技能があるイスラム教徒」として推薦された外国人が、"
      "認定を受けた施設で、と畜をふくむ牛肉の生産の仕事をするもの。イスラム教の国などへの牛肉の輸出のため、国が在留資格の要件をゆるめたものです。"
      "2014年7月に農林水産省が「外国人を受け入れて行うハラール牛肉生産に係る基本的事項」を官報で示し、受け入れる施設は事業の計画をつくって地方農政局の認定を受けます。"
      "認定された施設の数や、働く人の数は、国の資料に見当たりません。",
@@ -2013,34 +2013,34 @@ TK_OUTSIDE = [
       ("農林水産省「国内ハラール認証取得企業のハラール食品輸出取組事例」（平成27年度の委託調査、34ページ）",
        "https://www.maff.go.jp/j/shokusan/export/torikumi_zirei/attach/pdf/index-25.pdf"),
       ("働く人の条件：ワンツーコール行政書士事務所の解説", "https://visa-consultation.jp/specified-activities/halal.html")]),
-    ("日本料理・製菓を学びながら働く（日本の食文化海外普及人材育成事業）",
+    ("shoku", "日本料理・製菓を学びながら働く（日本の食文化海外普及人材育成事業）",
      "日本の調理や製菓の専門学校などを卒業した留学生が、農林水産省の認定を受けて、日本の飲食店やホテルなどで働きながら技術を学ぶもの（最長5年）。"
      "もとは「日本料理海外普及人材育成事業」という名前で、日本料理の調理師だけが対象でした。",
      [("農林水産省", "https://www.maff.go.jp/j/shokusan/gaisyoku/ikusei/"),
       ("内閣府 国家戦略特区ワーキンググループの資料（2019年1月）", "https://www.chisou.go.jp/tiiki/kokusentoc_wg/h30/shouchou/20190121_shiryou_s_2_1.pdf")]),
-    ("同性婚の相手", "外国人どうしで、本国で正式に成立した同性婚の相手。在留資格の「配偶者」には入りませんが、法務省の通知（2013年10月18日、法務省管在第5357号）で、"
+    ("dousei", "同性婚の相手", "外国人どうしで、本国で正式に成立した同性婚の相手。在留資格の「配偶者」には入りませんが、法務省の通知（2013年10月18日、法務省管在第5357号）で、"
      "原則「特定活動」で在留を認めています。認めた件数は、2013年10月から2020年末までに93件です（国会での政府の答弁）。"
      "日本人の同性の相手はこの通知の対象外ですが、裁判のあと、2023年3月にその裁判の原告に「特定活動」が許可されました。",
      [("東京地方裁判所の判決（2022年9月30日）", "https://www.courts.go.jp/assets/hanrei/hanrei-pdf-91710.pdf"),
       ("参議院法務委員会（2021年3月22日）", "https://kokkai.ndl.go.jp/txt/120415206X00320210322/59"),
       ("東京高等裁判所の判決（2023年11月2日）", "https://www.courts.go.jp/assets/hanrei/hanrei-pdf-92578.pdf")]),
-    ("特定技能1号の人の家族", "在留資格「特定技能1号」の人は、原則として家族を連れて来られません。ただ、人道上の配慮が特に必要な場合に、"
+    ("ssw1-family", "特定技能1号の人の家族", "在留資格「特定技能1号」の人は、原則として家族を連れて来られません。ただ、人道上の配慮が特に必要な場合に、"
      "たとえば日本で生まれた1号どうしの子や、「留学」から1号に変わる人のすでに日本にいる配偶者・子に、「特定活動」が認められることがあります。",
      [("出入国在留管理庁「特定技能制度に関するQ&A」（Q9）", ISA + "policies/ssw/faq.html")]),
-    ("介護福祉士の登録を待つ間の介護の仕事", "介護福祉士の養成施設を卒業した留学生や、国家試験に受かった留学生が、4月から介護施設などで働くとき、"
+    ("kaigo", "介護福祉士の登録を待つ間の介護の仕事","介護福祉士の養成施設を卒業した留学生や、国家試験に受かった留学生が、4月から介護施設などで働くとき、"
      "介護福祉士の登録証が届くまでの間、介護の仕事をするためのもの。登録のあとは在留資格「介護」に変えます。",
      [("出入国在留管理庁（養成施設を卒業した人）", ISA + "applications/resources/nyuukokukanri07_00119.html"),
       ("出入国在留管理庁（国家試験に受かった人）", ISA + "applications/resources/nyuukokukanri07_00056.html")]),
-    ("就職先が決まり、働き始めるまで待つ", "大学や専門学校の在学中や卒業後に就職先が内定した留学生などが、採用の日まで日本にいるためのもの。",
+    ("naitei", "就職先が決まり、働き始めるまで待つ","大学や専門学校の在学中や卒業後に就職先が内定した留学生などが、採用の日まで日本にいるためのもの。",
      [("出入国在留管理庁", ISA + "applications/status/designatedactivities15.html")]),
-    ("日本の大学などを出た留学生の起業", "日本の大学などを卒業した留学生が、卒業したあとも日本で起業の準備をするためのもの。"
+    ("kigyo", "日本の大学などを出た留学生の起業","日本の大学などを卒業した留学生が、卒業したあとも日本で起業の準備をするためのもの。"
      "2020年11月からは、文部科学省の事業に選ばれた大学などを卒業した人向けのしくみも加わりました。"
      "経済産業省の事業にもとづく「外国人起業家」（告示44号）とは別のものです。",
      [("出入国在留管理庁", ISA + "applications/status/designatedactivities13.html"),
       ("出入国在留管理庁（2020年11月から）", ISA + "applications/status/designatedactvities13_2.html")]),
-    ("大学院に入るまで待つ", "日本の大学を卒業した留学生などが、大学院に入学するまで日本にいるためのもの。",
+    ("daigakuin", "大学院に入るまで待つ","日本の大学を卒業した留学生などが、大学院に入学するまで日本にいるためのもの。",
      [("出入国在留管理庁", ISA + "applications/status/designatedactivities52.html")]),
-    ("年をとった親の呼び寄せ", "告示で親を呼べるのは、高度専門職の人などの親（34号・39号）だけです。"
+    ("oya", "年をとった親の呼び寄せ","告示で親を呼べるのは、高度専門職の人などの親（34号・39号）だけです。"
      "それ以外の外国人が本国の年をとった親を呼ぶことについて、法務大臣は国会で「極めて例外的な扱い」と答え、人数は出していません。",
      [("衆議院予算委員会第三分科会（2024年2月28日）", "https://kokkai.ndl.go.jp/txt/121305268X00220240228/45")]),
 ]
@@ -2051,6 +2051,52 @@ TK_OUTSIDE_LIST = "https://visa-consultation.jp/specified-activities/"
 TK_ENTRY_ORG = "出入国在留管理庁「出入国管理統計」"
 TK_ENTRY_TABLE = "国籍・地域別 入国目的別 新規入国外国人（短期滞在・特定活動等）"
 TK_ENTRY_NOTE = {2025: "2025年は、4月〜10月に開かれた大阪・関西万博の関係者（告示13号・14号）が多く入っていると考えられます（内わけは発表されていません）。"}
+
+# ---- 3分でわかる（ページのいちばん上の5つの図。字は大きく、色は緑・青・オレンジ。くわしい説明は下の各セクションへリンクする）
+# 「その他」に入りうる活動の例を3つのまとまりに：(記号, 見出し, 色, 絵, [(TK_OUTSIDE の鍵, 短い名前, ひとこと)])。ひとことは下の説明を短くしたもの
+TK_SP_OTHER = [
+    ("A", "仕事に関係する活動", "g", "work", [
+        ("halal", "ハラール牛肉の生産", "イスラム教の決まりに合った牛肉を作るため、推薦を受けたイスラム教徒が、認定を受けた施設でと畜などの仕事をする"),
+        ("shoku", "日本料理・製菓を学びながら働く", "日本の調理・製菓の専門学校などを出た留学生が、農林水産省の認定を受けて、飲食店などで働きながら技術を学ぶ"),
+        ("kaigo", "介護福祉士の登録を待つ間の就労", "介護福祉士の養成施設を出た留学生などが、登録証が届くまでの間、介護の仕事をする")]),
+    ("B", "家族に関係する活動", "b", "family", [
+        ("dousei", "同性婚の相手", "外国人どうしで、本国で正式に成立した同性婚の相手（2013年の法務省の通知から）"),
+        ("ssw1-family", "特定技能1号の人の家族への例外的な許可", "1号の人は原則として家族を連れて来られないが、人道上の配慮が特に必要な場合に認められることがある"),
+        ("oya", "高齢の親の呼び寄せ", "告示にない形で本国の年をとった親を呼ぶこと。法務大臣は国会で「極めて例外的な扱い」と答えている")]),
+    ("C", "進学・就職・起業に関係する活動", "o", "study", [
+        ("naitei", "就職先が決まって働き始めるまでの待機", "就職先が内定した留学生などが、採用の日まで日本にいる"),
+        ("kigyo", "卒業した留学生の起業準備", "日本の大学などを出た留学生が、卒業したあとも日本で起業の準備をする"),
+        ("daigakuin", "大学院に入学するまでの待機", "日本の大学を出た留学生などが、大学院に入るまで日本にいる")]),
+]
+# STEP 5 で、増えた区分に付けるひとこと（TK_GROUPS の名前 → 文）。ないものは、多い国籍だけを書く
+TK_SP_WHO = {"本国の情勢による在留（本国情勢等）": "本国の情勢を理由に、日本での在留を望む人",
+             "特定技能1号への移行準備": "特定技能1号に変える準備をしながら、働く予定の所で働く人",
+             "難民認定などの手続中": "難民の認定などを申請して、結果を待っている人",
+             "ワーキング・ホリデー": "日本と取り決めを結んだ国・地域の若い人",
+             "インターンシップ": "外国の大学の学生が、学業の一部として日本で働く"}
+# 小さな絵（SVG）。色は style.css の .sp-* が決める（暗い画面でも見えるように、色を直接書かない）
+SP_ICON = {
+    "clock": '<circle class="f" cx="32" cy="37" r="21"/><circle class="w" cx="32" cy="37" r="15"/><path class="h" d="M32 37V27M32 37l7 5"/><rect class="f" x="26" y="8" width="12" height="6" rx="2"/>',
+    "search": '<rect class="f" x="7" y="36" width="8" height="20"/><rect class="f" x="19" y="26" width="8" height="30"/><rect class="f" x="31" y="40" width="8" height="16"/>'
+              '<circle class="w h" cx="42" cy="22" r="12"/><path class="h hb" d="M51 31l8 9"/>',
+    "work": '<rect class="f" x="8" y="18" width="40" height="28" rx="4"/><path class="h" d="M20 18v-6h16v6"/><path class="hw" d="M8 30h40"/>',
+    "family": '<circle class="f" cx="19" cy="15" r="7"/><path class="f" d="M6 48c0-11 6-18 13-18s13 7 13 18z"/><circle class="f" cx="39" cy="24" r="6"/><path class="f" d="M28 48c0-9 5-15 11-15s11 6 11 15z"/>',
+    "study": '<path class="f" d="M4 20l24-10 24 10-24 10z"/><path class="f" d="M14 25v11c0 4 7 8 14 8s14-4 14-8V25l-14 6z"/><path class="h" d="M48 22v13"/>',
+}
+
+
+def sp_icon(name, cls=""):
+    return f'<svg class="sp-ic {cls}" viewBox="0 0 56 56" aria-hidden="true" focusable="false">{SP_ICON[name]}</svg>'
+
+
+def sp_person(cls, mark):
+    """3分でわかる STEP 1 の人の絵：人（服の色 cls：g・b・o）と、右下に活動のしるし（mark：work・study・stay）"""
+    sym = {"work": '<rect x="63" y="47" width="20" height="13" rx="2"/><path class="ln" d="M69 47v-3h8v3"/>',
+           "study": '<path d="M62 46c4-2 8-2 11 1v13c-3-3-7-3-11-1z"/><path d="M84 46c-4-2-8-2-11 1v13c3-3 7-3 11-1z"/>',
+           "stay": '<path d="M61 53a12 12 0 0 1 24 0z"/><path class="ln" d="M73 53v6a3 3 0 0 1-6 0"/>'}[mark]
+    return (f'<svg class="sp-man {cls}" viewBox="0 0 96 72" aria-hidden="true" focusable="false"><circle class="sk" cx="34" cy="20" r="12"/>'
+            '<path class="hr" d="M22 19a12 12 0 0 1 24 0c-6-5-17-5-24 0z"/><path class="sh" d="M12 70c0-14 10-24 22-24s22 10 22 24z"/>'
+            f'<circle class="bd" cx="73" cy="52" r="18"/><g class="mk">{sym}</g></svg>')
 
 
 def kokuji_short(s):
@@ -2075,7 +2121,7 @@ def kokuji_short(s):
 # 目的ごとの移り変わりの線：(名前, 国の表の名前に当てはまるか, 色)。名前が変わったものは1本につなぐ
 TK_LINES = [("本国情勢等", lambda p: p == "本国情勢等", "1"), ("特定技能1号への移行準備", lambda p: p == "特定技能１号移行準備", "2"),
             ("ワーキング・ホリデー", lambda p: p == "ワーキング・ホリデー", "3"), ("難民認定などの手続中", lambda p: p.startswith("難民認定"), "4"),
-            ("インターンシップ", lambda p: p == "インターンシップ", "5"), ("EPAの看護師・介護福祉士など", lambda p: p.startswith("ＥＰＡ"), "6")]
+            ("インターンシップ", lambda p: p == "インターンシップ", "7"), ("EPAの看護師・介護福祉士など", lambda p: p.startswith("ＥＰＡ"), "6")]  # このページはピンク（5）を使わない
 # 主な出来事：(いつ, 何があったか, [(出典の名前, URL)])
 TK_EVENTS = [
     ("1989年12月", "入管法の改正（平成元年法律第79号、12月15日公布）。在留資格を全面的に見直し、「特定活動」（法務大臣が個々の外国人について特に指定する活動）ができる",
@@ -2107,6 +2153,158 @@ TK_EVENTS = [
 ]
 
 
+def tokutei_sanpun(lw, now, year, groups, ch, gid, sw, sv, top_nat, notes_url):
+    """ページのいちばん上の「3分でわかる」（5つのステップの図）。数はどれも tokutei_page が国の表から計算して渡す。
+    groups：[(名前, 人数, 告示の号, 説明, 国の表の名前)]（多い順）、ch：[(名前, 1年前, いま, 増減)]、gid：名前 → 下の説明の id、
+    sw・sv：速報の時点と人数、top_nat(国の表の名前)：(いちばん多い国籍・地域, 割合%)"""
+    yw, swl = when_label(YEAR_AGO), when_label(sw)
+
+    def step(n, title, ans, fig, point, more="", cls=""):
+        return (f'<article class="sp-s{cls}" id="sanpun-{n}" aria-labelledby="sanpun-{n}-h"><div class="sp-hd"><span class="sp-no" aria-hidden="true">STEP<b>{n}</b></span>'
+                f'<h3 id="sanpun-{n}-h"><span class="nvh">STEP {n}　</span>{title}</h3></div><p class="sp-ans">{ans}</p>{fig}'
+                f'<div class="sp-pt"><b>ここがポイント</b><p>{point}</p></div>{more}</article>')
+
+    def more(href, text):
+        return f'<p class="sp-more"><a href="#{href}">{text} →</a></p>'
+
+    # STEP 1：同じ在留資格で、活動は人によって違う
+    people = [("g", "work", "働く", "特定技能1号への移行準備、インターンシップ、家事使用人"),
+              ("b", "study", "学ぶ・準備する", "卒業後の就職活動、日本の運転免許を取る準備、起業の準備"),
+              ("o", "stay", "特別な事情で滞在する", "本国の情勢で帰れない、難民認定の申請中、病院での治療")]
+    fig1 = ('<ul class="sp-people">' + "".join(
+        f'<li class="{c}">{sp_person(c, m)}<span class="sp-tag">在留資格：特定活動</span><b>{t}</b><span class="ex">例：{ex}</span></li>' for c, m, t, ex in people)
+        + '</ul><p class="sp-say">同じ在留資格でも、<em>活動内容は人によって違う</em></p>')
+    s1 = step(1, "特定活動って何？", "法務大臣が<em>一人ひとり</em>について、日本でしてよい活動を決めて（指定して）認める在留資格です。", fig1,
+              "名前が似ている「特定技能」は、別の在留資格です。特定技能は、人手が足りない決まった分野（介護・外食業など）で、技能のある人が働くための在留資格です。",
+              more("what", "「どんな資格？」を詳しく見る"))
+
+    # STEP 2：在留目的別の人数（多い5つ＋「その他」、残りはまとめて1行）
+    top = groups[:5] + [g for g in groups[5:] if g[0] == "その他"]
+    rest = [g for g in groups if g not in top]
+    mx = top[0][1]
+
+    def row(name, v, href, cls="", tag=""):
+        return (f'<li{cls}><a href="#{href}"><span class="sp-bh"><span class="sp-bn">{esc(name)}{tag}</span>'
+                f'<span class="sp-bv"><b>{num(v)}</b>人<i>{v / now * 100:.1f}%</i></span></span>'
+                f'<span class="sp-bt"><span style="width:{v / mx * 100:.1f}%"></span></span></a></li>')
+    rows = "".join(row(n, v, "sanpun-4", ' class="o"', '<span class="sp-tg">STEP 4で説明</span>') if n == "その他" else row(n, v, gid[n]) for n, v, _, _, _ in top)
+    if rest:
+        rv = sum(g[1] for g in rest)
+        rows += (f'<li class="rest"><a href="#who"><span class="sp-bh"><span class="sp-bn">残りの{len(rest)}区分の合計<small>（{esc(rest[0][0])}など）</small></span>'
+                 f'<span class="sp-bv"><b>{num(rv)}</b>人<i>{rv / now * 100:.1f}%</i></span></span><span class="sp-bt"><span style="width:{rv / mx * 100:.1f}%"></span></span></a></li>')
+    head = re.sub(r"^.*（(.+)）$", r"\1", top[0][0])  # 「本国の情勢による在留（本国情勢等）」→「本国情勢等」
+    n5 = sum(g[1] for g in groups[:5])
+    fig2 = (f'<p class="sp-tot">特定活動の全体<b>{num(now)}</b>人<span>（{lw}）</span></p>'
+            f'<p class="sp-cap">上位5区分の人数と、全体に対する割合</p><ol class="sp-bars">{rows}</ol>'
+            '<p class="sp-cap">行を押すと、その区分の説明に移ります。本人と配偶者・子などは1つにまとめています。</p>')
+    oth = next(g for g in groups if g[0] == "その他")
+    s2 = step(2, "どんな人がいるの？", f"いちばん多いのは「{esc(head)}」。<em>上位5区分で全体の{n5 / now * 100:.1f}%</em>です。", fig2,
+              f"「その他」（{num(oth[1])}人）は{[g[0] for g in groups].index('その他') + 1}番目に多い区分です。中に何が入っているかは、STEP 4 で説明します。",
+              more("who", f"全{len(groups)}区分の人数と説明を見る"))
+
+    # STEP 3：告示にある・ない／働けるかは指定書しだい
+    fig3 = ('<div class="sp-two">'
+            '<div class="sp-card g"><h4><span class="n" aria-hidden="true">①</span>告示にある活動</h4>'
+            '<p>法務省が、あらかじめ活動の種類を「告示」（国が決まりを広く知らせる文書）で決めています。いまは58号まであります。</p>'
+            '<p class="ex"><b>例</b>ワーキング・ホリデー、家事使用人、インターンシップ</p>'
+            '<p class="sm">外国から新しく「特定活動」で来られるのは、こちらだけです。</p></div>'
+            '<div class="sp-card b"><h4><span class="n" aria-hidden="true">②</span>告示にない活動</h4>'
+            '<p>一人ひとりの事情を見て、法務大臣が活動を指定します。主に、すでに日本にいる人が対象です。</p>'
+            '<p class="ex"><b>例</b>難民認定の申請中、本国の情勢による在留（本国情勢等）、卒業後の就職活動</p>'
+            '<p class="sm">認められるかどうかは、一人ひとりの審査しだいです。</p></div></div>'
+            '<p class="sp-both">①も②も、どちらも正式な在留資格「特定活動」です</p>'
+            '<h4 class="sp-sub">働ける？働けない？</h4>'
+            '<p>「特定活動」という名前だけでは分かりません。在留カードと、パスポートに付く「指定書」で確かめます。</p>'
+            '<div class="sp-docs"><figure class="sp-rc"><div class="rc-p"><div class="rc-h">在留カード<small>（イメージ）</small></div>'
+            '<div class="rc-row"><span>在留資格</span><b>特定活動</b></div>'
+            '<div class="rc-row hi"><span>就労制限の有無</span><b>指定書により指定された就労活動のみ可</b></div></div>'
+            '<figcaption>カードだけでは、どんな仕事ができるか分からない</figcaption></figure>'
+            '<span class="sp-arw" aria-hidden="true">→</span>'
+            '<figure class="sp-sd"><div class="sd-p"><div class="sd-h">指定書<small>（イメージ）</small></div><p class="sd-l">この人が日本でしてよい活動</p>'
+            '<div class="sd-lines" aria-hidden="true"><i></i><i></i><i></i></div></div>'
+            '<figcaption>働けるか・どこで働けるかは、ここに書かれる</figcaption></figure></div>'
+            '<ul class="sp-work">'
+            '<li class="ok"><b><span aria-hidden="true">○</span> 働ける（決められた範囲で）</b>例：特定技能1号への移行準備（働く予定の所で）、ワーキング・ホリデー（旅行の費用を補う範囲で）</li>'
+            '<li class="mid"><b><span aria-hidden="true">△</span> 条件で変わる</b>例：難民認定などの手続中（申請からの期間や、申請の内容による）</li>'
+            '<li class="ng"><b><span aria-hidden="true">×</span> 原則、働けない</b>例：医療滞在、観光・保養の長期滞在（指定された活動に仕事が入っていない）</li></ul>')
+    s3 = step(3, "誰が決める？働けるの？", "活動は、<em>告示で前もって決めたもの</em>と、<em>一人ひとりの事情で決めるもの</em>の2種類です。", fig3,
+              "働けるか・どこで働けるかは、一人ひとりの指定書しだいです。在留カードの「就労制限の有無」の欄と、指定書を確かめます。",
+              more("what", "告示・指定書・在留期間を詳しく見る"))
+
+    # STEP 4：「その他」（いちばん大事なステップ。省かない）
+    ob = next(b for n, b, _, _ in ch if n == "その他")
+    new = [n for n, b, _, _ in ch if b is None]
+    n_ex = sum(len(g[4]) for g in TK_SP_OTHER)
+    keys = {o[0] for o in TK_OUTSIDE}
+    if any(k not in keys for g in TK_SP_OTHER for k, _, _ in g[4]):
+        sys.exit("3分でわかる（TK_SP_OTHER）に、TK_OUTSIDE にない鍵があります")
+    grps = "".join(
+        f'<section class="sp-grp {c}"><h4>{sp_icon(ic, c)}<span class="gl" aria-hidden="true">{a}</span>{t}</h4><ul>'
+        + "".join(f'<li><a href="#out-{k}"><b>{esc(n)}</b><span>{esc(x)}</span><span class="go">くわしい条件と出典 ↓</span></a></li>' for k, n, x in items)
+        + "</ul></section>" for a, t, c, ic, items in TK_SP_OTHER)
+    fig4 = (f'<div class="sp-kpis"><div><span>「その他」の人数（{lw}）</span><b>{num(oth[1])}<small>人</small></b></div>'
+            f'<div><span>特定活動全体の</span><b>{oth[1] / now * 100:.1f}<small>%</small></b></div>'
+            f'<div><span>1年前（{yw} {num(ob)}人）から</span><b>{signed(oth[1] - ob)}<small>人</small></b></div></div>'
+            '<p class="sp-say">「その他」＝何も決まっていない人、<em>ではありません</em></p>'
+            '<p>国の統計表に、独立した欄（区分）がない特定活動の人を、まとめて数えた欄です。「その他」の人も、ほかの人と同じように、一人ひとり活動が指定されています。</p>'
+            '<h4 class="sp-sub">統計の「その他」と「告示にない活動」は、同じではありません</h4>'
+            '<div class="sp-mx" role="table" aria-label="告示にあるか・国の表に欄があるかで分けた図">'
+            '<div role="row" class="mx-r"><span class="mx-c0" role="columnheader"></span><span class="mx-ch" role="columnheader">国の表に<br>欄がある</span>'
+            '<span class="mx-ch o" role="columnheader">国の表に欄がない<br>→ 統計の「その他」</span></div>'
+            '<div role="row" class="mx-r"><span class="mx-rh g" role="rowheader">① 告示にある活動</span><span class="mx-c" role="cell">ワーキング・ホリデー、家事使用人 など</span>'
+            '<span class="mx-c o" role="cell">大阪・関西万博の関係者（告示13号・14号）など</span></div>'
+            '<div role="row" class="mx-r"><span class="mx-rh b" role="rowheader">② 告示にない活動</span><span class="mx-c" role="cell">本国情勢等、難民認定などの手続中 など</span>'
+            f'<span class="mx-c o" role="cell">ハラール牛肉の生産、同性婚の相手 など（下の{n_ex}つの例）</span></div></div>'
+            '<p class="sp-cap">オレンジの列が、統計の「その他」です。告示にある活動でも、国の表に欄がなければ「その他」に入ります。'
+            f'告示にない活動でも、欄があるもの（本国情勢等など）は別に数えられます（国の表の<a href="{notes_url}">利用上の注意</a>から）。</p>'
+            f'<h4 class="sp-sub">「その他」に入りうる活動の例（{n_ex}つ）</h4><div class="sp-grps">{grps}</div>'
+            '<div class="sp-warn"><b class="wl">注意</b><ul>'
+            f'<li><b>国は「その他」{num(oth[1])}人の内わけを発表していません。</b>上の{n_ex}つは「その他」に入りうる活動の例で、それぞれ何人いるかは分かりません。</li>'
+            '<li>どれも、法務大臣が一人ひとりの事情を見て認めるものです。条件に当てはまればだれでも認められる、というものではありません。</li>'
+            '<li>統計の「その他」と「告示にない活動」は同じ意味ではありません（上の図）。</li>'
+            + (f'<li>{"・".join("「" + esc(n) + "」" for n in new)}は{lw}の表から分けて数えるようになった区分です。1年前の「その他」に入っていたかもしれません（国は示していません）。</li>' if new else "")
+            + '</ul></div>')
+    s4 = step(4, "「その他」って何が入っている？", f"国の表に<em>欄がない</em>特定活動の集まりです。{lw}は{num(oth[1])}人で、全体の{oth[1] / now * 100:.1f}%。", fig4,
+              "「その他」は、国の表で分けて数えていない活動の人をまとめた欄です。何人がどの活動なのかは、国が発表していないので分かりません。",
+              '<p class="sp-cta"><a class="sp-btn" href="#other">「その他」の具体例を詳しく見る ↓</a></p>', cls=" o")
+
+    # STEP 5：増えているか（確定2つと速報1つの棒。区分ごとの増え方は確定した統計で）
+    vals = [(yw, year, ""), (lw, now, ""), (swl, sv, " q")]
+    top_v = max(v for _, v, _ in vals)
+    cols = "".join(f'<div><span class="v">{num(v)}<small>人</small></span><span class="bar{q}" style="height:{v / top_v * 100:.1f}%"></span></div>' for _, v, q in vals)
+    labs = "".join(f"<span>{esc(w)}{'<small>速報</small>' if q else ''}</span>" for w, _, q in vals)
+    inc = sorted([c for c in ch if c[3] and c[3] > 0], key=lambda c: -c[3])[:3]
+
+    def who(name):
+        names = next(g[4] for g in groups if g[0] == name)
+        nat, share = top_nat(names)
+        return TK_SP_WHO.get(name, "") + (f"<small>いちばん多い国籍・地域：{esc(nat)}（{share:.1f}%）</small>" if nat else "")
+    incs = "".join(f'<li><span class="nm">{esc(n)}</span><b>{signed(dd)}<small>人</small></b><span class="ds">{who(n)}</span></li>' for n, _, _, dd in inc)
+    fig5 = (f'<p class="sp-up">1年で<b>{signed(now - year)}</b>人（{pct_signed(now - year, year)}）</p>'
+            f'<div class="sp-col" role="img" aria-label="特定活動の人数：{yw} {num(year)}人、{lw} {num(now)}人、{swl}（速報） {num(sv)}人">{cols}</div>'
+            f'<div class="sp-colx" aria-hidden="true">{labs}</div>'
+            f'<p class="sp-cap">斜めの線の棒は、法務省の速報（{swl}）です。速報の数は、あとで出る確定した統計と少し違うことがあります。</p>'
+            f'<h4 class="sp-sub">1年で増えた主な区分（{yw}→{lw}）</h4><ul class="sp-inc">{incs}</ul>'
+            '<ul class="sp-notes">'
+            f'<li>{swl}の速報には、在留目的ごとの数がありません。区分ごとの増え方は、確定した統計（{yw}と{lw}）で比べています。</li>'
+            '<li>もっと長い移り変わりには、統計の数え方や区分の変わり目があるため、増えた・減った理由を一つに決めることはできません。</li></ul>')
+    s5 = step(5, "特定活動は増えているの？", f"{yw}から{lw}の1年で、{(now - year) / year * 100:.1f}%増えました。<em>増えた理由は、区分ごとに違います。</em>", fig5,
+              "「外国人が増えた」とひとまとめにはできません。<b>事情の違う人たち</b>（本国の情勢・仕事の準備・難民の申請など）が、それぞれ増えています。",
+              more("history", "1990年からの移り変わりを見る"))
+
+    nexts = [("now", "人数と推移", "いまの人数・1年の増減・1990年からの移り変わり"), ("who", "在留目的別の詳しい内訳", f"全{len(groups)}区分の人数と説明（名前で探せます）"),
+             ("other", "「その他」の具体例", f"{n_ex}つの例と、それぞれの出典"), ("entry", "外国から新しく来た人", "告示の号ごとの1年間の人数"),
+             ("nat", "国籍・地域別", "どの国籍・地域の人が多い？"), ("events", "制度の歴史", "法律・告示の主な変わり目（1989年から）"),
+             ("notes", "出典・公的資料", "統計表・法令・国の資料と、数を見るときの注意")]
+    nav = ('<div class="sp-next related" id="sanpun-next"><h3>もっと詳しく調べてみる</h3><p class="sp-cap">このページの下の、くわしい説明に移ります。</p><ul>'
+           + "".join(f'<li><a href="#{h}"><span>{t}<span class="rs">{s}</span></span></a></li>' for h, t, s in nexts) + "</ul></div>")
+    steps = "".join(f'<a href="#sanpun-{i}"{c}><b>{i}</b>{t}</a>' for i, (t, c) in
+                    enumerate((("何？", ""), ("どんな人？", ""), ("働ける？", ""), ("「その他」とは", ' class="o"'), ("増えてる？", "")), 1))
+    return (f'<section class="sp" id="sanpun" aria-labelledby="sanpun-h"><div class="sp-band"><span class="sp-k">3分でわかる</span>'
+            f'<h2 id="sanpun-h">特定活動を、5つのステップで</h2><p>数は{TK_ORG}（確定した統計）で、主に{lw}の数です。STEP 5 の{swl}だけ法務省の速報です。</p></div>'
+            f'<nav class="sp-steps" aria-label="5つのステップ">{steps}</nav>{s1}{s2}{s3}{s4}{s5}{nav}</section>')
+
+
 def tokutei_page(d):
     folder = os.path.join(DATA, "特定活動")
     tp = pd.read_csv(os.path.join(folder, "在留目的別.csv"))
@@ -2128,6 +2326,7 @@ def tokutei_page(d):
         return sum(have) if have else None
     groups = [(name, gsum(LATEST, names), kj, text, names) for name, names, kj, text in TK_GROUPS]
     groups = sorted([g for g in groups if g[1]], key=lambda g: -g[1])
+    gid = {name: f"tkp-{i}" for i, (name, _, _, _) in enumerate(TK_GROUPS)}  # 「それぞれの中身」の行の id（3分でわかるの棒から飛ぶ）
     if sum(g[1] for g in groups) != now:
         sys.exit("特定活動の在留目的のまとまり（TK_GROUPS）の合計が総数と合いません。国の表に新しい在留目的がないか見てください")
     lw = when_label(LATEST)
@@ -2147,9 +2346,10 @@ def tokutei_page(d):
     ch.sort(key=lambda c: -(c[3] if c[3] is not None else c[2]))
     ch_rows = "".join(f"<tr><td>{esc(n)}</td><td class='n'>{'—' if b is None else num(b)}</td><td class='n'>{num(a)}</td>"
                       f"<td class='n'>{'（表になし）' if dd is None else signed(dd)}</td></tr>" for n, b, a, dd in ch)
-    ch_table = ("<div class='scroll'><table class='t'><thead><tr><th>在留目的</th>"
+    ch_table = (f"<details class='kfold'><summary>在留目的ごとの増減の表を開く（{len(ch)}区分）</summary><div class='kfoldin'><div class='scroll'><table class='t'><thead><tr><th>在留目的</th>"
                 f"<th class='n'>{when_label(YEAR_AGO)}</th><th class='n'>{lw}</th><th class='n'>増減</th></tr></thead><tbody>{ch_rows}"
-                f"<tr class='hl'><td>合計</td><td class='n'>{num(year)}</td><td class='n'>{num(now)}</td><td class='n'>{signed(now - year)}</td></tr></tbody></table></div>")
+                f"<tr class='hl'><td>合計</td><td class='n'>{num(year)}</td><td class='n'>{num(now)}</td><td class='n'>{signed(now - year)}</td></tr></tbody></table></div></div></details>")
+    ch_up = "・".join(f"{esc(n)}（{signed(dd)}人）" for n, _, _, dd in ch[:3] if dd and dd > 0)  # 表を開かなくても分かるように、増えた多い3つ
 
     # ③ 移り変わり（1990年12月末から）
     ticks = [(y + 0.5, f"{y}年") for y in range(1990, int(LATEST[:4]) + 1, 5)]
@@ -2181,17 +2381,31 @@ def tokutei_page(d):
             for n, v in by[p].items():
                 s[n] += v
         return "、".join(f"{esc(n)} {num(v)}人" for n, v in sorted(s.items(), key=lambda a: -a[1])[:k] if v)
+    def top_nat(names):  # いちばん多い国籍・地域と、その割合（3分でわかるの STEP 5）
+        s = defaultdict(int)
+        for p in names:
+            for n, v in by[p].items():
+                s[n] += v
+        n, v = max(s.items(), key=lambda a: a[1], default=("", 0))
+        return (n, v / sum(s.values()) * 100) if v else ("", 0)
+
     def facts(kj, names):
         out = [] if kj == "—" else ["告示にない活動" if kj == "告示にない" else f"特定活動告示 {kj}"]
         nats = top_nats(names)
         return "　".join(out + ([f"多い国籍・地域：{nats}"] if nats else []))
-    items = "".join(f'<li><div class="tkh"><b>{esc(n)}</b><span class="v">{num(v)}人</span></div><p>{esc(text)}</p><p class="note">{facts(kj, names)}</p></li>'
-                    for n, v, kj, text, names in groups)
+    # 一覧の行：名前で探す（data-q に国の表の名前も）・告示で絞る（data-k：in＝告示にある、out＝告示にない、mix＝「その他」で両方が入る）
+    kinds = {"in": ("告示にある", "in"), "out": ("告示にない", "out"), "mix": ("両方が入る", "mix")}
+
+    def kind(kj):
+        return "mix" if kj == "—" else ("out" if kj == "告示にない" else "in")
+    items = "".join(f'<li id="{gid[n]}" data-k="{kind(kj)}" data-q="{esc(" ".join(names))}"><div class="tkh"><span class="tkn"><b>{esc(n)}</b>'
+                    f'<span class="tk-kb {kinds[kind(kj)][1]}">{kinds[kind(kj)][0]}</span></span><span class="v">{num(v)}人</span></div>'
+                    f'<p>{esc(text)}</p><p class="note">{facts(kj, names)}</p></li>' for n, v, kj, text, names in groups)
     nomad = {p: P[LATEST].get(p, 0) for p in ("デジタルノマド本人", "デジタルノマド配偶者・子")}
     grouped = {p for _, names, _, _ in TK_GROUPS for p in names}
     zero = [p for p, v in P[LATEST].items() if v == 0 and p not in grouped]
-    outside = "".join(f'<li><div class="tkh"><b>{esc(n)}</b></div><p>{esc(text)}</p><p class="note">出典：'
-                      + "・".join(f'<a href="{u}">{esc(s)}</a>' for s, u in src) + "</p></li>" for n, text, src in TK_OUTSIDE)
+    outside = "".join(f'<li id="out-{k}"><div class="tkh"><b>{esc(n)}</b></div><p>{esc(text)}</p><p class="note">出典：'
+                      + "・".join(f'<a href="{u}">{esc(s)}</a>' for s, u in src) + "</p></li>" for k, n, text, src in TK_OUTSIDE)
     srcs = pd.read_csv(os.path.join(BASE, "元データ", "出どころ一覧.csv"))  # 国の表の「利用上の注意」（いちばん新しい時点）
     notes_url = srcs[(srcs["時点"] == LATEST) & srcs["表題"].str.contains("利用上の注意")]["URL"].iloc[0]
 
@@ -2221,19 +2435,28 @@ def tokutei_page(d):
     ev = "".join(f"<tr><td>{esc(t)}</td><td>{esc(x)}<br><span class='note'>出典：" +
                  "・".join(f'<a href="{u}">{esc(s)}</a>' for s, u in src) + "</span></td></tr>" for t, x, src in TK_EVENTS)
     up = '<p class="kup"><a href="#toc">↑ 上に戻る（目次）</a></p>'
+    sanpun = tokutei_sanpun(lw, now, year, groups, ch, gid, sw, sv, top_nat, notes_url)
     body = f"""<h1>在留資格「特定活動」とは</h1>
+<nav class="gates" aria-label="このページの読み方">
+<a class="gate gate-g" href="#sanpun">{sp_icon("clock", "g")}<span class="gt"><small>はじめての人に</small><b>3分でわかる</b><span class="gd">5つの図で、制度の全体をつかむ</span></span><span class="ga" aria-hidden="true">↓</span></a>
+<a class="gate gate-b" href="#detail">{sp_icon("search", "b")}<span class="gt"><small>調べたい人に</small><b>詳しく調べる</b><span class="gd">人数・種類・国籍・歴史・資料</span></span><span class="ga" aria-hidden="true">↓</span></a>
+</nav>
+{sanpun}
+<div class="sp-band sp-band-b" id="detail"><span class="sp-k">詳しく調べる</span><h2>人数・種類・国籍・歴史・資料</h2></div>
 <p class="lead">「特定活動」は、ほかの在留資格に当てはまらない活動を、法務大臣が一人ひとりについて決めて（指定して）認める在留資格です。
 ワーキング・ホリデー、外交官などの家事使用人、経済連携協定（EPA）の看護師・介護福祉士の候補者、難民認定を申請している人など、中身はさまざまです。
 このページでは、どんな資格か・いつできたか・どんな人が何人いるかを、法務省（出入国在留管理庁）の資料と統計からまとめました。</p>
 <p class="meta"><span>対象：<b>日本全体</b></span><span>集計時点：<b>{lw}</b>（確定した統計）</span><span>速報：<b>{when_label(sw)}</b></span></p>
 {jump([("now", "① いま何人？"), ("what", "② どんな資格？"), ("history", "③ いつできた？移り変わり"), ("who", "④ どんな人が？（目的別）"),
-       ("entry", "⑤ 新しく来た人"), ("nat", "⑥ 国籍・地域"), ("events", "⑦ 主な出来事"), ("notes", "⑧ 出典と注意")], nid="toc")}
+       ("other", "④の中の「その他」には何が？"), ("entry", "⑤ 新しく来た人"), ("nat", "⑥ 国籍・地域"), ("events", "⑦ 主な出来事"), ("notes", "⑧ 出典と注意"),
+       ("sanpun", "↑ 3分でわかる")], nid="toc")}
 <section class="card" id="now"><h2>いま何人？</h2>
 {kp}
 <p>在留資格「特定活動」の人は、{lw}に{num(now)}人でした。2012年からの在留外国人統計で比べると、{when_label(first_w)}（{num(T[first_w])}人）の約{now / T[first_w]:.1f}倍、
 {when_label(peak_w)}（{num(T[peak_w])}人）のあといちばん少なくなった{when_label(low_w)}（{num(T[low_w])}人）の約{now / T[low_w]:.1f}倍です。
 {when_label(sw)}の速報では{num(sv)}人です。</p>
 <h3>1年間（{when_label(YEAR_AGO)}→{lw}）で、どの目的が増えた？</h3>
+<p>増えたのは、主に{ch_up}です。</p>
 <p class="note">国の表の在留目的ごとに比べたものです（本人と配偶者・子などはまとめています）。「—」はその時点の表にない区分です。</p>
 {ch_table}{up}</section>
 <section class="card" id="what"><h2>どんな資格？</h2>
@@ -2270,9 +2493,20 @@ def tokutei_page(d):
 <section class="card" id="who"><h2>どんな人が？（在留目的別、{lw}）</h2>
 <p class="note">国の統計表「国籍・地域別 在留目的別 在留外国人（特定活動・日本人の配偶者等・定住者）」の在留目的ごとの人数です。本人と配偶者・子などは1つにまとめています。割合は特定活動の合計（{num(now)}人）に対する割合です。</p>
 {bars}
-<h3>それぞれの中身</h3>
+<h3 id="who-list">それぞれの中身</h3>
 <p class="note">「特定活動告示 〇号」は、告示のどの号にあたるかです。「告示にない活動」は、告示で前もって決めていない活動です。多い国籍・地域は{lw}の数です。</p>
-<ul class="tkl">{items}</ul>
+<div class="tk-tools" id="tk-tools" hidden>
+<label class="dctl tq"><span class="dlab">名前で探す</span><input type="search" id="tk-q" placeholder="例：ワーキング、ミャンマー" enterkeyhint="search" autocomplete="off"></label>
+<div class="dctl"><span class="dlab" id="tk-kl">告示で絞る</span><div class="modes" role="group" aria-labelledby="tk-kl">
+<button type="button" data-k="" aria-pressed="true">すべて</button><button type="button" data-k="in" aria-pressed="false">告示にある</button><button type="button" data-k="out" aria-pressed="false">告示にない</button></div></div>
+<div class="dctl"><span class="dlab" id="tk-vl">見せ方</span><div class="modes" role="group" aria-labelledby="tk-vl">
+<button type="button" data-v="full" aria-pressed="true">説明つき</button><button type="button" data-v="brief" aria-pressed="false">名前と人数だけ</button></div></div>
+<a class="dbtn dbtn-sub" href="#other">「その他」の解説へ ↓</a>
+</div>
+<p class="tcount" id="tk-count" role="status"></p>
+<ul class="tkl" id="tk-list">{items}</ul>
+<p class="tnone" id="tk-none" hidden>合うものがありません。言葉を変えるか、「すべて」を選んでください。</p>
+<p class="note">「両方が入る」の「その他」は、告示にある活動と告示にない活動の両方が入るため、どちらで絞っても出しています。</p>
 <p class="note">このほか、デジタルノマド（告示53号・54号。外国の会社に雇われている人などが、インターネットを使って外国の仕事をしながら、1年のうち6か月まで日本に滞在するもの。年収1,000万円以上など）が
 本人{num(nomad["デジタルノマド本人"])}人・配偶者や子{num(nomad["デジタルノマド配偶者・子"])}人いますが、在留カードが出ない（中長期在留者ではない）ため、上の合計には入っていません（国の表のとおり）。
 {"国の表には「" + "」「".join(zero) + "」の区分もあります（" + lw + "は0人）。" if zero else ""}
@@ -2304,7 +2538,7 @@ def tokutei_page(d):
 <section class="card" id="events"><h2>主な出来事</h2>
 <p class="note">特定活動の数や中身にかかわる、法律・告示・取扱いの主な変わり目です。どれも法務省・出入国在留管理庁などの資料からまとめました。</p>
 <div class="scroll"><table class="t"><thead><tr><th>いつ</th><th>出来事</th></tr></thead><tbody>{ev}</tbody></table></div>{up}</section>
-<section class="card" id="notes"><h2>出典と、数を見るときの注意</h2>
+<section class="card" id="notes" data-open><h2>出典と、数を見るときの注意</h2>
 <details class="kfold"><summary>出典と注意を開く</summary><ul class="note">
 <li>人数：{TK_ORG}（政府統計の総合窓口 e-Stat）。1990〜2005年末は統計書の「特定活動」、2006〜2011年末は都道府県・国籍ごとの表、2012年12月末からは「国籍・地域別 在留資格（在留目的）別 在留外国人」、
 2023年12月末からは「国籍・地域別 在留目的別 在留外国人（特定活動・日本人の配偶者等・定住者）」の表です。速報は出入国在留管理庁の報道発表「在留外国人数について」です。</li>
@@ -2317,6 +2551,8 @@ def tokutei_page(d):
 <li>説明の文は、入管法（<a href="{NYUKANHO}">e-Gov 法令検索</a>）、特定活動告示（<a href="{TK_KOKUJI}">出入国在留管理庁</a>、最近改正 令和8年4月8日法務省告示第31号）、
 告示の号と略称の一覧（<a href="{ISA}content/001389017.pdf">出入国在留管理庁、2025年5月現在</a>）、在留資格「特定活動」のページ（<a href="{ISA}applications/status/designatedactivities.html">出入国在留管理庁</a>）と、「主な出来事」の出典から。
 指定書と在留カードについては、出入国在留管理庁「<a href="{ISA}applications/faq/newimmiact_4_point.html">「在留カード」はどういうカード？</a>」から。</li>
+<li>いちばん上の「3分でわかる」は、このページの数と説明を短くまとめたものです。在留カードと指定書の絵は、しくみを説明するためのイメージで、本物の書き方とは違います（「就労制限の有無」の欄の言葉は上の出入国在留管理庁のページのとおり）。
+「特定技能」の説明は、出入国在留管理庁「<a href="{ISA}content/001335263.pdf">外国人労働者に関する制度概要</a>」から。</li>
 <li>「その他」に入る告示にない活動の説明は、それぞれに書いた出典（出入国在留管理庁・農林水産省のページや資料、内閣府の会議に出された資料、裁判所の判決、国会の会議録）から。
 ハラール牛肉の生産で働く人の条件は、国の公開のページが見つからなかったため、行政書士の解説によります。</li>
 <li>国の表に欄のない特定活動が「その他」に入ることは、在留外国人統計の<a href="{notes_url}">利用上の注意</a>から。在留期間が3月以下の人が入らないことは、入管法（中長期在留者の決まり、第19条の3）から。</li>
@@ -2331,7 +2567,8 @@ def tokutei_page(d):
           ("nanmin-seido.html", "難民の申請と、手続き中のくらし", "手続き中の「特定活動」で働けるか、住民票・健康保険・税金などの決まり"),
           ("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("在留資格「特定活動」とは", [("日本全体", "index.html"), ("在留資格から探す", "visa-index.html"), ("特定活動とは", None)], body,
-                f"在留資格「特定活動」の対象・できた年（1990年）・在留目的ごとの人数。{lw}は{num(now)}人。", css=("dash.css",), active="tokutei")
+                f"在留資格「特定活動」を3分でわかる5つの図と、対象・できた年（1990年）・在留目的ごとの人数・「その他」の中身。{lw}は{num(now)}人。",
+                css=("dash.css",), js=("tokutei.js",), active="tokutei")
 
 
 # ---------------------------------------------------------------- 在留資格「定住者」の説明
@@ -3150,7 +3387,7 @@ def main():
             if f.endswith(".html"):
                 os.remove(os.path.join(OUT, f))
     os.makedirs(os.path.join(OUT, "assets"), exist_ok=True)
-    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "fuho.js", "kika.js", "nanmin.js", "xmaker.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
+    for f in ("app.js", "style.css", "dash.js", "dash.css", "share.js", "sokuho.js", "fuho.js", "kika.js", "nanmin.js", "xmaker.js", "tokutei.js", "favicon.svg", "favicon.ico", "apple-touch-icon.png"):  # しるしは make_favicon.py で作る
         shutil.copyfile(os.path.join(BASE, "site_assets", f), os.path.join(OUT, "assets", f))
     src, dst = os.path.join(BASE, "site_assets", "map"), os.path.join(OUT, "assets", "map")  # 地図の形
     os.makedirs(dst, exist_ok=True)

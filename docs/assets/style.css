@@ -670,3 +670,249 @@ ul.nbar .v { text-align: right; font-variant-numeric: tabular-nums; white-space:
   table.nmx .mk { display: inline; font-size: 18px; margin-right: 6px; }
 }
 @media (max-width: 600px) { ol.nflow > li { padding-left: 48px; } ol.nflow > li::before { left: 10px; } }
+
+/* 3分でわかる（特定活動のページ。make_site.py の tokutei_sanpun）：図が主役。色は緑・青・オレンジ（ピンクは使わない）。
+   字は小さくしない（説明 17px、注は 15px、数は 24px 以上）。ホバーしなくても数が読めるように、数はいつも書いておく */
+:root { --sp-g: #1f7a4f; --sp-gs: #e9f5ee; --sp-b: #1f5fae; --sp-bs: #eaf2fc; --sp-o: #b0500f; --sp-ob: #e8742f; --sp-os: #fdf1e6; --sp-sk: #f1cfae; --sp-hr: #3d3a44; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --sp-g: #5cc492; --sp-gs: #15281e; --sp-b: #8ab8ea; --sp-bs: #172638; --sp-o: #f3a46b; --sp-ob: #d9692c; --sp-os: #33251a; --sp-sk: #e6c09d; --sp-hr: #191820; }
+}
+:root[data-theme="dark"] { --sp-g: #5cc492; --sp-gs: #15281e; --sp-b: #8ab8ea; --sp-bs: #172638; --sp-o: #f3a46b; --sp-ob: #d9692c; --sp-os: #33251a; --sp-sk: #e6c09d; --sp-hr: #191820; }
+.sp-ic { color: var(--sp-g); flex: 0 0 auto; }
+.sp-ic.b { color: var(--sp-b); } .sp-ic.o { color: var(--sp-o); }
+.sp-ic .f { fill: currentColor; }
+.sp-ic .h { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; }
+.sp-ic .hb { stroke-width: 6; }
+.sp-ic .w { fill: var(--card); }
+.sp-ic .hw { fill: none; stroke: var(--card); stroke-width: 3; }
+/* 入口の2つのボタン（同じ形・同じ高さ。色だけ緑と青） */
+.gates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 10px 0 18px; }
+.gate { display: flex; align-items: center; gap: 14px; min-height: 104px; padding: 14px 16px; border-radius: 14px; border: 2px solid var(--sp-g); background: var(--sp-gs);
+        color: var(--text); text-decoration: none; }
+.gate-b { border-color: var(--sp-b); background: var(--sp-bs); }
+.gate:hover { box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.gate .sp-ic { width: 56px; height: 56px; }
+.gate .gt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.gate small { font-size: 14px; font-weight: 700; color: var(--sp-g); }
+.gate b { font-size: 25px; line-height: 1.3; color: var(--sp-g); }
+.gate-b small, .gate-b b { color: var(--sp-b); }
+.gate .gd { font-size: 15px; color: var(--sub); line-height: 1.5; }
+.gate .ga { font-size: 24px; font-weight: 700; color: var(--sp-g); }
+.gate-b .ga { color: var(--sp-b); }
+/* 帯の見出し（3分でわかる・詳しく調べる） */
+.sp-band { margin: 18px 0 10px; }
+.sp-k { display: inline-block; padding: 2px 14px; border-radius: 999px; background: var(--sp-g); color: #fff; font-weight: 700; font-size: 15px; }
+.sp-band-b .sp-k { background: var(--sp-b); }
+.sp-band h2 { font-size: 26px; margin: 6px 0 2px; }
+.sp-band p { margin: 0; font-size: 15px; color: var(--sub); }
+.sp-steps { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 14px; }
+.sp-steps a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 14px 4px 6px; border-radius: 999px; border: 1px solid var(--line);
+              background: var(--card); color: var(--text); text-decoration: none; font-size: 15px; font-weight: 600; }
+.sp-steps a:hover { border-color: var(--sp-g); }
+.sp-steps a b { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--sp-g); color: #fff; }
+.sp-steps a.o b { background: var(--sp-ob); }
+/* 1つのステップ */
+article.sp-s { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin: 0 0 16px; }
+article.sp-s.o { border: 3px solid var(--sp-ob); }
+.sp-hd { display: flex; align-items: center; gap: 12px; }
+.sp-no { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: 58px; height: 58px; border-radius: 50%; flex: 0 0 auto;
+         background: var(--sp-g); color: #fff; font-size: 11px; font-weight: 700; line-height: 1; letter-spacing: .04em; }
+.sp-s.o .sp-no { background: var(--sp-ob); }
+.sp-no b { font-size: 26px; line-height: 1; }
+.sp-hd h3 { margin: 0; font-size: 27px; line-height: 1.35; }
+.sp-ans { font-size: 20px; font-weight: 700; line-height: 1.6; margin: 12px 0 14px; }
+.sp-ans em, .sp-say em { font-style: normal; color: var(--sp-g); }
+.sp-s.o .sp-ans em, .sp-s.o .sp-say em { color: var(--sp-o); }
+.sp-say { font-size: 21px; font-weight: 700; text-align: center; line-height: 1.5; margin: 16px 0 6px; }
+.sp-s p { margin: 8px 0; }
+.sp-cap { font-size: 15px; color: var(--sub); }
+.sp-pt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 18px 0 0; padding: 12px 16px; border-radius: 12px; background: var(--sp-gs); border-left: 6px solid var(--sp-g); }
+.sp-s.o .sp-pt { background: var(--sp-os); border-left-color: var(--sp-ob); }
+.sp-pt > b { color: var(--sp-g); font-size: 15px; white-space: nowrap; }
+.sp-s.o .sp-pt > b { color: var(--sp-o); }
+.sp-pt p { margin: 0; flex: 1 1 16em; }
+.sp-more { text-align: right; margin: 10px 0 0 !important; }
+.sp-more a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; }
+h4.sp-sub { font-size: 21px; line-height: 1.45; margin: 24px 0 8px; padding-top: 18px; border-top: 1px solid var(--line); }
+/* STEP 1：3人の絵 */
+ul.sp-people { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sp-people li { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px; border-radius: 14px; border: 2px solid var(--sp-g); background: var(--sp-gs); text-align: center; }
+.sp-people li.b { border-color: var(--sp-b); background: var(--sp-bs); } .sp-people li.o { border-color: var(--sp-ob); background: var(--sp-os); }
+.sp-people b { font-size: 22px; line-height: 1.35; }
+.sp-people li.g b { color: var(--sp-g); } .sp-people li.b b { color: var(--sp-b); } .sp-people li.o b { color: var(--sp-o); }
+.sp-people .ex { font-size: 15px; line-height: 1.6; }
+.sp-tag { font-size: 14px; padding: 1px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--sub); white-space: nowrap; }
+svg.sp-man { width: 120px; height: 90px; }
+.sp-man .sk { fill: var(--sp-sk); } .sp-man .hr { fill: var(--sp-hr); }
+.sp-man .sh, .sp-man .bd { fill: var(--sp-g); }
+.sp-man.b .sh, .sp-man.b .bd { fill: var(--sp-b); } .sp-man.o .sh, .sp-man.o .bd { fill: var(--sp-ob); }
+.sp-man .mk { fill: var(--card); } .sp-man .mk .ln { fill: none; stroke: var(--card); stroke-width: 2.5; stroke-linecap: round; }
+/* STEP 2：横棒（数と割合はいつも見える。行を押すと説明へ） */
+.sp-tot { font-size: 17px; margin: 0 0 4px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+.sp-tot b { font-size: 34px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.sp-tot span { color: var(--sub); font-size: 15px; }
+ol.sp-bars { list-style: none; margin: 6px 0; padding: 0; }
+.sp-bars li { border-bottom: 1px solid var(--line); }
+.sp-bars a { display: block; padding: 10px 6px; color: var(--text); text-decoration: none; border-radius: 8px; }
+.sp-bars a:hover { background: var(--bg); }
+.sp-bh { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
+.sp-bn { font-size: 17px; font-weight: 700; line-height: 1.45; }
+.sp-bn small { font-weight: 400; font-size: 15px; color: var(--sub); }
+.sp-bv { white-space: nowrap; font-size: 15px; margin-left: auto; }
+.sp-bv b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.sp-bv i { font-style: normal; font-weight: 700; font-size: 18px; margin-left: 10px; color: var(--sp-b); font-variant-numeric: tabular-nums; }
+.sp-bt { display: block; height: 18px; margin-top: 6px; border-radius: 4px; background: var(--bg); }
+.sp-bt span { display: block; height: 100%; min-width: 3px; border-radius: 4px; background: var(--sp-b); }
+.sp-bars li.o { border: 0; margin: 4px 0; border-radius: 10px; background: var(--sp-os); outline: 2px solid var(--sp-ob); }
+.sp-bars li.o a:hover { background: transparent; }
+.sp-bars li.o .sp-bt { background: var(--card); } .sp-bars li.o .sp-bt span { background: var(--sp-ob); } .sp-bars li.o .sp-bv i { color: var(--sp-o); }
+.sp-tg { display: inline-block; margin-left: 8px; padding: 0 10px; border-radius: 999px; background: var(--sp-ob); color: #fff; font-size: 14px; vertical-align: 2px; white-space: nowrap; }
+.sp-bars li.rest .sp-bt span { background: repeating-linear-gradient(135deg, var(--co) 0 6px, transparent 6px 10px); border: 1px solid var(--co); }
+.sp-bars li.rest .sp-bv i { color: var(--sub); }
+/* STEP 3：告示にある・ない の2つのカード／在留カードと指定書の絵／働けるか */
+.sp-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sp-card { padding: 16px; border-radius: 14px; border: 2px solid var(--sp-g); background: var(--sp-gs); }
+.sp-card.b { border-color: var(--sp-b); background: var(--sp-bs); }
+.sp-card h4 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 22px; color: var(--sp-g); }
+.sp-card.b h4 { color: var(--sp-b); }
+.sp-card h4 .n { font-size: 28px; line-height: 1; }
+.sp-card p { margin: 8px 0 0; }
+.sp-card .ex { padding: 8px 10px; border-radius: 8px; background: var(--card); font-size: 16px; }
+.sp-card .ex b { display: inline-block; margin-right: 8px; padding: 0 8px; border-radius: 6px; background: var(--sp-g); color: #fff; font-size: 14px; }
+.sp-card.b .ex b { background: var(--sp-b); }
+.sp-card .sm { font-size: 15px; font-weight: 700; }
+.sp-both { margin: 12px 0 0 !important; padding: 10px 14px; border: 2px dashed var(--sub); border-radius: 12px; text-align: center; font-size: 18px; font-weight: 700; }
+.sp-docs { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 16px; margin: 12px 0; }
+.sp-docs figure { margin: 0; }
+.sp-docs figcaption { margin-top: 6px; font-size: 15px; color: var(--sub); text-align: center; }
+.sp-rc { width: 330px; max-width: 100%; }
+.sp-rc .rc-p { padding: 10px 12px 12px; border: 2px solid var(--sp-b); border-radius: 12px; background: var(--sp-bs); }
+.sp-rc .rc-h { font-weight: 700; color: var(--sp-b); font-size: 17px; margin-bottom: 4px; }
+.sp-rc .rc-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; padding: 4px 0; font-size: 15px; }
+.sp-rc .rc-row span { color: var(--sub); }
+.sp-rc .rc-row.hi b { background: var(--sp-os); outline: 2px solid var(--sp-ob); border-radius: 4px; padding: 0 4px; }
+.sp-docs small { font-weight: 400; font-size: 13px; color: var(--sub); margin-left: 4px; }
+.sp-arw { font-size: 32px; font-weight: 700; color: var(--sub); }
+.sp-sd { width: 240px; max-width: 100%; }
+.sp-sd .sd-p { padding: 12px 16px 14px; border: 1px solid var(--field); background: var(--card); box-shadow: 4px 4px 0 var(--line); }
+.sp-sd .sd-h { text-align: center; font-weight: 700; font-size: 18px; letter-spacing: .2em; }
+.sp-sd .sd-l { margin: 6px 0 0; font-size: 15px; font-weight: 700; color: var(--sp-o); }
+.sp-sd .sd-lines i { display: block; height: 8px; margin: 8px 0; border-radius: 4px; background: var(--sp-os); outline: 1px solid var(--sp-ob); }
+.sp-sd .sd-lines i:last-child { width: 60%; }
+ul.sp-work { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sp-work li { padding: 12px 14px; border-radius: 12px; border: 2px solid var(--sp-g); background: var(--sp-gs); font-size: 15px; line-height: 1.6; }
+.sp-work li.mid { border-color: var(--sp-b); background: var(--sp-bs); }
+.sp-work li.ng { border-color: var(--field); background: var(--bg); }
+.sp-work b { display: block; margin-bottom: 4px; font-size: 18px; line-height: 1.4; }
+.sp-work li.ok b { color: var(--sp-g); } .sp-work li.mid b { color: var(--sp-b); }
+/* STEP 4：「その他」 */
+.sp-kpis { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.sp-kpis > div { padding: 12px 14px; border-radius: 14px; background: var(--sp-os); border: 2px solid var(--sp-ob); }
+.sp-kpis span { display: block; font-size: 15px; color: var(--sub); line-height: 1.5; }
+.sp-kpis b { display: block; font-size: 34px; line-height: 1.25; color: var(--sp-o); font-variant-numeric: tabular-nums; }
+.sp-kpis > div:first-child b { font-size: 44px; }
+.sp-kpis b small { font-size: 18px; margin-left: 2px; }
+.sp-mx { display: grid; grid-template-columns: 10em minmax(0, 1fr) minmax(0, 1fr); gap: 6px; margin: 8px 0; }
+.sp-mx .mx-r { display: contents; }
+.sp-mx .mx-r > span { padding: 10px 12px; border-radius: 10px; font-size: 16px; line-height: 1.5; }
+.sp-mx .mx-ch { font-weight: 700; text-align: center; background: var(--bg); align-self: end; }
+.sp-mx .mx-ch.o { background: var(--sp-ob); color: #fff; }
+.sp-mx .mx-rh { display: flex; align-items: center; font-weight: 700; background: var(--sp-gs); color: var(--sp-g); border-left: 6px solid var(--sp-g); }
+.sp-mx .mx-rh.b { background: var(--sp-bs); color: var(--sp-b); border-left-color: var(--sp-b); }
+.sp-mx .mx-c { border: 1px solid var(--line); background: var(--card); }
+.sp-mx .mx-c.o { border: 2px solid var(--sp-ob); background: var(--sp-os); font-weight: 600; }
+.sp-grps { display: grid; gap: 16px; }
+.sp-grp h4 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 20px; }
+.sp-grp h4 .sp-ic { width: 44px; height: 44px; }
+.sp-grp .gl { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--sp-g); color: #fff; font-size: 17px; flex: 0 0 auto; }
+.sp-grp.b .gl { background: var(--sp-b); } .sp-grp.o .gl { background: var(--sp-ob); }
+.sp-grp ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sp-grp a { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); border-top: 5px solid var(--sp-g);
+            background: var(--card); color: var(--text); text-decoration: none; }
+.sp-grp.b a { border-top-color: var(--sp-b); } .sp-grp.o a { border-top-color: var(--sp-ob); }
+.sp-grp a:hover { border-color: var(--accent); }
+.sp-grp a b { font-size: 17px; line-height: 1.45; }
+.sp-grp a span { font-size: 15px; line-height: 1.65; color: var(--sub); }
+.sp-grp a .go { margin-top: auto; color: var(--accent); font-weight: 700; }
+.sp-warn { margin: 18px 0 0; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--sp-ob); background: var(--card); }
+.sp-warn .wl { display: inline-block; padding: 0 12px; border-radius: 999px; background: var(--sp-ob); color: #fff; font-size: 15px; }
+.sp-warn ul { margin: 8px 0 0; padding-left: 1.3em; }
+.sp-warn li { margin: 6px 0; }
+.sp-cta { text-align: center; margin: 18px 0 0 !important; }
+.sp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 10px 22px; border-radius: 12px;
+          background: var(--btn); color: var(--btn-ink); font-size: 18px; font-weight: 700; text-decoration: none; }
+.sp-btn:hover { filter: brightness(.95); }
+/* 日本語の見出し・ボタンは、ことばの切れ目で折り返す（対応していないブラウザではふつうに折り返す） */
+.sp-hd h3, .sp-ans, .sp-say, h4.sp-sub, .sp-band h2, .sp-btn, .sp-card h4, .sp-grp h4, .sp-grp a b, .sp-people b, .sp-bn, .sp-inc .nm, .gate b { word-break: auto-phrase; text-wrap: balance; }
+/* STEP 5：3つの縦棒と、増えた区分 */
+.sp-up { text-align: center; font-size: 19px; font-weight: 700; margin: 4px 0 10px !important; }
+.sp-up b { font-size: 30px; color: var(--sp-b); font-variant-numeric: tabular-nums; }
+.sp-col, .sp-colx { display: flex; justify-content: space-around; gap: 12px; max-width: 560px; margin: 0 auto; padding: 0 8px; }
+.sp-col { align-items: flex-end; height: 250px; border-bottom: 2px solid var(--text); }
+.sp-col > div { flex: 1 1 0; max-width: 140px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.sp-col .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; margin-bottom: 4px; }
+.sp-col .v small { font-size: 15px; margin-left: 1px; }
+.sp-col .bar { display: block; width: 100%; background: var(--sp-b); border-radius: 6px 6px 0 0; }
+.sp-col .bar.q { background: repeating-linear-gradient(135deg, var(--sp-b) 0 7px, var(--sp-bs) 7px 12px); border: 2px solid var(--sp-b); border-bottom: 0; }
+.sp-colx { margin-top: 6px; }
+.sp-colx span { flex: 1 1 0; max-width: 140px; text-align: center; font-size: 15px; font-weight: 600; line-height: 1.45; }
+.sp-colx small { display: block; width: max-content; margin: 2px auto 0; padding: 0 8px; border-radius: 999px; border: 1px solid var(--sp-b); color: var(--sp-b); font-size: 13px; }
+ul.sp-inc { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sp-inc li { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--sp-bs); border: 1px solid var(--line); }
+.sp-inc .nm { font-size: 17px; font-weight: 700; line-height: 1.45; }
+.sp-inc b { font-size: 30px; line-height: 1.2; color: var(--sp-b); font-variant-numeric: tabular-nums; }
+.sp-inc b small { font-size: 17px; margin-left: 2px; }
+.sp-inc .ds { font-size: 15px; line-height: 1.6; }
+.sp-inc .ds small { display: block; margin-top: 4px; font-size: 15px; color: var(--sub); }
+ul.sp-notes { margin: 14px 0 0; padding-left: 1.3em; font-size: 15px; color: var(--sub); }
+ul.sp-notes li { margin: 4px 0; }
+/* 3分でわかるのあとの案内（.related の形を使う。行き先はこのページの中なので ↓） */
+.sp-next { background: var(--card); border: 2px solid var(--sp-b); border-radius: 14px; padding: 18px 20px; margin: 0 0 8px; }
+.sp-next h3 { margin: 0; font-size: 24px; }
+.sp-next .sp-cap { margin: 2px 0 10px; }
+.sp-next a { min-height: 64px; }
+.sp-next a::after { content: "↓"; }
+/* 「それぞれの中身」の一覧：名前で探す・告示で絞る・名前と人数だけ（tokutei.js） */
+.tk-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin: 8px 0 6px; }
+.tk-tools .tq { flex: 1 1 220px; }
+.tk-tools .tq input { width: 100%; }
+@media (max-width: 600px) { /* 1つずつ横いっぱいに（dash.css の .dctl の半分の幅より強く） */
+  .tk-tools > *, .tk-tools > .dctl, .tk-tools > .tq { flex: 1 1 100%; } .tk-tools .modes { display: flex; flex-wrap: nowrap; } .tk-tools .modes button { flex: 1 1 auto; padding: 6px 8px; } }
+.tkn { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.tk-kb { display: inline-block; padding: 0 8px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; border: 1px solid var(--sp-g); color: var(--sp-g); background: var(--sp-gs); }
+.tk-kb.out { border-color: var(--sp-b); color: var(--sp-b); background: var(--sp-bs); }
+.tk-kb.mix { border-color: var(--sp-ob); color: var(--sp-o); background: var(--sp-os); }
+ul.tkl.brief li { padding: 8px 0; }
+ul.tkl.brief li > p { display: none; }
+@media (max-width: 760px) {
+  .sp-two, ul.sp-work, ul.sp-inc, .sp-grp ul { grid-template-columns: minmax(0, 1fr); }
+  ul.sp-people { grid-template-columns: minmax(0, 1fr); }
+  .sp-people li { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 2px 12px; text-align: left; justify-items: start; }
+  .sp-people li svg.sp-man { grid-row: 1 / span 3; width: 96px; height: 72px; }
+  .sp-kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sp-kpis > div:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .gate { flex-direction: column; align-items: flex-start; gap: 4px; min-height: 0; padding: 12px; }
+  .gate .sp-ic { width: 40px; height: 40px; }
+  .gate b { font-size: 21px; }
+  .gate .gd { font-size: 14px; }
+  .gate .ga { display: none; }
+  .sp-band h2 { font-size: 23px; }
+  article.sp-s { padding: 16px 14px; }
+  .sp-no { width: 50px; height: 50px; } .sp-no b { font-size: 22px; }
+  .sp-hd h3 { font-size: 23px; }
+  .sp-ans { font-size: 18px; }
+  .sp-say { font-size: 19px; }
+  .sp-kpis b { font-size: 28px; } .sp-kpis > div:first-child b { font-size: 38px; }
+  .sp-mx { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sp-mx .mx-c0 { display: none; }
+  .sp-mx .mx-rh { grid-column: 1 / -1; margin-top: 6px; }
+  .sp-mx .mx-r > span { font-size: 15px; padding: 8px 10px; }
+  .sp-docs { flex-direction: column; }
+  .sp-arw { transform: rotate(90deg); line-height: 1; }
+  .sp-col { height: 210px; gap: 8px; padding: 0 2px; }
+  .sp-col .v { font-size: 17px; } .sp-col .v small { font-size: 13px; }
+  .sp-colx { gap: 8px; padding: 0 2px; } .sp-colx span { font-size: 14px; }
+  .sp-next { padding: 14px; }
+}
