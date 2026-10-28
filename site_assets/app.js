@@ -36,11 +36,28 @@
   var hdr = document.querySelector('header.top'), mbtn = hdr && hdr.querySelector('.menu-btn');
   function setHdr() { if (hdr) { document.documentElement.style.setProperty('--hdr', hdr.offsetHeight + 'px'); } }
   setHdr(); window.addEventListener('resize', later(setHdr));
-  // メニューの「ほかの統計」：見出しを押すと下に開く（もう一度押す・ほかの所を押す・Esc で閉じる）。スマホのメニューを開いたときは、中も開いておく
+  // メニューの「ほかの統計」「もっと知る」：見出しを押すと下に開く（もう一度押す・ほかの所を押す・Esc・Tab で外へ出ると閉じる。開くのは1つだけ）。
+  // キーボードでは、見出しで ↓↑ を押すと開いて中の項目へ動ける。スマホのメニューを開いたときは、中も開いておく
   var subs = hdr ? hdr.querySelectorAll('.msub') : [];
   function subOpen(s, open) { s.classList.toggle('open', open); s.querySelector('.msub-btn').setAttribute('aria-expanded', open ? 'true' : 'false'); }
   subs.forEach(function (s) {
-    s.querySelector('.msub-btn').addEventListener('click', function (ev) { ev.stopPropagation(); subOpen(s, !s.classList.contains('open')); });
+    s.querySelector('.msub-btn').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var open = !s.classList.contains('open');
+      if (open && !hdr.classList.contains('open')) { subs.forEach(function (o) { if (o !== s) { subOpen(o, false); } }); }
+      subOpen(s, open);
+    });
+    s.addEventListener('focusout', function (ev) {
+      if (!hdr.classList.contains('open') && s.classList.contains('open') && !(ev.relatedTarget && s.contains(ev.relatedTarget))) { subOpen(s, false); }
+    });
+    s.addEventListener('keydown', function (ev) {
+      if ((ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') || hdr.classList.contains('open')) { return; }
+      var links = [].slice.call(s.querySelectorAll('.msub-list a')), i = links.indexOf(document.activeElement), down = ev.key === 'ArrowDown';
+      if (!links.length) { return; }
+      ev.preventDefault();
+      if (!s.classList.contains('open')) { subs.forEach(function (o) { if (o !== s) { subOpen(o, false); } }); subOpen(s, true); }
+      links[i < 0 ? (down ? 0 : links.length - 1) : (i + (down ? 1 : links.length - 1)) % links.length].focus();
+    });
   });
   document.addEventListener('click', function (ev) {
     subs.forEach(function (s) { if (s.classList.contains('open') && !s.contains(ev.target) && !hdr.classList.contains('open')) { subOpen(s, false); } });

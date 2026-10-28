@@ -54,14 +54,14 @@ header.top { position: sticky; top: 0; z-index: 30; background: var(--card); bor
 header.top .in { position: relative; max-width: 960px; margin: 0 auto; display: flex; align-items: center; gap: 6px 12px; min-height: 56px;
                  padding: 4px max(16px, env(safe-area-inset-right)) 4px max(16px, env(safe-area-inset-left)); }
 header.top a.home { color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; white-space: nowrap; margin-right: auto; padding: 6px 0; }
-nav.menu { display: flex; flex-wrap: wrap; gap: 2px; }
-nav.menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 5px; border-radius: 8px; color: var(--text); text-decoration: none; /* 8つの項目が1行に入るように（ほかの統計・特定活動を足したとき。字は14px） */
+nav.menu { display: flex; flex-wrap: wrap; gap: 1px; }
+nav.menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 4px; border-radius: 8px; color: var(--text); text-decoration: none; /* 8つの項目が1行に入るように（ほかの統計・もっと知るを足したとき。字は14px） */
              font-size: 14px; font-weight: 600; white-space: nowrap; }
 nav.menu a:hover { background: var(--btn-soft); }
 nav.menu a[aria-current="page"] { background: var(--btn); color: var(--btn-ink); }
 /* まとめの見出し（ほかの統計）：押すと下に項目が開く。中のページを開いているときは見出しも色で示す */
 .msub { position: relative; display: inline-flex; }
-.msub-btn { display: inline-flex; align-items: center; gap: 3px; min-height: 44px; padding: 4px 5px; border: 0; border-radius: 8px; background: none; color: var(--text);
+.msub-btn { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 4px 4px; border: 0; border-radius: 8px; background: none; color: var(--text);
             font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .msub-btn::after { content: ""; width: 7px; height: 7px; margin: -4px 1px 0 2px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .msub.open .msub-btn::after { margin-top: 3px; transform: rotate(-135deg); }
@@ -70,13 +70,19 @@ nav.menu a[aria-current="page"] { background: var(--btn); color: var(--btn-ink);
 .msub-list { display: none; position: absolute; top: 100%; left: 0; z-index: 40; min-width: 10em; flex-direction: column; gap: 2px; padding: 6px;
              background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,.14); }
 .msub.open .msub-list, html:not(.js) .msub:hover .msub-list, html:not(.js) .msub:focus-within .msub-list { display: flex; }
+/* 開いた中の項目は、字を大きく・押しやすく。「もっと知る」は名前の下に短い説明（右の端からはみ出さないよう、見出しの右にそろえて開く） */
+nav.menu .msub-list a { font-size: 16px; min-height: 48px; padding: 6px 12px; }
+.msub-more .msub-list { left: auto; right: 0; width: max-content; max-width: min(22em, calc(100vw - 32px)); }
+nav.menu a .mi { display: flex; flex-direction: column; gap: 1px; white-space: normal; line-height: 1.35; }
+nav.menu a .mi small { font-size: 14px; font-weight: 400; color: var(--sub); }
+nav.menu a[aria-current="page"] .mi small { color: inherit; }
 .menu-btn { display: none; }
 .menu-ic { display: inline-block; position: relative; width: 18px; height: 2px; background: currentColor; margin: 0 2px; }
 .menu-ic::before, .menu-ic::after { content: ""; position: absolute; left: 0; width: 18px; height: 2px; background: currentColor; }
 .menu-ic::before { top: -6px; } .menu-ic::after { top: 6px; }
 header.top.open .menu-ic { background: transparent; }
 header.top.open .menu-ic::before { top: 0; transform: rotate(45deg); } header.top.open .menu-ic::after { top: 0; transform: rotate(-45deg); }
-@media (max-width: 959px) { /* メニューが1行に入らない幅では「メニュー」ボタンで開く */
+@media (max-width: 1023px) { /* メニューが1行に入らない幅では「メニュー」ボタンで開く（960〜1023px はスクロールバーの分だけ入らないことがある） */
   header.top .in { min-height: 52px; }
   header.top a.home { font-size: 17px; }
   .js .menu-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px; font: inherit; font-size: 15px; font-weight: 700;
@@ -92,8 +98,10 @@ header.top.open .menu-ic::before { top: 0; transform: rotate(45deg); } header.to
   .js nav.menu .msub-btn { width: 100%; min-height: 40px; padding: 4px 14px; font-size: 15px; color: var(--sub); background: none; }
   .js nav.menu .msub.cur .msub-btn { color: var(--sub); background: none; }
   .js nav.menu .msub-list { position: static; min-width: 0; gap: 6px; padding: 0 0 0 18px; border: 0; box-shadow: none; background: none; }
+  .js nav.menu .msub-more .msub-list { width: auto; max-width: none; }
+  .js nav.menu .msub-list a { font-size: 17px; min-height: 50px; padding: 6px 14px; }
 }
-@media (max-width: 959px) { html:not(.js) nav.menu { margin: 0 -10px; } html:not(.js) header.top .in { flex-wrap: wrap; } }
+@media (max-width: 1023px) { html:not(.js) nav.menu { margin: 0 -10px; } html:not(.js) header.top .in { flex-wrap: wrap; } }
 
 /* いまいる所（パンくず） */
 nav.crumb { padding-top: 10px; padding-bottom: 0; }
@@ -137,6 +145,16 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 .entries a.wide { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 14px; min-height: 0; } /* 地図で見る移り変わり：4つの下に横長で */
 .entries .et { display: flex; flex-direction: column; gap: 2px; }
 @media (max-width: 860px) { .entries { grid-template-columns: 1fr 1fr; } }
+/* 「何を調べますか？」の下の「もっと知る」：制度の説明のページへの小さな入口（広い画面は3つ横並び、狭い画面は折り返す） */
+.morein { margin: 14px 0 0; }
+.morein h3 { font-size: 18px; margin: 0 0 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.morein h3 span { font-size: 15px; font-weight: 400; color: var(--sub); }
+.morein ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15em, 1fr)); gap: 8px; }
+.morein a { display: flex; flex-direction: column; gap: 2px; height: 100%; min-height: 56px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 12px;
+            background: var(--card); color: var(--text); text-decoration: none; }
+.morein a:hover { border-color: var(--btn); background: var(--btn-soft); }
+.morein b { font-size: 17px; color: var(--accent); }
+.morein a span { font-size: 15px; color: var(--sub); line-height: 1.45; }
 @media (max-width: 400px) { .entries { gap: 10px; } .entries a { padding: 12px; min-height: 128px; } .entries b { font-size: 17px; } .entries .ed { font-size: 14px; } }
 
 /* トップページのいちばん上：グラフの画像を作る（X投稿用。xmaker.js）。パソコンでは左に選ぶもの・右に画像（画像は止めておく）、

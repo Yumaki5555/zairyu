@@ -406,25 +406,30 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "27"
+CSS_VER = "28"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 # ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
 NAV_OTHER = (("kika", "kika.html", "帰化"), ("fuho", "fuho.html", "不法残留"), ("nanmin", "nanmin.html", "難民"))  # 在留外国人統計とは別の統計
+# 制度や在留資格をくわしく説明するページ：(鍵, ページ, 名前, 短い説明)。トップの「もっと知る」の入口にも使う
+NAV_MORE = (("tokutei", "tokutei.html", "特定活動", "どんな人が対象？人数や種類は？"), ("teiju", "teiju.html", "定住者", "どんな人が対象？「その他」の中身は？"),
+            ("seido", "nanmin-seido.html", "難民申請とくらし", "申請の流れ・仕事・生活支援は？"))
 NAV = (("japan", "index.html", "日本全体"), ("dash", "dash.html", "ダッシュボード"), ("area", "area-index.html", "地域から探す"),
        ("nat", "nat-index.html", "国籍から探す"), ("sokuho", "sokuho.html", "半期速報"), ("other", NAV_OTHER, "ほかの統計"),
-       ("tokutei", "tokutei.html", "特定活動"), ("about", "about.html", "このサイトについて"))
+       ("more", NAV_MORE, "もっと知る"), ("about", "about.html", "このサイトについて"))
 CUR = ' aria-current="page"'
 
 
 def nav_html(active):
-    """ヘッダーのメニュー。「ほかの統計」は見出しのボタンと、その下に開く項目（JavaScript が動かないときは、マウスを合わせる・選ぶと開く）"""
+    """ヘッダーのメニュー。「ほかの統計」「もっと知る」は見出しのボタンと、その下に開く項目（開け閉めは app.js。JavaScript が動かないときは、マウスを合わせる・選ぶと開く）。
+    項目に短い説明があるもの（もっと知る）は、名前の下に説明を書く"""
     out = ""
     for k, h, t in NAV:
         if isinstance(h, tuple):
-            on = any(k2 == active for k2, _, _ in h)
-            items = "".join(f'<a href="{h2}"{CUR if k2 == active else ""}>{t2}</a>' for k2, h2, t2 in h)
-            out += (f'<div class="msub{" cur" if on else ""}"><button type="button" class="msub-btn" aria-expanded="false" aria-controls="msub-{k}">{t}</button>'
+            on = any(it[0] == active for it in h)
+            items = "".join(f'<a href="{it[1]}"{CUR if it[0] == active else ""}>' +
+                            (f'<span class="mi"><span>{it[2]}</span><small>{it[3]}</small></span>' if len(it) > 3 else it[2]) + "</a>" for it in h)
+            out += (f'<div class="msub msub-{k}{" cur" if on else ""}"><button type="button" class="msub-btn" aria-expanded="false" aria-controls="msub-{k}">{t}</button>'
                     f'<div class="msub-list" id="msub-{k}" role="group" aria-label="{t}">{items}</div></div>')
         else:
             out += f'<a href="{h}"{CUR if k == active else ""}>{t}</a>'
@@ -438,7 +443,7 @@ def page(title, crumbs, body, desc, css=(), js=(), active=None, src=None):
             "出典：出入国在留管理庁「在留外国人統計（旧登録外国人統計）」（政府統計の総合窓口 e-Stat）を加工して作成。地図：国土地理院「地球地図日本」・Natural Earth（世界地図）を加工して作成。\n"
             f'数は国の発表のまま示しています。良い・悪いの判断はしていません。データは{when_label(LATEST)}まで（それより新しい数は<a href="sokuho.html">半期速報</a>）。')
     nav = nav_html(active)
-    fnav = "".join(f'<a href="{h2}">{t2}</a>' for k, h, t in NAV for _, h2, t2 in (h if isinstance(h, tuple) else ((k, h, t),)))  # 下のメニューは「ほかの統計」の中も並べる
+    fnav = "".join(f'<a href="{it[1]}">{it[2]}</a>' for k, h, t in NAV for it in (h if isinstance(h, tuple) else ((k, h, t),)))  # 下のメニューは「ほかの統計」「もっと知る」の中も並べる
     crumb = ""
     if len(crumbs) > 1:  # トップページでは出さない
         crumb = ('<nav class="crumb" aria-label="いまいる所"><ol>' +
@@ -578,6 +583,12 @@ ENTRIES = f"""<div class="entries">
 <a href="visa-index.html">{icon("visa")}<b>在留資格から探す</b><span class="ed">資格別の人数と割合</span></a>
 <a class="wide" href="dash.html#when=1959-12&amp;play=1">{icon("play")}<span class="et"><b>地図で見る移り変わり</b><span class="ed">1959年から今まで、都道府県ごとの人数の変わり方を地図の色で再生します</span></span></a>
 </div>"""
+
+
+def more_entries():
+    """トップの「何を調べますか？」の下の、制度をくわしく説明するページへの入口（メニューの「もっと知る」と同じ3つ。広い画面は横並び、狭い画面は折り返す）"""
+    lis = "".join(f'<li><a href="{h}"><b>{t}</b><span>{sub}</span></a></li>' for _, h, t, sub in NAV_MORE)
+    return f'<div class="morein"><h3 id="more-h">もっと知る<span>制度や在留資格のくわしい説明</span></h3><ul aria-labelledby="more-h">{lis}</ul></div>'
 
 
 # ---------------------------------------------------------------- 数をまとめる
@@ -838,7 +849,7 @@ def top_page(d):
     body = f"""<h1>日本に住む外国人の数</h1>
 <p class="lead">出入国在留管理庁が発表している在留外国人の数を、国籍・在留資格・都道府県・市区町村ごとに見られるサイトです。</p>
 {xmaker()}
-<section class="ask" aria-labelledby="ask-h"><h2 id="ask-h">何を調べますか？</h2>{ENTRIES}</section>
+<section class="ask" aria-labelledby="ask-h"><h2 id="ask-h">何を調べますか？</h2>{ENTRIES}{more_entries()}</section>
 <section id="japan" aria-labelledby="japan-h"><h2 id="japan-h" style="margin-top:22px">日本全体の在留外国人</h2>
 {jhead}</section>
 {jump([("cross", "国籍ごとの在留資格"), ("trend", "移り変わり"), ("map", "都道府県の地図"), ("nat", "国籍・地域"), ("visa", "在留資格"), ("prefs", "都道府県の一覧"), ("ten", "10年間の増減"), ("dash", "ダッシュボード")])}
@@ -2610,7 +2621,7 @@ def teiju_page(d):
           ("nanmin.html", "難民の認定と保護の数", "難民認定の申請・認定、補完的保護、人道配慮、第三国定住の数"),
           ("sokuho.html", "法務省・半期速報", "確定統計より新しい在留資格別の数"), ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("在留資格「定住者」とは", [("日本全体", "index.html"), ("在留資格から探す", "visa-index.html"), ("定住者とは", None)], body,
-                f"在留資格「定住者」の対象・できた年（1990年）・国の表の区分ごとの人数と「その他」の中身。{lw}は{num(now)}人。", css=("dash.css",), active="japan")
+                f"在留資格「定住者」の対象・できた年（1990年）・国の表の区分ごとの人数と「その他」の中身。{lw}は{num(now)}人。", css=("dash.css",), active="teiju")
 
 
 # ---------------------------------------------------------------- 難民の申請と、手続き中のくらし（決まりの説明）
@@ -2995,7 +3006,7 @@ def nanmin_seido_page():
           ("fuho.html", "不法残留者数", "在留期間が過ぎたあとも出国していない人の数"), ("about.html", "このサイトについて", "使っているデータと注意")])}"""
     return page("難民の申請と、手続き中のくらし", [("日本全体", "index.html"), ("難民の認定と保護の数", "nanmin.html"), ("難民の申請と手続き中のくらし", None)], body,
                 f"難民の認定を申請した人は、結果が出るまでどんな立場で暮らす？働けるか・住民票・健康保険・税金・家族・かかる期間を、国の資料からまとめました（{NS_WHEN}時点）。",
-                css=("dash.css",), active="nanmin")
+                css=("dash.css",), active="seido")
 
 
 REGIONS =[("北海道・東北", PREFS[0:7]), ("関東", PREFS[7:14]), ("中部", PREFS[14:23]), ("近畿", PREFS[23:30]), ("中国", PREFS[30:35]),
