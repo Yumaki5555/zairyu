@@ -612,3 +612,43 @@ ul.xdet li { display: inline-flex; align-items: center; gap: 6px; }
   ul.xdet { flex-direction: column; gap: 4px; font-size: 15px; }
   ul.xdet li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; }
 }
+
+/* 難民の申請と、手続き中のくらし（nanmin-seido.html）：流れの図・2つの道・早見表（スマホでは立場ごとのカード）・期間の棒 */
+ol.nflow { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: nf; }
+ol.nflow > li { position: relative; margin: 0 0 24px; padding: 10px 14px 10px 54px; border: 1px solid var(--line); border-radius: 10px; }
+ol.nflow > li::before { counter-increment: nf; content: counter(nf); position: absolute; left: 12px; top: 10px; width: 30px; height: 30px; border-radius: 50%;
+                        background: var(--accent); color: var(--card); font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+ol.nflow > li:not(:last-child)::after { content: "↓"; position: absolute; left: 50%; bottom: -23px; transform: translateX(-50%); color: var(--sub); font-size: 17px; line-height: 22px; }
+ol.nflow b.nt { display: block; font-size: 18px; }
+ol.nflow p { margin: 2px 0 0; font-size: 16px; }
+.nfork { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 6px; font-size: 16px; }
+.nfork > div, .npath > div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--bg); }
+.npath { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin: 10px 0 16px; }
+.npath .nbig { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.nsrc { margin-top: 10px; font-size: 14px; }
+.nvh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+table.nmx th[scope="row"] { white-space: normal; min-width: 9em; color: var(--text); font-size: 15px; vertical-align: top; }
+table.nmx th[scope="row"] small { display: block; font-weight: 400; color: var(--sub); font-size: 13px; line-height: 1.4; }
+table.nmx td { vertical-align: top; font-size: 14px; line-height: 1.45; }
+table.t.nmx td:not(.n) { min-width: 5em; } /* 広い画面で横にずらさずに入るように（見出しも折り返す） */
+table.t.nmx thead th { white-space: normal; vertical-align: bottom; }
+table.t.nmx th, table.t.nmx td { padding: 7px 5px; }
+table.nmx .mk { display: block; font-size: 20px; font-weight: 700; line-height: 1.3; }
+ul.nbar { list-style: none; margin: 6px 0 12px; padding: 0; font-size: 15px; max-width: 640px; }
+ul.nbar li { display: grid; grid-template-columns: 4.5em minmax(0, 1fr) 5.5em; gap: 8px; align-items: center; padding: 3px 0; border-bottom: 1px solid var(--line); }
+ul.nbar .tr { height: 14px; }
+ul.nbar .fill { display: block; height: 14px; background: var(--bar); border-radius: 0 4px 4px 0; }
+ul.nbar .v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 760px) {
+  .nfork, .npath { grid-template-columns: minmax(0, 1fr); }
+  table.nmx, table.nmx tbody, table.nmx tr, table.nmx th, table.nmx td { display: block; width: 100%; }
+  table.nmx thead { display: none; }
+  table.nmx tr { border: 1px solid var(--line); border-radius: 10px; margin: 0 0 12px; padding: 2px 12px 6px; }
+  table.t.nmx th[scope="row"] { font-size: 17px; padding: 8px 0; border-bottom: 2px solid var(--line); }
+  table.t.nmx td:not(.n) { min-width: 0; }
+  table.t.nmx td { padding: 6px 0; font-size: 15px; display: grid; grid-template-columns: 8.5em minmax(0, 1fr); gap: 8px; }
+  table.nmx td::before { content: attr(data-label); color: var(--sub); font-weight: 700; font-size: 14px; }
+  table.nmx td:last-child { border-bottom: 0; }
+  table.nmx .mk { display: inline; font-size: 18px; margin-right: 6px; }
+}
+@media (max-width: 600px) { ol.nflow > li { padding-left: 48px; } ol.nflow > li::before { left: 10px; } }
