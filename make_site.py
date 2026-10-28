@@ -475,8 +475,13 @@ def pct_signed(d, before):
     return f"{'+' if d > 0 else ('−' if d < 0 else '±')}{abs(d) / before * 100:.1f}%"
 
 
-def kpis(now, s, rank_text, who="在留外国人"):
-    """主要な数：いまの人数・1年前から・10年前から（増減の人数と割合）"""
+def years_before(w, n):
+    """2026-06 の n 年前 → 2016-06"""
+    return f"{int(w[:4]) - n}{w[4:]}"
+
+
+def kpis(now, s, rank_text, who="在留外国人", at=LATEST, mark=""):
+    """主要な数：いまの人数・1年前から・10年前から（増減の人数と割合）。at：いまの時点、mark：時点のあとに付ける字（「（速報）」）"""
     def tile(since, when):
         b = s.get(when)
         if not b:
@@ -485,8 +490,8 @@ def kpis(now, s, rank_text, who="在留外国人"):
         d = now - b
         return (f'<div class="kpi"><div class="lab">{since}（{when_label(when)}）から</div><div class="mid">{signed(d)}人</div>'
                 f'<div class="lab">増減の割合 {pct_signed(d, b)}（{num(b)}人から）</div></div>')
-    return (f'<div class="kpis"><div class="kpi"><div class="lab">{when_label(LATEST)}の{esc(who)}</div><div class="big">{num(now)}人</div>'
-            f'<div class="lab">{rank_text}</div></div>{tile("1年前", YEAR_AGO)}{tile("10年前", TEN_AGO)}</div>')
+    return (f'<div class="kpis"><div class="kpi"><div class="lab">{when_label(at)}の{esc(who)}{mark}</div><div class="big">{num(now)}人</div>'
+            f'<div class="lab">{rank_text}</div></div>{tile("1年前", years_before(at, 1))}{tile("10年前", years_before(at, 10))}</div>')
 
 
 def meta_line(target, extra=""):
@@ -790,9 +795,28 @@ def xmaker():
 <noscript><p class="note">この部分は JavaScript を使います。JavaScript が動かないときは、下の表で数をご覧ください。</p></noscript></div></details>"""
 
 
+def japan_head(d, s):
+    """トップの「日本全体の在留外国人」（見出しの下の行と主要な数）。確定統計より新しい半期速報があれば、その総数（速報）を使う。
+    次の速報・確定統計を取り込めば、いちばん新しい方に自動で変わる（2026年10月 作った人の希望「トップページは常に最新の数に。日本全体は速報値を使い、明記する」）。
+    1年前・10年前の数は確定統計（同じ時点の速報と確定統計は同じ数。データ/半期速報/確かめ.csv）。返す：(HTML, 時点, 人数, 速報か)"""
+    sk = pd.read_csv(os.path.join(DATA, "半期速報", "半期速報.csv"))
+    sk = sk[(sk["表"] == "国籍・地域") & (sk["名前"] == "総数") & (sk["状態"] == "速報")].sort_values("時点").iloc[-1]
+    if sk["時点"] <= LATEST:
+        return (meta_line("日本全体", '<span>もっと新しい数（速報）：<a href="sokuho.html">半期速報</a></span>') + kpis(s[LATEST], s, "日本全体"),
+                LATEST, s[LATEST], False)
+    sw, sv = sk["時点"], int(sk["人数"])
+    html = (f'<p class="meta"><span>対象：<b>日本全体</b></span><span>集計時点：<b>{when_label(sw)}</b>（速報）</span>'
+            f'<span>出どころ：出入国在留管理庁の<a href="sokuho.html">半期速報</a>（{ymd_text(sk["公表日"])}公表）</span></p>'
+            + kpis(sv, s, "日本全体", at=sw, mark="（速報）")
+            + f'<p class="note">※ 速報は、確定した統計（e-Stat）より先に出入国在留管理庁が発表する数です。1年前・10年前の数は確定した統計の数です。'
+            f'このあとのグラフと表は、国籍×在留資格や市区町村まで分かる確定した統計（{when_label(LATEST)}）の数です。</p>')
+    return html, sw, sv, True
+
+
 def top_page(d):
     s = dict(sorted(d.japan.items()))
     now = s[LATEST]
+    jhead, jw, jnow, jsp = japan_head(d, s)
     counts = {n: ser[LATEST] for n, ser in d.nat_series.items() if ser.get(LATEST)}
     ni = nat_items(counts)
     visas = d.japan_visa[LATEST]
@@ -816,8 +840,7 @@ def top_page(d):
 {xmaker()}
 <section class="ask" aria-labelledby="ask-h"><h2 id="ask-h">何を調べますか？</h2>{ENTRIES}</section>
 <section id="japan" aria-labelledby="japan-h"><h2 id="japan-h" style="margin-top:22px">日本全体の在留外国人</h2>
-{meta_line("日本全体", '<span>もっと新しい数（速報）：<a href="sokuho.html">半期速報</a></span>')}
-{kpis(now, s, "日本全体")}</section>
+{jhead}</section>
 {jump([("cross", "国籍ごとの在留資格"), ("trend", "移り変わり"), ("map", "都道府県の地図"), ("nat", "国籍・地域"), ("visa", "在留資格"), ("prefs", "都道府県の一覧"), ("ten", "10年間の増減"), ("dash", "ダッシュボード")])}
 <section class="card" id="cross"><h2>国籍・地域ごとの主な在留資格</h2><p class="cardmeta">対象：全国の人数の多い10の国籍・地域　集計時点：{when_label(LATEST)}</p>{cross_table(ni, xd, 10, xm=xm_link())}</section>
 <section class="card" id="trend"><h2>在留外国人の数の移り変わり（1959年〜{LATEST[:4]}年）</h2>{line_chart(s, "在留外国人の数の移り変わり", "全国")}</section>
@@ -836,7 +859,7 @@ def top_page(d):
 </div>
 <section class="card" id="dash"><h2>条件を選んで、もっと詳しく調べる（ダッシュボード）</h2>{DASH_MENU}</section>
 {NOTES}"""
-    return page("日本全体", [("日本全体", None)], body, f"{when_label(LATEST)}の在留外国人は{num(now)}人。国籍・在留資格・都道府県・市区町村ごとの数と移り変わり。",
+    return page("日本全体", [("日本全体", None)], body, f"{when_label(jw)}の在留外国人は{num(jnow)}人{'（速報）' if jsp else ''}。国籍・在留資格・都道府県・市区町村ごとの数と移り変わり。",
                 js=("share.js", "dash.js", "xmaker.js"), active="japan")
 
 
