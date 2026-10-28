@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "30"
+CSS_VER = "31"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 # ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
@@ -2097,7 +2097,14 @@ def sp_person(cls, mark):
            "study": '<path d="M62 46c4-2 8-2 11 1v13c-3-3-7-3-11-1z"/><path d="M84 46c-4-2-8-2-11 1v13c3-3 7-3 11-1z"/>',
            "stay": '<path d="M61 53a12 12 0 0 1 24 0z"/><path class="ln" d="M73 53v6a3 3 0 0 1-6 0"/>',
            "cal": '<rect x="62" y="44" width="22" height="18" rx="2"/><path class="ln" d="M67 40v6M79 40v6"/><path class="lb" d="M62 50h22M67 55h3M72 55h3M77 55h3M67 59h3M72 59h3"/>',
-           "inf": '<path class="ln" d="M64 52c0-5 7-5 9 0s9 5 9 0-7-5-9 0-9 5-9 0z"/>'}[mark]
+           "inf": '<path class="ln" d="M64 52c0-5 7-5 9 0s9 5 9 0-7-5-9 0-9 5-9 0z"/>',
+           "tree": '<circle cx="73" cy="44" r="3.5"/><circle cx="66" cy="60" r="3.5"/><circle cx="80" cy="60" r="3.5"/><path class="ln" d="M73 47v5M66 57v-5h14v5"/>',  # 家系（日系）
+           "ring": '<circle class="ln" cx="68.5" cy="53" r="6"/><circle class="ln" cx="77.5" cy="53" r="6"/>',  # 結婚
+           "kid": '<circle cx="73" cy="44.5" r="4.5"/><path d="M65 62c0-7 3.5-11 8-11s8 4 8 11z"/>',  # 子ども
+           "plane": '<path d="M61 53l24-10-8 20-5-7z"/><path class="lb" d="M72 56l13-13"/>',  # 外国から来る
+           "home": '<path d="M62 53l11-10 11 10v9h-8v-6h-6v6h-8z"/>',  # 家族と暮らす
+           "shield": '<path d="M73 42l9 4v6c0 6-4 9.5-9 11.5-5-2-9-5.5-9-11.5v-6z"/>',  # 保護
+           "heart": '<path d="M73 62c-7-4.5-10-8.5-10-12.5a5 5 0 0 1 10-1.5 5 5 0 0 1 10 1.5c0 4-3 8-10 12.5z"/>'}[mark]  # 人道上の配慮
     return (f'<svg class="sp-man {cls}" viewBox="0 0 96 72" aria-hidden="true" focusable="false"><circle class="sk" cx="34" cy="20" r="12"/>'
             '<path class="hr" d="M22 19a12 12 0 0 1 24 0c-6-5-17-5-24 0z"/><path class="sh" d="M12 70c0-14 10-24 22-24s22 10 22 24z"/>'
             f'<circle class="bd" cx="73" cy="52" r="18"/><g class="mk">{sym}</g></svg>')
@@ -2654,25 +2661,27 @@ TJ_EVENTS = [
 ]
 
 # ---- 3分でわかる（定住者のページのいちばん上の5つの図。見た目は特定活動の「3分でわかる」と同じ .sp-*、定住者だけの図は style.css の .tj-*）
-# STEP 2・4 の告示にある人：(告示の号, 名前, ひとこと, 国の表の区分)。国の表の区分が「その他」の人は、下の TJ_KOKUJI_OTHER の説明（id tjk-号の数）へ飛ぶ
-TJ_SP_IN = [("1号", "第三国定住難民", "国連（UNHCR）が日本に推薦した、外国にいる難民と、その家族", "その他"),
-            ("3号・4号", "日系3世", "祖父母が日本人の日系人", "日系３世"),
-            ("5号", "日系人や定住者の夫・妻", "日系2世・日系3世・定住者の配偶者", "配偶者"),
-            ("6号", "未成年（18歳未満）で未婚の実子", "日本人・永住者・定住者などに養われて暮らす実の子", "未成年未婚の実子"),
-            ("7号", "6歳未満の養子", "日本人・永住者・定住者などに養われて暮らす養子", "その他"),
-            ("8号", "中国残留邦人とその家族", "戦後の混乱で中国に残った日本人（中国残留邦人）などと、その家族", "その他")]
-# STEP 2・4 の告示にない人の例：(TJ_OUTSIDE の鍵, 短い名前, ひとこと)。ひとことは下の説明を短くしたもの
-TJ_SP_OUT = [("nanmin", "難民・補完的保護対象者と認定された人", "決められた罪を犯した人などをのぞき、法律で「定住者」が許可される"),
-             ("rikon", "離婚・死別のあとも日本で暮らす人", "日本人・永住者などの配偶者だった人。暮らしを立てられるか、子育て、日本への定着などを見て判断"),
-             ("kosodate", "日本人の子を育てている親など", "日本人との間に生まれた子を育てている外国人の親など。事情を考えて判断"),
-             ("jindo", "そのほか、人道上の事情などで認められた人", "難民とは認められなかったが人道上の配慮で在留を認められた人、DVの被害を受けた人など")]
+# STEP 2・4 の告示にある人：(告示の号, 名前, ひとこと（1文。くわしい条件や例外は詳しい側に）, 国の表の区分, 人の絵の印, STEP 2 に出すか)。
+# 国の表の区分が「その他」の人は、下の TJ_KOKUJI_OTHER の説明（id tjk-号の数）へ飛ぶ。STEP 4 には「その他」の人の名前だけを出す
+TJ_SP_IN = [("3号・4号", "日系3世", "祖父母が日本人の、日系の人です。", "日系３世", "tree", True),
+            ("5号", "日系人や定住者の夫・妻", "日系人や定住者と結婚している人です。", "配偶者", "ring", True),
+            ("6号", "日本人・永住者などの子", "日本人・永住者などに養われる、未成年で未婚の実の子です。", "未成年未婚の実子", "kid", True),
+            ("1号", "第三国定住難民", "国連が日本に推薦した、外国にいる難民とその家族です。", "その他", "plane", True),
+            ("8号", "中国残留邦人とその家族", "戦後の混乱で中国に残った日本人などと、その家族です。", "その他", "home", False),
+            ("7号", "6歳未満の養子", "日本人・永住者・定住者などに養われる、6歳未満の養子です。", "その他", "kid", False)]
+# STEP 2・4 の告示にない人の例：(TJ_OUTSIDE の鍵, 短い名前, ひとこと（1文）, 人の絵の印)。ひとことは下の説明を短くしたもの
+TJ_SP_OUT = [("nanmin", "難民と認定された人", "国が難民と認めた人や、それに準じて保護が必要と認めた人です。", "shield"),
+             ("rikon", "離婚・死別のあとも日本で暮らす人", "日本人や永住者などの配偶者だった人です。", "stay"),
+             ("kosodate", "日本人の子を育てている親", "日本人との間の子を、日本で育てている外国人の親などです。", "kid"),
+             ("jindo", "人道上の配慮で認められた人", "人道上の配慮で在留を認められた人や、DVの被害を受けた人などです。", "heart")]
 TJ_SP_SUB = {"配偶者": "日系人や定住者の夫・妻"}  # STEP 3 の区分の名前の下に書くひとこと
 TJ_Z2H = str.maketrans("０１２３４５６７８９", "0123456789")
 
 
-def teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url):
-    """定住者のページのいちばん上の「3分でわかる」（5つのステップの図）。数はどれも teiju_page が国の表から計算して渡す。
-    P：時点 → {国の表の区分: 人数}（「総数」は定住者の合計）、gid：国の表の区分 → 下の「それぞれの中身」の行の id、sw・sv：速報の時点と人数"""
+def teiju_sanpun(lw, now, first_w, P, gid, sw, sv):
+    """定住者のページのいちばん上の「3分でわかる」（5つのステップの図と、3つのまとめ）。数はどれも teiju_page が国の表から計算して渡す。
+    P：時点 → {国の表の区分: 人数}（「総数」は定住者の合計）、gid：国の表の区分 → 下の「それぞれの中身」の行の id、sw・sv：速報の時点と人数。
+    くわしい条件・例外・推測の話は詳しい側（#other など）に書き、ここでは図・数・短い文にする"""
     fw, swl = when_label(first_w), when_label(sw)
 
     def pc(v, tot=now):
@@ -2680,26 +2689,26 @@ def teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url):
 
     def kid(kj):  # 「7号」→ 下の説明の行の id
         return "tjk-" + re.sub(r"\D", "", kj)
-    if {kj for kj, _, _, k in TJ_SP_IN if k == "その他"} != {kj for _, kj, _ in TJ_KOKUJI_OTHER}:
+    if {kj for kj, _, _, k, _, _ in TJ_SP_IN if k == "その他"} != {kj for _, kj, _ in TJ_KOKUJI_OTHER}:
         sys.exit("3分でわかる（TJ_SP_IN）の「その他」の告示の号が、TJ_KOKUJI_OTHER と合いません")
-    if any(k not in {o[0] for o in TJ_OUTSIDE} for k, _, _ in TJ_SP_OUT):
+    if any(k not in {o[0] for o in TJ_OUTSIDE} for k, _, _, _ in TJ_SP_OUT):
         sys.exit("3分でわかる（TJ_SP_OUT）に、TJ_OUTSIDE にない鍵があります")
 
-    def step(n, title, ans, fig, point, more_href, more_text, cls=""):
-        """1つのステップ。下に「前へ・詳しく見る・次へ」"""
+    def step(n, title, ans, fig, point, more_href, more_text, cls="", pcls=""):
+        """1つのステップ。下に「前へ・詳しく見る・次へ」（STEP 5 の次は、まとめ）"""
         pv = (f'<a class="pv" href="#sanpun-{n - 1}"><span aria-hidden="true">←</span> 前のSTEP</a>' if n > 1
               else '<a class="pv" href="#sanpun"><span aria-hidden="true">↑</span> はじめに</a>')
         nx = (f'<a class="nx" href="#sanpun-{n + 1}">次のSTEP <span aria-hidden="true">→</span></a>' if n < 5
-              else '<a class="nx" href="#sanpun-next">まとめ <span aria-hidden="true">→</span></a>')
+              else '<a class="nx" href="#sanpun-sum">まとめ <span aria-hidden="true">→</span></a>')
         return (f'<article class="sp-s{cls}" id="sanpun-{n}" aria-labelledby="sanpun-{n}-h"><div class="sp-hd"><span class="sp-no" aria-hidden="true">STEP<b>{n}</b></span>'
                 f'<h3 id="sanpun-{n}-h"><span class="nvh">STEP {n}　</span>{title}</h3></div><p class="sp-ans">{ans}</p>{fig}'
-                f'<div class="sp-pt"><b>ここがポイント</b><p>{point}</p></div>'
+                f'<div class="sp-pt{pcls}"><b>ここがポイント</b><p>{point}</p></div>'
                 f'<nav class="tj-pn" aria-label="STEP {n} から移る">{pv}<a class="dt" href="#{more_href}">{more_text} <span aria-hidden="true">↓</span></a>{nx}</nav></article>')
 
     # STEP 1：定住者と永住者のちがい（在留期間・更新・働くこと）
     cmp_rows = [("在留期間", ("期限あり", "5年・3年・1年・6月など"), ("期限なし", "在留期間の決まりがない"), "d"),
                 ("更新", ("必要", "期限までに申請して、審査を受ける"), ("不要", "在留カードの有効期間の更新は7年ごと（16歳以上）"), "d"),
-                ("働くこと", ("制限なし", "仕事の種類・時間の制限がない"), ("制限なし", "仕事の種類・時間の制限がない"), "s")]
+                ("働くこと", ("制限なし", "在留資格による仕事の種類・時間の制限がない"), ("制限なし", "在留資格による仕事の種類・時間の制限がない"), "s")]
 
     def cell(c, big, small):
         return f'<span role="cell" class="{c}"><b>{big}</b><small>{small}</small></span>'
@@ -2707,34 +2716,29 @@ def teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url):
             '<div class="tj-cmp" role="table" aria-label="定住者と永住者のちがい"><div role="row" class="r h"><span role="columnheader" class="c0"><span class="nvh">項目</span></span>'
             f'<span role="columnheader" class="g">{sp_person("g", "cal")}<b>定住者</b></span><span role="columnheader" class="b">{sp_person("b", "inf")}<b>永住者</b></span></div>'
             + "".join(f'<div role="row" class="r {k}"><span role="rowheader" class="c0">{h}</span>{cell("g", *a)}{cell("b", *b)}</div>' for h, a, b, k in cmp_rows)
-            + '</div><p class="sp-say">違いは、<em>期限と更新</em>があるかどうか</p>'
-            '<p class="sp-cap">定住者・永住者・日本人の配偶者等・永住者の配偶者等の4つは、身分や立場にもとづく在留資格（入管法の別表第二）で、'
-            '入管法の「仕事の種類や時間」の制限がありません。留学や特定活動など、ほかの在留資格とは決まりが違います。</p>')
+            + '</div><p class="sp-say">違いは、<em>期限と更新</em>があるかどうか</p>')
     s1 = step(1, "定住者って何？", "日本で暮らすことを、<em>特別な理由から</em>認められた人です。", fig1,
-              "定住者は、在留期間が終わる前に更新を申請し、認められれば住み続けられます。永住者には在留期間の期限がありません。"
-              "どちらも、働く仕事の種類や時間に入管法の制限はありません。",
+              "定住者は、期限が来る前に更新を申請し、認められれば住み続けられます。",
               "what", "制度を詳しく見る")
 
-    # STEP 2：告示にある人・告示にない人
-    ins = "".join(f'<li><a href="#{kid(kj) if k == "その他" else gid[k]}"><span class="kb">告示{kj}</span><b>{esc(n)}</b><span class="ds">{esc(x)}</span>'
-                  + ('<span class="so">統計では「その他」</span>' if k == "その他" else "") + "</a></li>" for kj, n, x, k in TJ_SP_IN)
-    outs = "".join(f'<li><a href="#tjo-{k}"><b>{esc(n)}</b><span class="ds">{esc(x)}</span><span class="so">統計では「その他」</span></a></li>' for k, n, x in TJ_SP_OUT)
+    # STEP 2：どんな人がいるか（告示にある人・ない人を、人の絵と1文で。くわしい条件や例外は書かない）
+    def people(c, items):
+        return "".join(f'<li><a href="#{h}">{sp_person(c, m)}<span class="tx"><b>{esc(n)}</b><span>{esc(x)}</span></span></a></li>' for h, n, x, m in items)
+    in2 = [(kid(kj) if k == "その他" else gid[k], n, x, m) for kj, n, x, k, m, show in TJ_SP_IN if show]
+    out2 = [(f"tjo-{k}", n, x, m) for k, n, x, m in TJ_SP_OUT]
     fig2 = ('<div class="sp-two tj-two">'
-            f'<div class="sp-card g"><h4>{sp_icon("doc", "g")}<span><span class="n" aria-hidden="true">①</span> 告示にある人</span></h4>'
-            '<p>法務省の告示（「定住者告示」。国が決まりを広く知らせる文書）で、<b>前もって決められた人</b>です。</p>'
-            f'<ul class="tj-who">{ins}</ul>'
-            '<p class="sm">外国から新しく「定住者」で来られるのは、原則としてこちらの人だけです。</p></div>'
-            f'<div class="sp-card b"><h4>{sp_icon("one", "b")}<span><span class="n" aria-hidden="true">②</span> 告示にない人</span></h4>'
-            '<p>すでに日本にいる人などについて、法務大臣が<b>一人ひとりの事情を見て</b>決めます（個別の審査）。</p>'
-            f'<ul class="tj-who">{outs}</ul>'
-            '<p class="sm tj-caution"><span aria-hidden="true">！</span>ここに挙げた人が、必ず許可されるわけではありません。</p></div></div>'
+            '<div class="sp-card g"><h4><span class="n" aria-hidden="true">①</span> 告示にある人</h4>'
+            '<p class="lb">国が前もって決めた人（「定住者告示」という決まり）</p>'
+            f'<ul class="tj-ppl">{people("g", in2)}</ul></div>'
+            '<div class="sp-card b"><h4><span class="n" aria-hidden="true">②</span> 告示にない人</h4>'
+            '<p class="lb">一人ひとりの事情を見て、国が決める人</p>'
+            f'<ul class="tj-ppl">{people("b", out2)}</ul>'
+            '<p class="sm tj-caution">例に当てはまっても、必ず認められるわけではありません。</p></div></div>'
             '<p class="sp-both">①も②も、どちらも正式な在留資格「定住者」です</p>'
-            '<p class="sp-cap">名前を押すと、下の詳しい説明に移ります。告示6号の「18歳未満」は、新しく入国するときの条件です。'
-            'すでに定住者として住んでいる人が18歳になっても、それだけで在留資格はなくなりません。</p>')
-    s2 = step(2, "どんな人が対象？", "対象は<em>2つの系統</em>に分かれます。告示で<em>前もって決められた人</em>と、<em>告示にない人</em>です。", fig2,
-              "②の告示にない人は、一人ひとりの審査で決まります。例に当てはまっても、必ず「定住者」が許可されるわけではありません"
-              "（難民と認定された人も、決められた罪を犯した人などは除かれます）。",
-              "what", "告示の号と国の表の区分を詳しく見る")
+            '<p class="sp-cap">名前を押すと、詳しい説明に移ります。</p>')
+    s2 = step(2, "どんな人が対象？", "定住者になる人は、<em>告示にある人</em>と<em>告示にない人</em>の2つに分かれます。", fig2,
+              "外国から新しく「定住者」として来られるのは、原則として①の人だけです。②の人は、日本にいる間に審査を受けて定住者になります。",
+              "what", "告示と制度を詳しく見る")
 
     # STEP 3：4つの区分（100%の積み上げ棒。棒の長さ＝割合。区分を押すと説明へ）
     segs = [{"k": k, "name": k.translate(TJ_Z2H), "kj": kj, "v": P[LATEST][k], "href": "#sanpun-4" if k == "その他" else f"#{gid[k]}",
@@ -2764,37 +2768,27 @@ def teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url):
               "「その他」は、日系3世・配偶者・未成年未婚の実子のどれにも入らない人をまとめた欄です。その中身は、次の STEP 4 で説明します。",
               "who", "4つの区分の人数と説明を詳しく見る")
 
-    # STEP 4：「その他」（いちばん大事なステップ。省かない。内わけの数は国が出していないので、推定の数は書かない）
+    # STEP 4：統計の区分としての「その他」（STEP 2 の人の説明はくり返さない。内わけの数は国が出していないので、推定の数は書かない。
+    # くわしい制度の説明・例外・推測の話は、詳しい側の「その他」の説明（#other）に）
     oth, oth0 = P[LATEST]["その他"], P[first_w]["その他"]
     rank = sorted((s["v"] for s in segs), reverse=True).index(oth) + 1
-    a_no = "・".join(kj for kj, _, _, k in TJ_SP_IN if k == "その他")
-    ga = "".join(f'<li><a href="#{kid(kj)}"><b>{esc(n)}</b><span>告示{kj}。{esc(x)}</span><span class="go">くわしい説明 ↓</span></a></li>'
-                 for kj, n, x, k in TJ_SP_IN if k == "その他")
-    gb = "".join(f'<li><a href="#tjo-{k}"><b>{esc(n)}</b><span>{esc(x)}</span><span class="go">くわしい説明と出典 ↓</span></a></li>' for k, n, x in TJ_SP_OUT)
-    fig4 = (f'<div class="sp-kpis"><div><span>「その他」の人数（{lw}）</span><b>{num(oth)}<small>人</small></b></div>'
+    most = "いちばん多い" if rank == 1 else f"{rank}番目に多い"
+    chips_a = "".join(f'<a href="#{kid(kj)}">{esc(n)}</a>' for kj, n, _, k, _, _ in TJ_SP_IN if k == "その他")
+    chips_b = "".join(f'<a href="#tjo-{k}">{esc(n)}</a>' for k, n, _, _ in TJ_SP_OUT)
+    fig4 = ('<p class="tj-lab"><span class="tj-tag f">国の統計でわかること</span></p>'
+            f'<div class="sp-kpis"><div><span>「その他」の人数（{lw}）</span><b>{num(oth)}<small>人</small></b></div>'
             f'<div><span>定住者全体の</span><b>{oth / now * 100:.1f}<small>%</small></b></div>'
-            f'<div><span>国の表の4つの区分で</span><b class="tj-w">{"いちばん多い" if rank == 1 else f"{rank}番目に多い"}</b></div></div>'
-            '<p class="sp-say">「その他」＝難民、<em>ではありません</em></p>'
-            '<p>国の表で、日系3世・配偶者・未成年未婚の実子の3つに入らない定住者を、まとめて数えた欄です。中には、次の<b>2つのグループ</b>の人が入ります。</p>'
-            '<div class="sp-grps tj-grps">'
-            f'<section class="sp-grp g"><h4>{sp_icon("doc", "g")}<span class="gl" aria-hidden="true">A</span>告示にあるが、国の表で分けていない人</h4><ul>{ga}</ul></section>'
-            f'<section class="sp-grp b"><h4>{sp_icon("one", "b")}<span class="gl" aria-hidden="true">B</span>告示にない人（一人ひとりの審査）</h4><ul>{gb}</ul></section></div>'
-            '<h4 class="sp-sub">分かること・分からないことを分けると</h4><div class="tj-know">'
-            f'<div class="k1"><h5><span class="tj-tag f">統計で確認</span>国の数で分かること</h5><ul><li>{lw}の「その他」は{num(oth)}人（定住者全体の{pc(oth)}）</li>'
-            f'<li>4つの区分の中で{"いちばん多い" if rank == 1 else f"{rank}番目に多い"}</li><li>{fw}（{num(oth0)}人）から{signed(oth - oth0)}人</li></ul></div>'
-            f'<div class="k2"><h5><span class="tj-tag s">制度上の例</span>「その他」に入る人</h5><ul><li>上の A（告示{a_no}の人）と B（告示にない人）</li>'
-            f'<li>国の表の<a href="{notes_url}">利用上の注意</a>に、表に区分のない告示の人と、告示にない人は「その他」に入れる、と書かれています</li></ul></div>'
-            '<div class="k3"><h5><span class="tj-tag u">分からない</span>国が発表していないこと</h5><ul><li>A・B のそれぞれが何人いるか、どんな割合か</li>'
-            '<li>増えた「その他」が、A・B のどの人か</li><li>このサイトでは、推定の人数や割合は作っていません</li></ul></div></div>'
-            '<div class="sp-warn"><b class="wl">注意</b><ul>'
-            f'<li><b>国は「その他」{num(oth)}人の内わけを発表していません。</b>A・B は「その他」に入る人の例で、それぞれ何人いるかは分かりません。</li>'
-            '<li>「その他」の全員が、難民や告示にない人というわけではありません。A の告示にある人も入ります。</li>'
-            '<li>B は一人ひとりの事情を見て決めるもので、例に当てはまる人がみな認められるわけではありません。</li>'
-            '<li>難民と認定された人などの数（毎年の認定の数）は、いま「その他」として住んでいる人の数とは別のものです。</li></ul></div>')
-    s4 = step(4, "「その他」には誰がいる？",
-              f"国の表で、ほかの3つの区分に入らない定住者を<em>まとめた欄</em>です。{lw}は{num(oth)}人で、中には<em>2つのグループ</em>の人が入ります。", fig4,
-              "「その他」には、告示にあるが国の表で分けていない人（A）と、告示にない人（B）の両方が入ります。それぞれ何人いるかは、国が発表していないので分かりません。",
-              "other", "「その他」の中身と出典を詳しく見る", cls=" o")
+            f'<div><span>国の表の4つの区分で</span><b class="tj-w">{most}</b></div></div>'
+            '<p class="sp-say">「その他」は人の種類ではなく、<em>統計の区分</em>の名前です</p>'
+            '<p class="tj-lab"><span class="tj-tag s">制度上「その他」に入る人の例</span></p>'
+            f'<div class="tj-bucket"><p class="bh">「その他」{num(oth)}人の中には</p><div class="bin">'
+            f'<div class="g"><b>告示にある人</b><span class="ch">{chips_a}</span><span class="q">人数：公表なし</span></div>'
+            f'<div class="b"><b>告示にない人</b><span class="ch">{chips_b}</span><span class="q">人数：公表なし</span></div></div></div>'
+            '<p class="sp-cap">箱の大きさは人数を表していません。名前を押すと、詳しい説明に移ります。</p>')
+    s4 = step(4, "最大の「その他」は誰？" if rank == 1 else "「その他」には誰がいる？",
+              "国の表で、ほかの3つの区分に入らない人を<em>まとめた区分</em>です。", fig4,
+              "「その他」に誰が何人含まれるか、詳しい内訳は公表されていません。",
+              "other", "「その他」の詳しい説明を見る", cls=" o", pcls=" tj-key")
 
     # STEP 5：増減（確定した2つの時点。ほかの3区分は合計で）
     others = [g[1] for g in TJ_GROUPS if g[1] != "その他"]
@@ -2821,32 +2815,47 @@ def teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url):
             f'<div class="tj-div" role="img" aria-label="{fw}から{lw}の増減：定住者全体 {signed(d_all)}人、「その他」 {signed(d_oth)}人、ほかの3区分の合計 {signed(d_rest)}人" style="--z:{z:.2f}%">'
             + "".join(drow(*r) for r in rows5)
             + '<div class="r ax" aria-hidden="true"><span></span><span class="tr"><span class="zl">0</span></span><span></span></div></div>'
-            '<p class="sp-cap">0の線より右は増えた人数、左は減った人数です。棒の長さは人数に比例しています。</p>'
-            f'<p class="sp-cap">ほかの3区分の内わけ：{brk}。「その他」の割合は、{fw}の{pc(oth0, P[first_w]["総数"])}から{lw}の{pc(oth)}になりました。</p>'
-            f'<p class="gsrc">時点：{fw}と{lw}（確定した統計）／単位：人（{yrs}年間の増減）／出典：{TK_ORG}の「国籍・地域別 在留目的別 在留外国人」の表</p>'
-            '<ul class="sp-notes">'
-            '<li><b>増えた理由や、増えたのがどんな人かは分かりません。</b>国は「その他」の内わけを発表していないので、難民と認定された人が増えたのか、ほかの人が増えたのかは、国の統計からは特定できません。</li>'
-            f'<li>{swl}の速報（{num(sv)}人）は、定住者全体の数だけです。区分ごとの増減は、確定した統計（{fw}と{lw}）で比べています。</li>'
-            f'<li>区分ごとの数は{fw}の表から出ています。それより前の区分ごとの増減は分かりません。</li></ul>')
+            '<p class="sp-cap">0の線より右は増えた人数、左は減った人数です（棒の長さは人数に比例）。</p>'
+            f'<p class="sp-cap">ほかの3区分の内わけ：{brk}</p>'
+            f'<p class="gsrc">時点：{fw}と{lw}（確定した統計）／単位：人（{yrs}年間の増減）／出典：{TK_ORG}の「国籍・地域別 在留目的別 在留外国人」の表。'
+            f'{swl}の速報（{num(sv)}人）は合計だけなので、ここでは比べていません</p>')
     s5 = step(5, "定住者はどう変わった？",
               f"{fw}から{lw}の{yrs}年間で、定住者全体は<em>{signed(d_all)}人</em>。"
               + (f"<em>「その他」の増加（{signed(d_oth)}人）が、全体の増加を上回りました。</em>" if over else f"そのうち「その他」は<em>{signed(d_oth)}人</em>でした。"), fig5,
               (f"ほかの3区分は、合わせて減りました（{signed(d_rest)}人）。" if d_rest < 0 else f"ほかの3区分は、合わせて{signed(d_rest)}人でした。")
-              + "ただし、増えた「その他」がどんな人かは、国の統計からは分かりません。",
+              + "ただし、増えた理由や、増えたのがどんな人かは、国の統計からは分かりません。",
               "history", "1990年からの人数の推移を見る")
+
+    # まとめ：覚えておきたい3つのこと（絵つきのカード）。③の小さな棒も、幅＝割合
+    x0, mini = 0.0, ""
+    for s in segs:
+        w = s["v"] / now * 100
+        mini += f'<rect class="{s["cls"]}" x="{x0:.3f}" y="12" width="{w:.3f}" height="22"/>'
+        x0 += w
+    mini = (f'<svg class="tj-mini" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true" focusable="false">{mini}'
+            f'<path class="br" d="M{b_left + 1:.2f} 9V3H{b_left + b_w - 1:.2f}V9"/></svg>')
+    sums = [("g", sp_person("g", "cal"), "定住者は永住者とは違う", "在留期間があり、更新が必要です。ただし、働くことに在留資格上の制限はありません。"),
+            ("b", sp_icon("family", "b"), "定住者になる理由はさまざま", "日系人や家族の関係、人道上の事情など、対象となる背景は一つではありません。"),
+            ("o", mini, f"{'最大' if rank == 1 else f'{rank}番目'}の区分は「その他」",
+             f"{lw}で{num(oth)}人、全体の{pc(oth)}。ただし、詳しい内訳は公表されていません。")]
+    summary = ('<section class="tj-sum" id="sanpun-sum" aria-labelledby="sanpun-sum-h"><span class="sp-k">3分でわかるまとめ</span>'
+               '<h3 id="sanpun-sum-h">定住者について、覚えておきたい3つのこと</h3><ol class="tj-sum3">'
+               + "".join(f'<li class="{c}"><span class="ic">{ic}</span><span class="tx"><b><span class="no">{"①②③"[i]}</span>{t}</b><span>{x}</span></span></li>'
+                         for i, (c, ic, t, x) in enumerate(sums)) + "</ol></section>")
 
     nexts = [("now", "現在の人数と速報", "確定した統計と速報の数・区分ごとの移り変わり"), ("what", "制度と告示", "どんな資格？告示の号と国の表の区分"),
              ("history", "人数の推移", "1990年からの移り変わり"), ("who", "国の4区分", "区分ごとの人数・説明・多い国籍"),
              ("other", "「その他」の詳しい説明", "告示にある人・ない人の例と出典"), ("entry", "新しく入国した人", "1年間に外国から来た人の区分ごとの数"),
              ("nat", "国籍・地域別", "どの国籍・地域の人が多い？"), ("events", "主な出来事", "法律・告示・取扱いの変わり目（1989年から）"),
              ("notes", "出典と注意", "統計表・法令・国の資料と、数を見るときの注意")]
-    nav = ('<div class="sp-next related" id="sanpun-next"><h3>もっと詳しく調べる</h3><p class="sp-cap">このページの下の、詳しい説明に移ります。</p><ul>'
+    nav = ('<div class="sp-next related" id="sanpun-next"><h3>さらに詳しく調べる</h3><p class="sp-cap">このページの下の、詳しい統計・制度・資料に移ります。</p><ul>'
            + "".join(f'<li><a href="#{h}"><span>{t}<span class="rs">{s}</span></span></a></li>' for h, t, s in nexts) + "</ul></div>")
-    steps = "".join(f'<a href="#sanpun-{i}"{c}><b>{i}</b>{t}</a>' for i, (t, c) in
-                    enumerate((("定住者って何？", ""), ("どんな人？", ""), ("何人？", ""), ("「その他」とは", ' class="o"'), ("どう変わった？", "")), 1))
+    steps = ("".join(f'<a href="#sanpun-{i}"{c}><b>{i}</b>{t}</a>' for i, (t, c) in
+                     enumerate((("定住者って何？", ""), ("どんな人？", ""), ("何人？", ""), ("「その他」とは", ' class="o"'), ("どう変わった？", "")), 1))
+             + '<a href="#sanpun-sum"><b aria-hidden="true">✓</b>まとめ</a>')
     return (f'<section class="sp" id="sanpun" aria-labelledby="sanpun-h"><div class="sp-band"><span class="sp-k">3分でわかる</span>'
             f'<h2 id="sanpun-h">定住者を、5つのステップで</h2><p>数は{TK_ORG}（確定した統計）の{lw}の数です。{swl}の速報は、合計の数だけを分けて書いています。</p></div>'
-            f'<nav class="sp-steps" aria-label="5つのステップ">{steps}</nav>{s1}{s2}{s3}{s4}{s5}{nav}</section>')
+            f'<nav class="sp-steps" aria-label="5つのステップとまとめ">{steps}</nav>{s1}{s2}{s3}{s4}{s5}{summary}{nav}</section>')
 
 
 def teiju_page(d):
@@ -2970,7 +2979,7 @@ def teiju_page(d):
     def gsrc(when, denom, src):
         """グラフの下に書く、時点・割合の分母・出典"""
         return f'<p class="gsrc">時点：{when}' + (f"／割合の分母：{denom}" if denom else "") + f"／出典：{src}</p>"
-    sanpun = teiju_sanpun(lw, now, first_w, P, gid, sw, sv, notes_url)
+    sanpun = teiju_sanpun(lw, now, first_w, P, gid, sw, sv)
     fw = when_label(first_w)
     yrs = f"{int(LATEST[:4]) - int(first_w[:4])}年間"
     body = f"""<h1>在留資格「定住者」とは</h1>

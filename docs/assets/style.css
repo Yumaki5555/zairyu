@@ -952,17 +952,16 @@ nav.tj-pn { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr
 .tj-cmp small { font-size: 15px; color: var(--sub); line-height: 1.55; }
 .sp-man .mk .lb { fill: none; stroke: var(--sp-g); stroke-width: 2.5; stroke-linecap: round; }
 .sp-man.b .mk .lb { stroke: var(--sp-b); }
-/* STEP 2：告示にある人・ない人の一覧 */
-.tj-two .sp-card h4 .sp-ic { width: 44px; height: 44px; }
-ul.tj-who { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
-.tj-who a { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; height: 100%; padding: 10px 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--line);
+/* STEP 2：告示にある人・ない人（人の絵と1文） */
+.tj-two .sp-card p.lb { margin: 2px 0 0; font-weight: 700; }
+ul.tj-ppl { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.tj-ppl a { display: flex; align-items: center; gap: 8px; height: 100%; padding: 8px 12px 8px 4px; border-radius: 12px; background: var(--card); border: 1px solid var(--line);
             color: var(--text); text-decoration: none; }
-.tj-who a:hover { border-color: var(--accent); }
-.tj-who b { font-size: 17px; line-height: 1.45; }
-.tj-who .ds { order: 2; flex: 1 1 100%; font-size: 15px; color: var(--sub); line-height: 1.6; }
-.tj-who .kb { display: inline-block; padding: 0 8px; border-radius: 6px; background: var(--sp-g); color: var(--card); font-size: 13px; font-weight: 700; white-space: nowrap; }
-.tj-who .so { order: 1; display: inline-block; padding: 0 8px; border-radius: 999px; border: 1px solid var(--sp-ob); background: var(--sp-os); color: var(--sp-o);
-              font-size: 13px; font-weight: 700; white-space: nowrap; }
+.tj-ppl a:hover { border-color: var(--accent); }
+.tj-ppl svg.sp-man { flex: 0 0 auto; width: 76px; height: 57px; }
+.tj-ppl .tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tj-ppl b { font-size: 18px; line-height: 1.4; }
+.tj-ppl .tx span { font-size: 15px; line-height: 1.6; color: var(--sub); }
 .sp-card .tj-caution { color: var(--sp-o); }
 /* STEP 3：100% の積み上げ棒（幅＝割合）と、押せる凡例 */
 .tj-brace { position: relative; height: 30px; margin-top: 10px; }
@@ -993,19 +992,26 @@ ol.tj-leg { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-
 .tj-leg li.so .v em { color: var(--sp-o); }
 /* グラフの下の「時点・割合の分母・出典」 */
 p.gsrc { font-size: 15px; color: var(--sub); line-height: 1.6; margin: 8px 0 12px; padding-left: 10px; border-left: 3px solid var(--line); }
-.tj-sk { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 12px 0 0; padding: 10px 14px; border-radius: 12px; border: 2px dashed var(--sp-b); }
-.tj-sk > b { color: var(--sp-b); white-space: nowrap; }
-.tj-sk span { flex: 1 1 16em; } .tj-sk span b { font-size: 20px; font-variant-numeric: tabular-nums; }
-/* STEP 4：A・B のグループと、分かること・分からないこと */
-.tj-grps .sp-grp ul { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.tj-sk { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin: 10px 0 0; padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--field);
+         font-size: 15px; color: var(--sub); }
+.tj-sk > b { white-space: nowrap; }
+.tj-sk span { flex: 1 1 16em; } .tj-sk span b { color: var(--text); font-size: 17px; font-variant-numeric: tabular-nums; }
+/* STEP 4：統計でわかること（数）と、制度上「その他」に入る人の例（箱。箱の大きさは人数ではない） */
 .sp-kpis b.tj-w { font-size: 26px; line-height: 1.5; }
-.tj-know { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.tj-know > div { padding: 12px 14px; border-radius: 12px; border: 2px solid var(--sp-b); background: var(--card); }
-.tj-know .k2 { border-color: var(--sp-g); } .tj-know .k3 { border: 2px dashed var(--field); }
-.tj-know h5 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; font-size: 18px; line-height: 1.4; }
-.tj-know ul { margin: 0; padding-left: 1.2em; font-size: 15px; line-height: 1.65; }
-.tj-know li { margin: 4px 0; }
-.tj-tag { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; line-height: 1.6; white-space: nowrap; vertical-align: 2px;
+p.tj-lab { margin: 16px 0 6px !important; }
+.tj-bucket { padding: 12px; border-radius: 14px; border: 3px solid var(--sp-ob); background: var(--sp-os); }
+.tj-bucket .bh { margin: 0 0 10px !important; text-align: center; font-size: 19px; font-weight: 700; color: var(--sp-o); }
+.tj-bucket .bin { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tj-bucket .bin > div { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 2px dashed var(--sp-g); background: var(--card); }
+.tj-bucket .bin > .b { border-color: var(--sp-b); }
+.tj-bucket .bin b { font-size: 19px; color: var(--sp-g); } .tj-bucket .bin .b b { color: var(--sp-b); }
+.tj-bucket .ch { display: flex; flex-wrap: wrap; gap: 6px; }
+.tj-bucket .ch a { display: inline-flex; align-items: center; min-height: 40px; padding: 2px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg);
+                   color: var(--text); text-decoration: none; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.tj-bucket .ch a:hover { border-color: var(--accent); }
+.tj-bucket .q { margin-top: auto; padding: 2px 12px; border-radius: 8px; border: 1px dashed var(--sub); background: var(--bg); color: var(--sub); font-size: 15px; font-weight: 700; }
+.sp-pt.tj-key p { font-size: 19px; font-weight: 700; line-height: 1.6; }
+.tj-tag { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 14px; font-weight: 700; line-height: 1.6; white-space: nowrap; vertical-align: 2px;
           border: 1px solid var(--sp-b); background: var(--sp-bs); color: var(--sp-b); }
 .tj-tag.s { border-color: var(--sp-g); background: var(--sp-gs); color: var(--sp-g); }
 .tj-tag.u { border: 1px dashed var(--sub); background: var(--bg); color: var(--sub); }
@@ -1044,10 +1050,31 @@ p.tj-lg > span { display: inline-flex; align-items: center; gap: 6px; }
 .tj-diff ul { margin: 6px 0 0; padding-left: 1.3em; font-size: 15px; line-height: 1.7; }
 .tj-diff li { margin: 4px 0; }
 p.kup2 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; }
-.tj-cmp b, .tj-who b, .tj-leg .nm, .tj-pn a, .tj-know h5, .tj-eq span, .tj-div .nm { word-break: auto-phrase; }
+/* STEP 5 のあとの「3分でわかるまとめ」（絵つきの3つのカード。③の小さな棒も幅＝割合） */
+.tj-sum { margin: 0 0 16px; padding: 20px; border-radius: 14px; border: 2px solid var(--sp-g); background: var(--card); }
+.tj-sum h3 { margin: 8px 0 14px; font-size: 25px; line-height: 1.4; }
+ol.tj-sum3 { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tj-sum3 li { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 14px; border-radius: 14px; border: 2px solid var(--sp-g); background: var(--sp-gs); text-align: center; }
+.tj-sum3 li.b { border-color: var(--sp-b); background: var(--sp-bs); } .tj-sum3 li.o { border-color: var(--sp-ob); background: var(--sp-os); }
+.tj-sum3 .ic { display: grid; place-items: center; height: 78px; }
+.tj-sum3 svg.sp-man { width: 104px; height: 78px; } .tj-sum3 .sp-ic { width: 72px; height: 72px; }
+.tj-sum3 .tx { display: flex; flex-direction: column; gap: 4px; }
+.tj-sum3 b { font-size: 21px; line-height: 1.4; color: var(--sp-g); }
+.tj-sum3 li.b b { color: var(--sp-b); } .tj-sum3 li.o b { color: var(--sp-o); }
+.tj-sum3 .no { margin-right: 4px; }
+.tj-sum3 .tx > span { font-size: 16px; line-height: 1.65; }
+svg.tj-mini { width: 150px; height: 54px; }
+.tj-mini rect { stroke: var(--sp-os); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.tj-mini .s1 { fill: var(--tj-1); } .tj-mini .s2 { fill: var(--tj-2); } .tj-mini .s3 { fill: var(--tj-3); } .tj-mini .so { fill: var(--tj-o); }
+.tj-mini .br { fill: none; stroke: var(--sp-ob); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.tj-cmp b, .tj-ppl b, .tj-leg .nm, .tj-pn a, .tj-sum3 b, .tj-eq span, .tj-div .nm, .tj-bucket .bh { word-break: auto-phrase; }
+.tj-bucket .ch a { display: inline-block; padding: 7px 12px; word-break: auto-phrase; text-wrap: balance; }
+.tj-sum h3 { word-break: auto-phrase; text-wrap: balance; }
 @media (max-width: 760px) {
-  .tj-know, ol.tj-leg, .tj-grps .sp-grp ul { grid-template-columns: minmax(0, 1fr); }
+  ol.tj-leg, ol.tj-sum3, .tj-bucket .bin { grid-template-columns: minmax(0, 1fr); }
   .tj-stack .nm { display: none; }
+  .tj-sum3 li { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 4px 12px; text-align: left; }
+  .tj-sum3 .ic { height: auto; } .tj-sum3 svg.sp-man { width: 88px; height: 66px; } .tj-sum3 .sp-ic { width: 60px; height: 60px; } .tj-sum3 svg.tj-mini { width: 88px; height: 40px; }
 }
 @media (max-width: 600px) {
   nav.tj-pn { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -1060,7 +1087,6 @@ p.kup2 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 
   .tj-cmp .h b { font-size: 21px; }
   .tj-cmp .d b, .tj-cmp .s b { font-size: 19px; }
   .tj-cmp .r > span { padding: 8px 10px; }
-  .tj-cmp small { font-size: 14px; }
   .tj-stack { height: 56px; }
   .sp-kpis b.tj-w { font-size: 18px; white-space: nowrap; }
   .tj-stack a.nar .pc { display: none; }
@@ -1074,4 +1100,13 @@ p.kup2 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 
   .tj-div .nm { grid-column: 1 / -1; margin-top: 6px; font-size: 16px; }
   .tj-div .v { font-size: 19px; }
   .tj-div .ax > span:first-child { display: none; }
+  .tj-ppl svg.sp-man { width: 56px; height: 42px; }
+  .tj-ppl a { gap: 6px; padding: 6px 10px 6px 2px; }
+  .tj-ppl b { font-size: 17px; line-height: 1.35; }
+  .tj-ppl .tx span { line-height: 1.5; }
+  .tj-two .sp-card { padding: 12px; }
+  .tj-cmp small { font-size: 15px; }
+  .sp-pt.tj-key p { font-size: 18px; }
+  .tj-sum { padding: 16px 14px; } .tj-sum h3 { font-size: 22px; }
+  .tj-sum3 li { padding: 12px; } .tj-sum3 b { font-size: 19px; } .tj-sum3 .tx > span { font-size: 15px; }
 }
