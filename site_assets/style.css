@@ -1110,3 +1110,126 @@ svg.tj-mini { width: 150px; height: 54px; }
   .tj-sum { padding: 16px 14px; } .tj-sum h3 { font-size: 22px; }
   .tj-sum3 li { padding: 12px; } .tj-sum3 b { font-size: 19px; } .tj-sum3 .tx > span { font-size: 15px; }
 }
+
+/* 3分でわかる 難民の申請（make_site.py の nanmin_sanpun）：形は .sp-*・.tj-pn・.tj-sum を使い、難民のページだけの図をここに。
+   色の意味はこのページで1つに：緑（--sp-g）＝認められる・できる、青（--sp-b）＝手続き中・条件による、橙（--sp-ob）＝制限・注意 */
+.nr-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0 !important; font-size: 15px; color: var(--text) !important; }
+.nr-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.nr-legend i { width: 18px; height: 18px; border-radius: 5px; background: var(--sp-g); }
+.nr-legend .b i { background: var(--sp-b); } .nr-legend .o i { background: var(--sp-ob); }
+/* STEP 1：申請 → 審査 → 結果 */
+.nr-kpi { display: flex; align-items: center; gap: 12px; margin: 0 0 14px !important; padding: 10px 16px; border-radius: 14px; border: 2px solid var(--sp-b); background: var(--sp-bs); }
+.nr-kpi .sp-ic { width: 48px; height: 48px; }
+.nr-kpi > span { display: flex; flex-direction: column; }
+.nr-kpi small { font-size: 15px; color: var(--sub); }
+.nr-kpi b { font-size: 38px; line-height: 1.15; color: var(--sp-b); font-variant-numeric: tabular-nums; }
+.nr-kpi b small { font-size: 18px; color: var(--sp-b); margin-left: 2px; }
+.nr-flow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.25fr) auto minmax(0, 1.25fr); gap: 8px; align-items: stretch; }
+.nr-box { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px; border-radius: 14px; border: 2px solid var(--sp-b); background: var(--sp-bs); text-align: center; }
+.nr-box .sp-ic { width: 52px; height: 52px; }
+.nr-flow b.t { font-size: 23px; line-height: 1.3; color: var(--sp-b); }
+.nr-box p { margin: 0 !important; font-size: 16px; line-height: 1.6; }
+.nr-arw { align-self: center; font-size: 34px; font-weight: 700; line-height: 1; color: var(--sub); }
+.nr-chk { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 2px; }
+.nr-chk span { padding: 5px 8px; border-radius: 8px; background: var(--card); border: 1px solid var(--sp-b); font-size: 16px; font-weight: 700; }
+.nr-res { display: flex; flex-direction: column; gap: 8px; }
+.nr-res b.t { text-align: center; }
+.nr-res > div { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--sp-g); background: var(--sp-gs); font-size: 15px; line-height: 1.55; }
+.nr-res > div.o { border-color: var(--sp-ob); background: var(--sp-os); }
+.nr-res .sp-ic { width: 40px; height: 40px; }
+.nr-res > div b { display: block; font-size: 19px; color: var(--sp-g); } .nr-res > div.o b { color: var(--sp-o); }
+/* STEP 2：在留資格があった・なかったで分かれる木 */
+.nr-root { position: relative; width: max-content; max-width: 100%; margin: 0 auto 18px; padding: 10px 22px; border-radius: 999px; background: var(--sp-b); color: #fff; font-size: 19px; font-weight: 700; text-align: center; }
+.nr-root::after { content: ""; position: absolute; left: 50%; bottom: -18px; height: 18px; border-left: 3px solid var(--sub); }
+.nr-br { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-top: 20px; }
+.nr-br::before { content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 20px; border: 3px solid var(--sub); border-bottom: 0; border-radius: 10px 10px 0 0; }
+.nr-col { display: flex; flex-direction: column; gap: 8px; }
+.nr-q { margin: 0 !important; padding: 10px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); font-size: 18px; font-weight: 700; text-align: center; }
+.nr-q b { color: var(--sp-b); font-size: 21px; }
+.nr-q span { display: block; font-size: 15px; font-weight: 400; color: var(--sub); }
+.nr-it { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--sp-b); background: var(--sp-bs); }
+.nr-it.o { border-color: var(--sp-ob); background: var(--sp-os); }
+.nr-it b { font-size: 18px; line-height: 1.45; color: var(--sp-b); } .nr-it.o b { color: var(--sp-o); }
+.nr-it span { font-size: 15px; line-height: 1.6; }
+.nr-sm { margin: 0 !important; font-size: 15px; color: var(--sub); }
+.nr-warn { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 14px 0 0; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--sp-ob); background: var(--card); }
+.nr-warn .wl { display: inline-block; padding: 0 12px; border-radius: 999px; background: var(--sp-ob); color: #fff; font-size: 15px; white-space: nowrap; }
+.nr-warn p { margin: 0 !important; flex: 1 1 16em; font-size: 16px; line-height: 1.65; }
+/* STEP 3：振り分けごとの行（左の印の色＝働けるか）と、D2 の時間の帯 */
+.nr-scope { margin: 0 0 12px !important; padding: 10px 14px; border-radius: 12px; border: 2px dashed var(--sp-b); font-size: 16px; line-height: 1.65; }
+.nr-scope > b { display: inline-block; margin-right: 8px; padding: 0 10px; border-radius: 999px; background: var(--sp-b); color: #fff; font-size: 14px; }
+.nr-scope em { font-style: normal; font-weight: 700; color: var(--sp-b); }
+ol.nr-kinds { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.nr-kinds li { display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(0, 15em); gap: 8px 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--sp-g); background: var(--sp-gs); }
+.nr-kinds li.o { border-color: var(--sp-ob); background: var(--sp-os); } .nr-kinds li.b { border-color: var(--sp-b); background: var(--sp-bs); }
+.nr-kinds .lt { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 12px; background: var(--sp-g); color: #fff; font-size: 22px; font-weight: 700; }
+.nr-kinds li.o .lt { background: var(--sp-ob); } .nr-kinds li.b .lt { background: var(--sp-b); }
+.nr-kinds .wh { font-size: 16px; line-height: 1.6; }
+.nr-kinds .rs { display: flex; flex-direction: column; gap: 2px; }
+.nr-kinds .rs b { font-size: 20px; line-height: 1.35; color: var(--sp-g); } .nr-kinds li.o .rs b { color: var(--sp-o); } .nr-kinds li.b .rs b { color: var(--sp-b); }
+.nr-kinds .rs small { font-size: 15px; color: var(--sub); line-height: 1.5; }
+.nr-tl { grid-column: 2 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-radius: 10px; overflow: hidden; border: 2px solid var(--sp-b); }
+.nr-tl > span { display: flex; flex-direction: column; padding: 8px 12px; font-size: 17px; font-weight: 700; line-height: 1.45; }
+.nr-tl .a { background: var(--card); color: var(--sp-o); }
+.nr-tl .z { background: var(--sp-b); color: var(--card); }
+.nr-tl b { font-size: 14px; }
+.nr-tl small { font-size: 14px; font-weight: 400; }
+ul.nr-also { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.nr-also li { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); font-size: 15px; line-height: 1.6; }
+.nr-also b { display: block; font-size: 17px; }
+/* STEP 4：4つのカード、≠ の帯、税金 */
+ul.nr-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.nr-cards li { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 14px; border: 2px solid var(--sp-g); background: var(--sp-gs); }
+.nr-cards li.b { border-color: var(--sp-b); background: var(--sp-bs); } .nr-cards li.o { border-color: var(--sp-ob); background: var(--sp-os); }
+.nr-cards .sp-ic { width: 52px; height: 52px; }
+.nr-cards .tx { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nr-cards .tx > b { font-size: 22px; line-height: 1.35; color: var(--sp-g); } .nr-cards li.b .tx > b { color: var(--sp-b); } .nr-cards li.o .tx > b { color: var(--sp-o); }
+.nr-cards .sb { font-size: 17px; font-weight: 700; }
+.nr-cards .ds { font-size: 15px; line-height: 1.65; }
+.nr-ne { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 14px; margin: 14px 0 0 !important; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--sp-ob); background: var(--card); }
+.nr-ne span { font-size: 20px; font-weight: 700; }
+.nr-ne > b { font-size: 34px; line-height: 1; color: var(--sp-o); }
+.nr-ne small { flex: 1 1 100%; text-align: center; font-size: 15px; color: var(--sub); }
+.nr-tax { margin: 12px 0 0 !important; padding: 10px 14px; border-radius: 12px; border: 1px dashed var(--field); font-size: 16px; line-height: 1.65; }
+.nr-tax > b { display: inline-block; margin-right: 8px; padding: 0 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font-size: 15px; }
+/* STEP 5：結果の4つの行き先、①〜③の合計、時間と割り算の注意 */
+ul.nr-outs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.nr-outs li { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; border-radius: 14px; border: 2px solid var(--sp-g); background: var(--sp-gs); text-align: center; }
+.nr-outs li.o { border-color: var(--sp-ob); background: var(--sp-os); }
+.nr-outs .sp-ic { width: 48px; height: 48px; }
+.nr-outs b.t { font-size: 18px; line-height: 1.4; color: var(--sp-g); } .nr-outs li.o b.t { color: var(--sp-o); }
+.nr-outs .v { font-size: 17px; } .nr-outs .v b { font-size: 36px; line-height: 1.15; color: var(--sp-g); font-variant-numeric: tabular-nums; }
+.nr-outs .v.nv { font-size: 15px; font-weight: 700; color: var(--sp-o); line-height: 1.5; }
+.nr-outs .ds { font-size: 15px; line-height: 1.6; }
+.nr-sum3 { display: flex; justify-content: center; align-items: baseline; gap: 4px 14px; flex-wrap: wrap; width: calc(75% - 3px); margin: 8px 0 0 !important; padding: 6px 12px;
+           border: 3px solid var(--sp-g); border-top: 0; border-radius: 0 0 14px 14px; }
+.nr-sum3 span { font-size: 16px; font-weight: 700; } .nr-sum3 b { font-size: 30px; color: var(--sp-g); font-variant-numeric: tabular-nums; } .nr-sum3 b small { font-size: 17px; }
+.nr-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.nr-clock, .nr-div { display: flex; align-items: center; gap: 10px; margin: 0 !important; padding: 12px 14px; border-radius: 12px; font-size: 16px; line-height: 1.65; }
+.nr-clock { border: 2px solid var(--sp-b); background: var(--sp-bs); } .nr-clock .sp-ic { width: 44px; height: 44px; } .nr-clock b { font-size: 20px; color: var(--sp-b); }
+.nr-div { display: block; border: 2px solid var(--sp-ob); background: var(--card); }
+.nr-div > b { display: inline-block; margin-right: 8px; padding: 0 10px; border-radius: 999px; background: var(--sp-ob); color: #fff; font-size: 14px; }
+/* まとめ（4つ。定住者の .tj-sum3 を2列に） */
+ol.nr-sum4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.nr-sum4 .sp-ic { width: 64px; height: 64px; }
+.nr-flow b.t, .nr-q, .nr-it b, .nr-kinds .rs b, .nr-cards .tx > b, .nr-cards .sb, .nr-outs b.t, .nr-root { word-break: auto-phrase; }
+@media (max-width: 760px) {
+  .nr-flow { grid-template-columns: minmax(0, 1fr); }
+  .nr-arw { justify-self: center; transform: rotate(90deg); }
+  .nr-br { grid-template-columns: minmax(0, 1fr); padding-top: 0; gap: 18px; }
+  .nr-br::before { display: none; }
+  .nr-root { margin-bottom: 14px; } .nr-root::after { bottom: -14px; height: 14px; }
+  .nr-kinds li { grid-template-columns: 50px minmax(0, 1fr); }
+  .nr-kinds .rs { grid-column: 2; }
+  .nr-tl { grid-column: 1 / -1; }
+  ul.nr-also, ul.nr-cards, .nr-two, ol.nr-sum4 { grid-template-columns: minmax(0, 1fr); }
+  ul.nr-outs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nr-sum3 { width: 100%; border-top: 3px solid var(--sp-g); border-radius: 14px; }
+  .nr-kpi b { font-size: 32px; }
+}
+@media (max-width: 420px) {
+  ul.nr-outs { grid-template-columns: minmax(0, 1fr); }
+  .nr-outs li { display: grid; grid-template-columns: 48px minmax(0, 1fr); text-align: left; align-items: center; gap: 2px 12px; }
+  .nr-outs li .sp-ic { grid-row: 1 / span 3; }
+  .nr-tl { grid-template-columns: minmax(0, 1fr); }
+}

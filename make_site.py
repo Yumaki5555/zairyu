@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "31"
+CSS_VER = "32"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 # ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
@@ -3232,8 +3232,149 @@ def ns_src(*keys):
     return '<p class="note nsrc">出典：' + "・".join(f'<a href="{esc(NS_SRC[k][1])}">{esc(NS_SRC[k][0])}</a>' for k in keys) + "</p>"
 
 
+# 3分でわかる（難民）の小さな絵。形と色の付け方は SP_ICON と同じ（.sp-ic の f・h・w・hw）。人の国籍や見た目を表す絵は使わない
+NR_ICON = {
+    "shield": '<path class="f" d="M28 5l19 7v13c0 13-8 21-19 26C17 46 9 38 9 25V12z"/><path class="hw" d="M19 28l6 6 12-13"/>',  # 守られる・認められる
+    "house": '<path class="f" d="M7 27L28 9l21 18v21H7z"/><rect class="w" x="23" y="33" width="10" height="15"/>',  # 日本にいられる・住まい
+    "yen": '<circle class="f" cx="28" cy="28" r="21"/><path class="hw" d="M20 15l8 12 8-12M28 27v15M20 30h16M20 36h16"/>',  # 生活費
+    "med": '<rect class="f" x="7" y="9" width="42" height="38" rx="7"/><rect class="w" x="24" y="16" width="8" height="24"/><rect class="w" x="16" y="24" width="24" height="8"/>',  # 医療・健康保険
+    "net": '<path class="f" d="M5 29a23 19 0 0 1 46 0z"/><path class="h" d="M28 29v15a5 5 0 0 1-10 0"/>',  # 暮らしを支える別の制度（生活保護）
+    "redo": '<path class="h" d="M45 30a17 17 0 1 1-6-13"/><path class="f" d="M47 6v16H31z"/>',  # もう一度審査を求める
+    "heart": '<path class="f" d="M28 49C13 40 7 31 7 23a10.5 10.5 0 0 1 21-3 10.5 10.5 0 0 1 21 3c0 8-6 17-21 26z"/>',  # 人道上の配慮
+}
+
+
+def nr_icon(name, cls=""):
+    return f'<svg class="sp-ic {cls}" viewBox="0 0 56 56" aria-hidden="true" focusable="false">{NR_ICON.get(name) or SP_ICON[name]}</svg>'
+
+
+def nanmin_sanpun(y, ap, reg, irr, rec, cp, hum):
+    """難民のページのいちばん上の「3分でわかる」（5つのステップの図とまとめ）。形は定住者・特定活動のページと同じ（.sp-*・.tj-pn・.tj-sum）。
+    数は nanmin_seido_page が データ/難民/ から渡す（ap 申請者、reg・irr 申請したとき在留資格があった・なかった、rec・cp・hum 認定・補完的保護・人道配慮）。
+    ほかの数（処理期間など）は下の詳しい側と同じ発表の数。色の意味はページ全体で、緑＝認められる・できる、青＝手続き中・条件による、橙＝制限・注意"""
+    pc = lambda a, b: f"{a / b * 100:.1f}%"
+
+    def step(n, title, ans, fig, point, more_href, more_text, pcls=""):
+        pv = (f'<a class="pv" href="#sanpun-{n - 1}"><span aria-hidden="true">←</span> 前のSTEP</a>' if n > 1
+              else '<a class="pv" href="#sanpun"><span aria-hidden="true">↑</span> はじめに</a>')
+        nx = (f'<a class="nx" href="#sanpun-{n + 1}">次のSTEP <span aria-hidden="true">→</span></a>' if n < 5
+              else '<a class="nx" href="#sanpun-sum">まとめ <span aria-hidden="true">→</span></a>')
+        return (f'<article class="sp-s" id="sanpun-{n}" aria-labelledby="sanpun-{n}-h"><div class="sp-hd"><span class="sp-no" aria-hidden="true">STEP<b>{n}</b></span>'
+                f'<h3 id="sanpun-{n}-h"><span class="nvh">STEP {n}　</span>{title}</h3></div><p class="sp-ans">{ans}</p>{fig}'
+                f'<div class="sp-pt{pcls}"><b>ここがポイント</b><p>{point}</p></div>'
+                f'<nav class="tj-pn" aria-label="STEP {n} から移る">{pv}<a class="dt" href="#{more_href}">{more_text} <span aria-hidden="true">↓</span></a>{nx}</nav></article>')
+
+    # STEP 1：申請 → 審査（難民と補完的保護の両方）→ 結果
+    fig1 = (f'<p class="nr-kpi">{nr_icon("doc", "b")}<span><small>{y}年に難民認定を申請した人</small><b>{num(ap)}<small>人</small></b></span></p>'
+            '<div class="nr-flow" role="list" aria-label="申請から結果までの流れ">'
+            f'<div class="nr-box" role="listitem">{nr_icon("doc", "b")}<b class="t">申請</b><p>住んでいる所の地方の出入国在留管理局に、原則として本人が出す。手数料なし</p></div>'
+            '<span class="nr-arw" aria-hidden="true">→</span>'
+            f'<div class="nr-box" role="listitem">{nr_icon("one", "b")}<b class="t">審査</b><p>難民調査官が面接（インタビュー）などで調べる。1回の申請で両方を審査</p>'
+            '<div class="nr-chk"><span>難民に当たる？</span><span>補完的保護対象者に当たる？</span></div></div>'
+            '<span class="nr-arw" aria-hidden="true">→</span>'
+            '<div class="nr-res" role="listitem"><b class="t">結果</b>'
+            f'<div class="g">{nr_icon("shield", "")}<span><b>認められた</b>難民認定・補完的保護など（STEP 5）</span></div>'
+            f'<div class="o">{nr_icon("redo", "o")}<span><b>認められなかった</b>不服を申し立てて、もう一度審査を求められる（審査請求）</span></div></div>'
+            '</div><p class="sp-say">申請しただけでは、<em>難民として認定されたことにはならない</em></p>')
+    s1 = step(1, "難民の申請って何？", "国に帰ると迫害を受けるおそれがあることを、国（法務大臣）に<em>認めてもらうための申請</em>です。", fig1,
+              "「難民（条約難民）」は、人種・宗教・国籍・特定の社会的集団の一員であること・政治的意見の5つのどれかを理由に、迫害を受けるおそれがある人です。"
+              "5つに当たらなくても、戦争から逃れてきた人などは「補完的保護対象者」として守られることがあります（2023年12月から）。",
+              "flow", "申請から結果までを詳しく見る")
+
+    # STEP 2：申請したとき在留資格があったか・なかったかで分かれる
+    fig2 = ('<div class="nr-tree"><div class="nr-root">難民の認定を申請した</div><div class="nr-br">'
+            f'<div class="nr-col"><p class="nr-q">申請したとき、在留資格が<b>あった</b><span>{y}年 {num(reg)}人（{pc(reg, ap)}）</span></p>'
+            '<div class="nr-it b"><b>特定活動（難民認定等申請者用）</b><span>在留資格を変えて、結果を待つ。在留期間と働けるかは、振り分けで決まる（STEP 3）</span></div>'
+            '<div class="nr-it o"><b>B・C案件は変更を認めない</b><span>いまの在留期間が切れたあとは、出国の手続き（退去強制をふくむ）の対象</span></div></div>'
+            f'<div class="nr-col"><p class="nr-q">申請したとき、在留資格が<b>なかった</b><span>{y}年 {num(irr)}人（{pc(irr, ap)}）</span></p>'
+            '<div class="nr-it b"><b>仮滞在</b><span>条件に合えば許可され、退去強制の手続きが止まる（上陸から6か月を過ぎた申請などは許可されない）</span></div>'
+            '<div class="nr-it b"><b>仮放免</b><span>収容を一時的にとく。病気など健康上・人道上の理由がある場合</span></div>'
+            '<div class="nr-it b"><b>監理措置</b><span>収容せずに、監理人（親族・支援者など）のもとで暮らす（2024年6月から）</span></div>'
+            '<p class="nr-sm">仮滞在が許可されないときは、退去強制の手続きの中で、収容されるか、仮放免・監理措置になります。</p></div></div></div>'
+            '<div class="nr-warn"><b class="wl">送還</b><p>手続き中は、国外への送還が<b>原則として止まります</b>。ただし2024年6月から、3回目以降の申請者（難民などと認めるべき「相当の理由がある資料」を出した人を除く）、'
+            '3年以上の実刑を受けた人、テロリストなどは、手続き中でも送還されることがあります。</p></div>')
+    s2 = step(2, "申請中、日本にいられる？", "申請したときに<em>在留資格があったかどうか</em>で、手続き中の立場が分かれます。", fig2,
+              "難民の申請をしただけで、<b>自動的に在留資格がもらえるわけではありません</b>。在留資格のある人も、「特定活動」への変更が認められるかは振り分けしだいです。",
+              "status", "手続き中の立場を詳しく見る")
+
+    # STEP 3：振り分け A〜D と働けるか（在留資格のある人が初めて申請したとき）
+    kinds = [("g", "A", "難民（補完的保護対象者）の可能性が高い。または本国の情勢などで人道上の配慮が要りそう", "すぐに働ける", "「特定活動・6か月」"),
+             ("o", "B", "難民条約の迫害に明らかに当たらない事情を主張している", "変更を認めない", "原則として「特定活動」への変更を認めない（在留制限）"),
+             ("o", "C", "2回目以降の申請で、正当な理由なく前と同じ主張をくり返している", "変更を認めない", "原則として「特定活動」への変更を認めない（在留制限）"),
+             ("o", "D1", "A〜C 以外のうち、本来の活動をやめた後（失踪した技能実習生・退学した留学生など）や、出国の準備期間中に申請した", "働けない", "「特定活動・3か月」"),
+             ("b", "D2", "A〜C 以外で、D1 に当たらない（観光などの「短期滞在」から申請した人もここ）", "6か月後から働ける", "")]
+    rows = "".join(f'<li class="{c}"><span class="lt">{k}</span><span class="wh">{w}</span><span class="rs"><b>{r}</b>{f"<small>{s}</small>" if s else ""}</span>'
+                   + ('<span class="nr-tl" aria-label="D2の流れ：申請から6か月までは特定活動・3か月を2回で働けない。6か月を過ぎると特定活動・6か月で働ける">'
+                      '<span class="a"><b>申請〜6か月</b>働けない<small>「特定活動・3か月」を2回</small></span>'
+                      '<span class="z"><b>6か月を過ぎたら</b>働ける<small>「特定活動・6か月」</small></span></span>' if k == "D2" else "") + "</li>"
+                   for c, k, w, r, s in kinds)
+    fig3 = ('<p class="nr-scope"><b>この振り分けは</b>在留資格がある人が、<em>初めて申請</em>したときの扱いです（申請した人の全員に当てはまるわけではありません）。振り分けの間（最長2か月）は働けません。</p>'
+            f'<ol class="nr-kinds" aria-label="振り分けと働けるか">{rows}</ol>'
+            '<ul class="nr-also"><li><b>2回目以降の申請</b>原則として在留制限（A案件に当たる人は、初めての申請と同じ扱い）</li>'
+            '<li><b>在留資格がなかった人</b>仮滞在・仮放免・監理措置の人は、原則として働けない（仮滞在と、退去強制令書が出る前の監理措置は、許可されれば働ける）</li></ul>')
+    s3 = step(3, "仕事はできる？", "在留資格がある人は、申請の中身で<em>A〜D に振り分けられ</em>、それで働けるかが決まります。", fig3,
+              '技能実習の途中で申請した人が「特定活動」に変えるときの条件は、2026年7月27日から厳しくなりました（<a href="#ginou">詳しい説明</a>）。'
+              "振り分けごとの在留期間は2018年からの国の資料によるもので、変わったという発表は見つかっていません。",
+              "furiwake", "振り分けの表を詳しく見る")
+
+    # STEP 4：生活の支え（4つのカード）と税金
+    cards = [("b", "yen", "① 国の保護費", "生活費・住居費・医療費など", "生活にとても困っている申請者が申し込み、住まいなど<b>暮らしの状況の審査</b>で出すかが決まる。担当は出入国在留管理庁（2025年度から）"),
+             ("b", "med", "② 健康保険", "入れるかは立場で違う", "住民票のある人は入る（在留期間6か月の特定活動、仮滞在など）。3か月の人は条件つき。<b>仮放免・監理措置の人は入れない</b>"),
+             ("o", "net", "③ 生活保護", "国の保護費とは別の制度", "外国人では、永住者・定住者・認定された難民などが対象（法律上の権利ではなく行政の措置）。<b>仮放免の人は対象外</b>。手続き中の人が対象かは、国の資料に書かれていない"),
+             ("g", "study", "④ 子どもの学校", "公立の小中学校に入れる", "希望すれば、日本人と同じく無償で受け入れる。<b>在留カードがなくても</b>、住んでいる所を別の書類で確かめるなど、受け入れるよう国が求めている")]
+    fig4 = ('<ul class="nr-cards">' + "".join(f'<li class="{c}">{nr_icon(ic, c)}<span class="tx"><b>{t}</b><span class="sb">{sb}</span><span class="ds">{ds}</span></span></li>'
+                                             for c, ic, t, sb, ds in cards) + "</ul>"
+            '<p class="nr-ne"><span>国の保護費</span><b aria-label="と">≠</b><span>生活保護</span><small>同じ制度ではありません。対象も、申し込む所も違います</small></p>'
+            '<p class="nr-tax"><b>税金・保険料</b>国籍ではなく、住所や収入、入っている制度で決まります。収入があれば所得税・住民税、買い物では消費税。健康保険や年金に入っていれば保険料がかかります。</p>')
+    s4 = step(4, "生活費や医療費はどうなる？", "生活の支えは、<em>制度ごとに対象や審査が違います</em>。", fig4,
+              "「国の保護費」は、難民の申請者のための国の制度です。日本人も使う「生活保護」とは別の制度なので、片方を受けられても、もう片方を受けられるとは限りません。",
+              "table", "できること早見表を見る")
+
+    # STEP 5：結果の4つの行き先
+    outs = [("g", "shield", "① 難民と認定", rec, "原則「定住者」。難民旅行証明書がもらえる"),
+            ("g", "shield", "② 補完的保護対象者と認定", cp, "原則「定住者」"),
+            ("g", "heart", "③ 人道的な配慮で在留を認める", hum, "「定住者」か「特定活動」"),
+            ("o", "redo", "④ 認められなかった", None, "審査請求（7日以内）や裁判ができる。在留資格がなければ、退去強制などの手続きに")]
+    fig5 = ('<ul class="nr-outs">' + "".join(f'<li class="{c}">{nr_icon(ic, c)}<b class="t">{t}</b>'
+                                            + (f'<span class="v"><b>{num(v)}</b>人</span>' if v is not None else '<span class="v nv">在留資格の有無で<br>その後が変わる</span>')
+                                            + f'<span class="ds">{ds}</span></li>' for c, ic, t, v, ds in outs) + "</ul>"
+            f'<p class="nr-sum3"><span>①〜③の合計（{y}年）</span><b>{num(rec + cp + hum)}<small>人</small></b></p>'
+            f'<div class="nr-two"><p class="nr-clock">{nr_icon("clock", "b")}<span>審査には時間がかかります。{y}年の一次審査の平均は<b>約22.5か月</b>でした。</span></p>'
+            f'<p class="nr-div"><b>割り算しないで</b>{y}年の申請者（{num(ap)}人）と、{y}年に認定・在留を認められた人（{num(rec + cp + hum)}人）は、同じ人の集まりではありません。'
+            "申請から結果まで年をまたぐので、2つを割って「認定率」にはできません。</p></div>")
+    s5 = step(5, "結果が出たらどうなる？", "結果によって、<em>在留資格やその後の手続き</em>が変わります。", fig5,
+              "①〜③の人数には、審査請求（不服の申し立て）のあとで認められた人もふくみます。認められなかった人も、在留資格があれば、その期間が終わるまでは日本にいられます。",
+              "after", "結果が出たあとを詳しく見る")
+
+    sums = [("b", "doc", "申請しただけでは認定されない", "審査で、難民か補完的保護対象者に当たるかが判断されます。"),
+            ("b", "house", "日本にいられるか、働けるかは条件による", "申請したときの在留資格と、振り分けで変わります。"),
+            ("b", "yen", "生活の支えは制度ごとに違う", "国の保護費・健康保険・生活保護は、対象も審査も別です。"),
+            ("g", "shield", "結果でその後が変わる", "認定などで在留資格が決まり、認められなければ別の手続きに進みます。")]
+    summary = ('<section class="tj-sum" id="sanpun-sum" aria-labelledby="sanpun-sum-h"><span class="sp-k">3分でわかるまとめ</span>'
+               '<h3 id="sanpun-sum-h">難民の申請について、覚えておきたい4つのこと</h3><ol class="tj-sum3 nr-sum4">'
+               + "".join(f'<li class="{c}"><span class="ic">{nr_icon(ic, c)}</span><span class="tx"><b><span class="no">{"①②③④"[i]}</span>{t}</b><span>{x}</span></span></li>'
+                         for i, (c, ic, t, x) in enumerate(sums)) + "</ol></section>")
+    nexts = [("flow", "① 全体の流れ", "申請から結果まで、どう進む？"), ("status", "② 手続き中の立場", "振り分け・仮滞在・仮放免・監理措置・送還の決まり"),
+             ("table", "③ できること早見表", "立場ごとに、働く・住民票・保険・学校など"), ("hogo", "④ 生活費の支え", "国の保護費のしくみと数"),
+             ("tax", "⑤ 税金と保険料", "所得税・住民税・消費税・保険料と、最近の見直し"), ("family", "⑥ 家族", "申請・日本で生まれた子ども・認定のあとの家族"),
+             ("after", "⑦ 結果が出たあと", "認定・補完的保護・人道配慮・認められなかったとき"), ("wait", "⑧ かかる期間", "一次審査と審査請求の平均の期間"),
+             ("gov", "⑨ 国の説明と国会の注文", "国の発表にある説明と、附帯決議"), ("events", "⑩ 決まりの移り変わり", "1978年からの年表"),
+             ("notes", "⑪ 出典と注意", "使った資料と、国の資料で確かめられなかったこと")]
+    nav = ('<div class="sp-next related" id="sanpun-next"><h3>さらに詳しく調べる</h3><p class="sp-cap">このページの下の、11の詳しい説明に移ります。</p><ul>'
+           + "".join(f'<li><a href="#{h}"><span>{t}<span class="rs">{s}</span></span></a></li>' for h, t, s in nexts) + "</ul></div>")
+    steps = ("".join(f'<a href="#sanpun-{i}"><b>{i}</b>{t}</a>' for i, t in
+                     enumerate(("申請って何？", "日本にいられる？", "仕事はできる？", "生活費や医療費は？", "結果が出たら？"), 1))
+             + '<a href="#sanpun-sum"><b aria-hidden="true">✓</b>まとめ</a>')
+    legend = ('<p class="nr-legend" aria-label="色の意味"><span class="g"><i></i>認められる・できる</span><span class="b"><i></i>手続き中・条件による</span>'
+              '<span class="o"><i></i>制限・注意</span></p>')
+    return (f'<section class="sp" id="sanpun" aria-labelledby="sanpun-h"><div class="sp-band"><span class="sp-k">3分でわかる</span>'
+            f'<h2 id="sanpun-h">難民の申請と手続き中のくらしを、5つのステップで</h2><p>数は出入国在留管理庁の{y}年の発表、決まりは{NS_WHEN}時点です。</p>{legend}</div>'
+            f'<nav class="sp-steps" aria-label="5つのステップとまとめ">{steps}</nav>{s1}{s2}{s3}{s4}{s5}{summary}{nav}</section>')
+
+
 def nanmin_seido_page():
-    """難民の申請と、手続き中のくらし（決まりの説明）。早見表はパソコンでは表、スマホでは立場ごとのカード（style.css の .nmx）"""
+    """難民の申請と、手続き中のくらし（決まりの説明）。いちばん上に「3分でわかる」（nanmin_sanpun）、その下に11の詳しい説明。
+    早見表はパソコンでは表、スマホでは立場ごとのカード（style.css の .nmx）"""
     folder = os.path.join(DATA, "難民")
     t = pd.read_csv(os.path.join(folder, "毎年の数.csv"))
     st = pd.read_csv(os.path.join(folder, "申請時の在留資格.csv"))
@@ -3245,7 +3386,10 @@ def nanmin_seido_page():
         sys.exit("難民のしくみのページ：申請時の在留資格（正規滞在＋不法滞在）が申請者数と合いません")
     rec, cp, hum = g("条約難民"), g("補完的保護対象者"), g("その他の保護")
     pc = lambda a, b: f"{a / b * 100:.1f}%"
-    up = '<p class="kup"><a href="#toc">↑ 上に戻る（目次）</a></p>'
+    def up(n=None):
+        """欄の下：3分でわかるの同じ話のステップへ戻る・目次へ戻る（定住者のページと同じ形）"""
+        back = f'<a href="#sanpun-{n}">← 3分でわかる STEP {n}</a>' if n else '<a href="#sanpun">← 3分でわかる</a>'
+        return f'<p class="kup kup2">{back}<a href="#toc">↑ 上に戻る（目次）</a></p>'
     # できること・できないことの早見表：(立場, どんな人, [(しるし, 短い説明)])。しるしは ○ △ × ？ －
     cols = ["働く", "在留カード・住民票", "国民健康保険", "国民年金", "生活保護", "国の保護費（④）", "子どもの公立学校", "動ける範囲"]
     school = ("○", "希望すれば入れる")
@@ -3297,7 +3441,14 @@ def nanmin_seido_page():
                         for yy, v in items) + "</ul>")
     ev = "".join(f"<tr><td>{esc(w)}</td><td>{esc(x)}<br><span class='note'>出典：" + "・".join(f'<a href="{esc(NS_SRC[k][1])}">{esc(NS_SRC[k][0])}</a>' for k in ks) +
                  "</span></td></tr>" for w, x, ks in NS_EVENTS)
+    sanpun = nanmin_sanpun(y, ap, reg, irr, rec, cp, hum)
     body = f"""<h1>難民の申請と、手続き中のくらし</h1>
+<nav class="gates" aria-label="このページの読み方">
+<a class="gate gate-g" href="#sanpun">{sp_icon("clock", "g")}<span class="gt"><small>はじめての人に</small><b>3分でわかる</b><span class="gd">5つの図で、申請・在留・仕事・生活・結果をつかむ</span></span><span class="ga" aria-hidden="true">↓</span></a>
+<a class="gate gate-b" href="#detail">{sp_icon("search", "b")}<span class="gt"><small>調べたい人に</small><b>詳しく調べる</b><span class="gd">11の詳しい説明・数・出典</span></span><span class="ga" aria-hidden="true">↓</span></a>
+</nav>
+{sanpun}
+<div class="sp-band sp-band-b" id="detail"><span class="sp-k">詳しく調べる</span><h2>決まり・数・出典を11の項目で</h2></div>
 <p class="lead">日本で難民の認定を申請すると、結果が出るまでの間、どんな立場で暮らすのでしょうか。働けるか、住民票や健康保険はあるか、税金は、家族は——を、
 国の資料と法律からまとめました。申請や認定の人数は<a href="nanmin.html">難民の認定と保護の数</a>にあります。</p>
 <p class="meta"><span>対象：<b>日本の決まり</b></span><span>時点：<b>{NS_WHEN}</b>（このときに国の資料で確かめた内容）</span><span>数：<b>{y}年</b>の国の発表</span></p>
@@ -3305,7 +3456,7 @@ def nanmin_seido_page():
 いまの決まりは出入国在留管理庁などのページで確かめてください。</p>
 {jump([("flow", "① 全体の流れ"), ("status", "② 手続き中の立場"), ("table", "③ できること早見表"), ("hogo", "④ 生活費の支え"), ("tax", "⑤ 税金と保険料"),
        ("family", "⑥ 家族"), ("after", "⑦ 結果が出たあと"), ("wait", "⑧ かかる期間"), ("gov", "⑨ 国の説明と国会の注文"), ("events", "⑩ 移り変わり"),
-       ("notes", "⑪ 出典と注意")], nid="toc")}
+       ("notes", "⑪ 出典と注意"), ("sanpun", "↑ 3分でわかる")], nid="toc")}
 <section class="card" id="flow"><h2>申請から結果まで、どう進む？</h2>
 <ol class="nflow">
 <li><b class="nt">日本に入る</b><p>観光などの在留資格で入ってから申請する人が多くいます。{y}年の申請者{num(ap)}人のうち、申請したときに在留資格があった人は{num(reg)}人（{pc(reg, ap)}）で、
@@ -3322,12 +3473,12 @@ def nanmin_seido_page():
 <li><b class="nt">裁判</b><p>取り消しを求める裁判は、結果を知った日から6か月以内に起こせます（行政事件訴訟法の決まり）。</p></li>
 <li><b class="nt">最終的に認められなかったとき</b><p>在留資格がなければ、出国するか、退去強制（国の決まりに反して日本にいる人を国外へ出させる手続き）の対象になります（<a href="#after">⑦</a>）。</p></li>
 </ol>
-{ns_src("proc", "guide", "press", "law", "sosho")}{up}</section>
+{ns_src("proc", "guide", "press", "law", "sosho")}{up(1)}</section>
 <section class="card" id="status"><h2>手続き中は、どんな立場？</h2>
 <p>申請したときに在留資格（日本にいるための資格）があったかどうかで、道が分かれます。</p>
 <div class="npath"><div><b>在留資格があった人</b><br><span class="nbig">{num(reg)}人</span>（{y}年の申請者の{pc(reg, ap)}）<br>→ 在留資格「特定活動」で結果を待つ</div>
 <div><b>在留資格がなかった人</b><br><span class="nbig">{num(irr)}人</span>（{pc(irr, ap)}）<br>→ 仮滞在・仮放免・監理措置など</div></div>
-<h3>在留資格があった人（観光・留学・技能実習など）</h3>
+<h3 id="furiwake">在留資格があった人（観光・留学・技能実習など）</h3>
 <p>審査を待つ間は、在留資格を<b>「特定活動（難民認定等申請者用）」</b>に変えて日本にいられます。働けるかどうかと在留期間は、振り分けで決まります。
 次の表は、<b>初めて申請した人</b>の扱いです（2018年1月15日から）。</p>
 {fw}
@@ -3336,7 +3487,7 @@ def nanmin_seido_page():
 <li><b>2回目以降の申請</b>は、原則として在留制限です。ただし A案件に当たる人は、初めての申請と同じように扱います。
 {y}年の申請者のうち、前にも申請したことがある人は1,305人（約11.6%）で、いちばん多い人は7回目でした。</li>
 <li><b>2025年5月から</b>、国は「不法滞在者ゼロプラン」で、B案件に当たる主張を型（パターン）に分けて在留制限をしています。B案件の割合は、2024年の約0.6%（80人）から、2025年は約14.3%（1,615人）になりました。</li>
-<li><b>2026年7月27日から</b>、技能実習の途中で申請した人が「特定活動」に変えられる条件が厳しくなりました。これまでは実習を続けるのが難しければ変更を認めていましたが、
+<li id="ginou"><b>2026年7月27日から</b>、技能実習の途中で申請した人が「特定活動」に変えられる条件が厳しくなりました。これまでは実習を続けるのが難しければ変更を認めていましたが、
 これからは、監理団体などが復職や実習先の変更を手伝ったのに実習を続けられなかった場合に認めます。国は「難民認定等申請自体の取扱いを見直すものではない」としています。</li>
 <li><b>2026年10月1日から</b>、在留資格の変更・更新の手数料が在留期間ごとの額になりました（窓口の場合、3か月以下は1万円、3か月を超え6か月以下は1万8千円。前は一律6千円）。
 生活に困っていて国の保護費（<a href="#hogo">④</a>）を受けている申請者などは、1万円に減らせる場合があります（B案件・C案件に振り分けられた人などは除く）。</li>
@@ -3344,6 +3495,7 @@ def nanmin_seido_page():
 <p class="note">振り分けごとの在留期間（6か月・3か月・2か月以下）は、2018年の国の資料にあるものです。2025年3月の国の会議の資料も同じ説明で、変わったという発表は見つかりませんでしたが、
 「{NS_WHEN}のいまも同じ」とはっきり書いた国の資料も見つかりませんでした。</p>
 {ns_src("furiwake", "m2018", "kondan", "shuro", "press", "zero", "ginou", "fee", "feep", "feecut")}
+<p class="kup kup2"><a href="#sanpun-3">← 3分でわかる STEP 3</a></p>
 <h3>在留資格がなかった人（在留期間が過ぎた人・正規でない入り方をした人）</h3>
 <ul class="tkl">
 <li><div class="tkh"><b>仮滞在</b></div><p>手続きの間、日本にいることを一時的に認めるものです。申請すると、条件に合えば許可され（別の申請は要りません）、退去強制の手続きが止まります。
@@ -3368,7 +3520,7 @@ def nanmin_seido_page():
 <ol><li><b>3回目以降の申請者</b>（前の2回とも結論が出た人）。ただし、難民などと認めるべき「相当の理由がある資料」を出せば、送還は止まります。</li>
 <li>無期または3年以上の実刑を受けた人</li><li>テロリストなど</li></ol>
 <p>この例外を使って送還した人は、{y}年の1年間で59人（うち3回目以降の申請者52人）でした。</p>
-{ns_src("law", "kaisei", "ihan")}{up}</section>
+{ns_src("law", "kaisei", "ihan")}{up(2)}</section>
 <section class="card" id="table"><h2>できること・できないこと早見表</h2>
 <p class="note">○ できる・ある　△ 条件つき　× できない・ない　？ 国の資料に書かれていない　－ 当てはまらない</p>
 {mx}
@@ -3384,7 +3536,7 @@ def nanmin_seido_page():
 <li><b>子どもの公立学校</b>：外国人の親には子を学校に通わせる義務はありませんが、希望すれば公立の小中学校に日本人と同じく無償で受け入れます。
 在留カードがなくても、別の書類で住んでいる所を確かめるなど柔軟に対応するよう、国が求めています。仮放免・監理措置の家庭にも、就学の案内をするよう求めています。</li>
 </ul>
-{ns_src("juki", "law", "kaigiroku", "kokuho", "k237", "t0204", "nenkin", "seiho", "seiho2", "mext", "mext12", "mext24")}{up}</section>
+{ns_src("juki", "law", "kaigiroku", "kokuho", "k237", "t0204", "nenkin", "seiho", "seiho2", "mext", "mext12", "mext24")}{up(4)}</section>
 <section class="card" id="hogo"><h2>生活費の支えはある？（国の保護費）</h2>
 <p>国は、生活にとても困っている申請者（審査請求中の人もふくむ）に、<b>生活費・住居費・医療費</b>を出しています（2004年の国の会議の決定にもとづく制度）。
 仕事は公益財団法人アジア福祉教育財団 難民事業本部（RHQ）に任せています。担当は<b>2025年度から出入国在留管理庁</b>です（それまで難民の申請者の分は外務省）。</p>
@@ -3396,7 +3548,7 @@ def nanmin_seido_page():
 <li>2025年度の契約の額は、保護費が約4億100万円、緊急の宿泊施設が約5,000万円です（難民と補完的保護の申請者の合計）。</li>
 </ul>
 <p class="note">1日あたりの生活費や住居費の上限などの額は、国の資料では確かめられませんでした。</p>
-{ns_src("t0509", "t0628", "t0517")}{up}</section>
+{ns_src("t0509", "t0628", "t0517")}{up(4)}</section>
 <section class="card" id="tax"><h2>税金と保険料は？</h2>
 <p>税金は、国籍や在留資格ではなく、<b>日本に住んでいるか</b>と<b>収入があるか</b>で決まります。</p>
 <ul>
@@ -3415,7 +3567,7 @@ def nanmin_seido_page():
 <li>2027年4月1日から：在留期間の更新などのときに、税金と社会保険料の納付状況の書類を出すことになります（「特定活動」「定住者」もふくみます）。
 難民の申請者の「特定活動」の更新で実際にどう使うかは、国の資料では確かめられませんでした。</li>
 </ul>
-{ns_src("nta2875", "ntag", "chiho", "nta6101", "kokuho", "nenkin", "koshin", "rule")}{up}</section>
+{ns_src("nta2875", "ntag", "chiho", "nta6101", "kokuho", "nenkin", "koshin", "rule")}{up(4)}</section>
 <section class="card" id="family"><h2>家族はどうなる？</h2>
 <h3>申請は一人ひとり</h3>
 <ul>
@@ -3446,7 +3598,7 @@ def nanmin_seido_page():
 <li>外国にいる配偶者・子を日本に呼ぶとき、どの在留資格になるかを説明した国の資料は見つかりませんでした（「定住者」の配偶者・子を認める告示の決まりはあります）。</li>
 <li>第三国定住（外国の難民キャンプなどから政府が受け入れる難民）の家族は、国連難民高等弁務官事務所（UNHCR）の推薦などの条件で呼び寄せられます（2020年4月から、すべての第三国定住難民が対象）。</li>
 </ul>
-{ns_src("proc", "rei", "tebiki", "m2015", "law", "shutoku", "kaiken", "kodomo", "kodomop", "zaitokugl", "shien", "teijuk", "daisan")}{up}</section>
+{ns_src("proc", "rei", "tebiki", "m2015", "law", "shutoku", "kaiken", "kodomo", "kodomop", "zaitokugl", "shien", "teijuk", "daisan")}{up()}</section>
 <section class="card" id="after"><h2>結果が出たあとは？</h2>
 <p>{y}年に、難民認定の制度で日本にいることを認められた人は{num(rec + cp + hum)}人でした（難民と認定{num(rec)}人・補完的保護対象者と認定{num(cp)}人・人道配慮{num(hum)}人）。</p>
 <ul class="tkl">
@@ -3462,7 +3614,7 @@ def nanmin_seido_page():
 {y}年に申請を取り下げた人などのうち、約71.7%は出国し、約13.8%は在留資格のないまま日本にいました（2026年2月1日時点）。</p></li>
 </ul>
 <p class="note">参考：2026年10月1日に改定された永住のガイドライン（2027年4月1日以降の申請に使う）は、ふつうの「10年」を数えるとき、手続き中の「特定活動」の期間は数えないとしています。</p>
-{ns_src("law", "seido", "hokan", "ryoko", "eiju", "eiju27", "shien", "myanmar", "kaisei", "press")}{up}</section>
+{ns_src("law", "seido", "hokan", "ryoko", "eiju", "eiju27", "shien", "myanmar", "kaisei", "press")}{up(5)}</section>
 <section class="card" id="wait"><h2>結果が出るまで、どれくらいかかる？</h2>
 <h3>一次審査の平均（申請の日から結果の日まで）</h3>
 {bars(wait1, "一次審査の平均処理期間")}
@@ -3473,7 +3625,7 @@ def nanmin_seido_page():
 <li>{y}年12月末で、まだ結果の出ていない申請は15,969人でした（いちばん多かった5月末の20,141人から約20.7%減りました）。</li>
 <li>国は、2026年中に新しく受け付けた申請を平均6か月以内で処理し、2030年までに平均処理期間を6か月にすることを目指しています。</li>
 </ul>
-{ns_src("press", "annex", "zero")}{up}</section>
+{ns_src("press", "annex", "zero")}{up(5)}</section>
 <section class="card" id="gov"><h2>国の説明と、国会の注文</h2>
 <p class="note">国が発表した資料や計画に書かれている説明と、国会が法律に付けた注文（附帯決議）を、そのまま紹介します。このサイトの判断ではありません。</p>
 <h3>国（出入国在留管理庁など）の説明</h3>
@@ -3489,10 +3641,10 @@ def nanmin_seido_page():
 <li>2023年の改正入管法に付けた注文で、送還停止効の例外の決まりを、施行から5年以内をめどに見直すことを検討するよう求めています。</li>
 <li>子どもの利益や、家族がいっしょに暮らすことに十分配慮するよう求めています。</li>
 </ul>
-{ns_src("press", "hogo", "keikaku", "kondan")}{up}</section>
+{ns_src("press", "hogo", "keikaku", "kondan")}{up()}</section>
 <section class="card" id="events"><h2>決まりの移り変わり</h2>
 <details class="kfold"><summary>年表を開く（1978年〜{NS_WHEN}）</summary>
-<div class="scroll"><table class="t"><thead><tr><th>いつ</th><th>出来事</th></tr></thead><tbody>{ev}</tbody></table></div></details>{up}</section>
+<div class="scroll"><table class="t"><thead><tr><th>いつ</th><th>出来事</th></tr></thead><tbody>{ev}</tbody></table></div></details>{up()}</section>
 <section class="card" id="notes"><h2>出典と注意</h2>
 <details class="kfold"><summary>出典と注意を開く</summary><ul class="note">
 <li>このページの文は、国（出入国在留管理庁・法務省・厚生労働省・文部科学省・国税庁・内閣官房）の資料、法令（e-Gov 法令検索）、国会の会議録と政府の答弁書から、{NS_WHEN}にまとめました。
@@ -3504,7 +3656,7 @@ def nanmin_seido_page():
 <li>国の資料どうしで書き方が違う所：申請から6か月で働けるようにした時期（2010年3月とする資料と4月とする資料）、仮滞在の条件の書き方（ページと法律で書き方が違う）、
 難民旅行証明書の有効期間（法律は1年以上5年以内、案内は5年）。</li>
 <li>このページは決まりの説明です。一人ひとりの手続きの相談には使えません。</li>
-</ul></details>{up}</section>
+</ul></details>{up()}</section>
 {related([("nanmin.html", "難民の認定と保護の数", "難民認定の申請・認定、補完的保護、人道配慮の数"),
           ("tokutei.html", "在留資格「特定活動」とは", "難民認定の手続き中の人や、本国の情勢による在留も入る在留資格"),
           ("teiju.html", "在留資格「定住者」とは", "難民と認定された人などが入る在留資格"),
