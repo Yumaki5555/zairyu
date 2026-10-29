@@ -15,7 +15,7 @@
   var FONT_CSS = 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap';
   var SITE = '数でみる在留外国人';
   // sub（時点・目もり・出典など）も、スマホで小さく見ても読めるよう濃いめの灰色
-  var C = { text: '#1d2330', sub: '#3d4555', line: '#dfe3ea', grid: '#e4e3dc', bg: '#ffffff', soft: '#f3f5f8', mark: '#b7791f', accent: '#1f7a4f',
+  var C = { text: '#1d2330', sub: '#3d4555', line: '#dfe3ea', grid: '#e4e3dc', bg: '#ffffff', soft: '#f3f5f8', mark: '#b7791f', accent: '#667a17',
     grid2: '#e6e8ec', line2: '#eef0f3', zero: '#5b6474', // 増減の棒：目もりの線・行の区切り（薄い灰色）・0の線
     up: '#29a97f', down: '#c23a33', // 増えた・減った（style.css の --up・--down と同じ）
     s: { '1': '#2a78d6', '2': '#eb6834', '3': '#1baf7a', '4': '#eda100', '5': '#e87ba4', '6': '#008300', '7': '#6250d6', o: '#b9bdc5' },
@@ -799,7 +799,7 @@
     var lab = Math.min(px('value', u), bh * 0.64), gap = Math.max(1, 0.1 * u), off = two ? (rowH - nf * 1.3 - bh) / 2 : 0;
     bars.forEach(function (b, i) {
       var ry = top + i * rowH, cy = two ? ry + off + nf * 1.3 + bh / 2 : ry + rowH / 2, ty = two ? ry + off + nf * 0.6 : cy, by = cy - bh / 2;
-      if (ch.mark && b.name === ch.mark) { ctx.fillStyle = '#e6f4ec'; ctx.fillRect(x - 0.5 * u, ry + gap, w + u, rowH - 2 * gap); } // ページの行の色（style.css の --btn-soft）と同じ
+      if (ch.mark && b.name === ch.mark) { ctx.fillStyle = '#f1f4e0'; ctx.fillRect(x - 0.5 * u, ry + gap, w + u, rowH - 2 * gap); } // ページの行の色（style.css の --btn-soft）と同じ
       var nm = fit1(ctx, b.name, nameW, nf, true, nf * 0.7);
       ctx.fillStyle = C.text; ctx.font = font(nm.size, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(nm.text, x, ty);
       ctx.font = font(vf); ctx.textAlign = 'right'; ctx.fillText(totals[i], two ? x + w : x + nameW + 0.9 * u + totW, ty);

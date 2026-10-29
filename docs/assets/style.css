@@ -1,35 +1,37 @@
 /* 数でみる在留外国人：見た目（明るい画面・暗い画面）。どのページもこのファイルを使う
    グラフの色：分類の7色（色覚の見分けを確かめた順）＋その他の灰色、地図はオレンジの濃さ7段（減った所は青）
-   操作の色：押せるボタンは緑。選んでいるものは緑でぬり、「✓」も付ける（色だけに頼らない） */
+   操作の色（サイトの色）：オリーブ（--btn。ヘッダーの線・押せるボタン・選んでいるタブ）。選んでいるものはオリーブでぬり、「✓」も付ける（色だけに頼らない）。
+   選んだ行などの背景は淡いオリーブ（--btn-soft）、リンクとオリーブの字は濃いオリーブ（--accent）。予算のサイトの緑とは分ける。
+   グラフ・地図の色（--c*・--s*・--d*・--up など）は数の意味を表すので、サイトの色には合わせない */
 :root {
-  --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --sub: #535c6b; --line: #dfe3ea; --accent: #245a92; --field: #9aa4b4; --focus: #0b57d0;
+  --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --sub: #535c6b; --line: #dfe3ea; --accent: #4f6010; --field: #9aa4b4; --focus: #0b57d0;
   --grid: #e1e0d9; --old: #9aa3b2; --mark: #b7791f;
   --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #6250d6; --co: #b9bdc5;
   --s0: #fde9d7; --s1: #fbcfa6; --s2: #f7ae70; --s3: #f08a3e; --s4: #d76a1f; --s5: #ac4f12; --s6: #7c360b; --sz: #eef0f3;
   --d1: #cfe1f6; --d2: #8fb8e8; --d3: #4a86cf;
-  --btn: #1f7a4f; --btn-ink: #ffffff; --btn-soft: #e6f4ec; --btn-line: #9fd3b7;
+  --btn: #667a17; --btn-ink: #ffffff; --btn-soft: #f1f4e0; --btn-line: #b9c77a;
   --s-ink-0: #0b0b0b; --s-ink-1: #0b0b0b; --s-ink-2: #0b0b0b; --s-ink-3: #0b0b0b; --s-ink-4: #0b0b0b; --s-ink-5: #ffffff; --s-ink-6: #ffffff;
   --bar: #2a78d6; --edge: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #14171c; --card: #1d2128; --text: #e7eaf0; --sub: #a3acba; --line: #2e343e; --accent: #8fb5dd; --field: #4a5361; --focus: #8ab4f8;
+    --bg: #14171c; --card: #1d2128; --text: #e7eaf0; --sub: #a3acba; --line: #2e343e; --accent: #c2d27e; --field: #4a5361; --focus: #8ab4f8;
     --grid: #2c2c2a; --old: #6b7380; --mark: #d9a441;
     --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --co: #5b616b;
     --s0: #3b2414; --s1: #64361a; --s2: #8f4a1d; --s3: #c4621f; --s4: #ef8a3d; --s5: #f7ae70; --s6: #fcd3ad; --sz: #23272e;
     --d1: #1d3554; --d2: #2f5f99; --d3: #5f97dd;
-    --btn: #43b581; --btn-ink: #08150e; --btn-soft: #16291f; --btn-line: #2c5a43;
+    --btn: #b3c75a; --btn-ink: #151a05; --btn-soft: #262c14; --btn-line: #56622a;
     --s-ink-0: #e7eaf0; --s-ink-1: #ffffff; --s-ink-2: #ffffff; --s-ink-3: #0b0b0b; --s-ink-4: #0b0b0b; --s-ink-5: #0b0b0b; --s-ink-6: #0b0b0b;
     --bar: #3987e5; --edge: #48505d;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #14171c; --card: #1d2128; --text: #e7eaf0; --sub: #a3acba; --line: #2e343e; --accent: #8fb5dd; --field: #4a5361; --focus: #8ab4f8;
+  --bg: #14171c; --card: #1d2128; --text: #e7eaf0; --sub: #a3acba; --line: #2e343e; --accent: #c2d27e; --field: #4a5361; --focus: #8ab4f8;
   --grid: #2c2c2a; --old: #6b7380; --mark: #d9a441;
   --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --co: #5b616b;
   --s0: #3b2414; --s1: #64361a; --s2: #8f4a1d; --s3: #c4621f; --s4: #ef8a3d; --s5: #f7ae70; --s6: #fcd3ad; --sz: #23272e;
   --d1: #1d3554; --d2: #2f5f99; --d3: #5f97dd;
-  --btn: #43b581; --btn-ink: #08150e; --btn-soft: #16291f; --btn-line: #2c5a43;
+  --btn: #b3c75a; --btn-ink: #151a05; --btn-soft: #262c14; --btn-line: #56622a;
   --s-ink-0: #e7eaf0; --s-ink-1: #ffffff; --s-ink-2: #ffffff; --s-ink-3: #0b0b0b; --s-ink-4: #0b0b0b; --s-ink-5: #0b0b0b; --s-ink-6: #0b0b0b;
   --bar: #3987e5; --edge: #48505d;
 }
@@ -49,11 +51,14 @@ main, footer, nav.crumb { max-width: 960px; margin: 0 auto; padding: 12px max(16
 .skip { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--btn); color: var(--btn-ink); padding: 10px 16px; border-radius: 0 0 10px 0; font-weight: 700; }
 .skip:focus { left: 0; }
 
-/* ヘッダー：どのページも同じ。スクロールしても上に残る（スマホでは低く、メニューは「メニュー」ボタンで開く） */
-header.top { position: sticky; top: 0; z-index: 30; background: var(--card); border-bottom: 1px solid var(--line); box-shadow: 0 1px 6px rgba(0,0,0,.05); }
-header.top .in { position: relative; max-width: 960px; margin: 0 auto; display: flex; align-items: center; gap: 6px 12px; min-height: 56px;
+/* ヘッダー：どのページも同じ。スクロールしても上に残る（スマホでは低く、メニューは「メニュー」ボタンで開く）。
+   いちばん上にオリーブの線、サイト名の前にサイトのしるし（ファビコンと同じ絵）。地は白のまま。
+   中の幅は本文（960px）より少し広い 1000px：しるしを足しても、1024px の画面でメニューが1行に入るように（余り 20px ほど） */
+header.top { position: sticky; top: 0; z-index: 30; background: var(--card); border-top: 4px solid var(--btn); border-bottom: 1px solid var(--line); box-shadow: 0 1px 6px rgba(0,0,0,.05); }
+header.top .in { position: relative; max-width: 1000px; margin: 0 auto; display: flex; align-items: center; gap: 6px 12px; min-height: 56px;
                  padding: 4px max(16px, env(safe-area-inset-right)) 4px max(16px, env(safe-area-inset-left)); }
-header.top a.home { color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; white-space: nowrap; margin-right: auto; padding: 6px 0; }
+header.top a.home { display: inline-flex; align-items: center; gap: 7px; color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; white-space: nowrap; margin-right: auto; padding: 6px 0; }
+header.top a.home .logo { width: 24px; height: 24px; flex: 0 0 auto; }
 nav.menu { display: flex; flex-wrap: wrap; gap: 1px; }
 nav.menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 4px; border-radius: 8px; color: var(--text); text-decoration: none; /* 8つの項目が1行に入るように（ほかの統計・もっと知るを足したとき。字は14px） */
              font-size: 14px; font-weight: 600; white-space: nowrap; }
@@ -89,7 +94,7 @@ header.top.open .menu-ic::before { top: 0; transform: rotate(45deg); } header.to
                   border: 1px solid var(--btn-line); border-radius: 10px; background: var(--btn-soft); color: var(--text); cursor: pointer; }
   .js nav.menu { display: none; position: absolute; left: 0; right: 0; top: 100%; flex-direction: column; flex-wrap: nowrap; gap: 6px; background: var(--card);
                  border-bottom: 1px solid var(--line); box-shadow: 0 10px 24px rgba(0,0,0,.14); padding: 10px max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
-                 max-height: calc(100vh - 52px); overflow: auto; }
+                 max-height: calc(100vh - var(--hdr, 57px)); overflow: auto; }
   .js header.top.open nav.menu { display: flex; }
   .js nav.menu a { min-height: 50px; font-size: 17px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 10px; }
   .js nav.menu a[aria-current="page"] { border-color: var(--btn); }
@@ -158,7 +163,7 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 @media (max-width: 400px) { .entries { gap: 10px; } .entries a { padding: 12px; min-height: 128px; } .entries b { font-size: 17px; } .entries .ed { font-size: 14px; } }
 
 /* トップページのいちばん上：グラフの画像を作る（X投稿用。xmaker.js）。パソコンでは左に選ぶもの・右に画像（画像は止めておく）、
-   スマホ（860px より狭い）では上に選ぶもの・下に画像。ボタンは緑、選んでいるものは緑でぬり「✓」も付ける。
+   スマホ（860px より狭い）では上に選ぶもの・下に画像。ボタンはオリーブ、選んでいるものはオリーブでぬり「✓」も付ける。
    はじめは閉じた帯（見出し・一言・「ひらく」）だけ。帯のどこを押しても開け閉めできる */
 details.xm { background: var(--card); border: 2px solid var(--btn); border-radius: 12px; margin: 14px 0; font-size: inherit; }
 details.xm > summary { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 16px;
@@ -253,7 +258,7 @@ select, input[type="search"], input[type="text"], textarea { font: inherit; font
 .dcheck { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 15px; cursor: pointer; }
 .dcheck input { width: 22px; height: 22px; accent-color: var(--btn); }
 
-/* 切り替えボタン（円グラフ・棒グラフ・表 など）：選んでいるものは緑と「✓」 */
+/* 切り替えボタン（円グラフ・棒グラフ・表 など）：選んでいるものはオリーブと「✓」 */
 .modes, .stab { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--btn-line); border-radius: 10px; overflow: hidden; }
 .modes button, .stab button { font: inherit; font-size: 15px; padding: 6px 14px; min-height: 42px; border: 0; background: var(--card); color: var(--text); cursor: pointer; white-space: nowrap; } /* 枠の線と合わせて 44px（となりの選ぶ欄・ボタンと同じ高さ） */
 .modes button + button, .stab button + button { border-left: 1px solid var(--btn-line); }

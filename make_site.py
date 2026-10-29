@@ -406,7 +406,7 @@ def cross_table(nat_items, xd, n=8, area="全国", mark=None, xm=None):
             f'<script type="application/json">{jdump(data)}</script></div>')
 
 
-CSS_VER = "33"
+CSS_VER = "34"
 
 # どのページも同じメニュー（順番・場所・見た目をそろえる）。(鍵, ページ, 名前)。いま開いているページは色で示す
 # ページの代わりに中の項目の並びがあるものは、まとめの見出し（押すと下に開く。開け閉めは app.js、見た目は style.css の .msub）
@@ -450,12 +450,12 @@ def page(title, crumbs, body, desc, css=(), js=(), active=None, src=None):
                  "".join(f'<li><a href="{h}">{esc(t)}</a></li>' if h else f'<li aria-current="page">{esc(t)}</li>' for t, h in crumbs) + "</ol></nav>")
     return f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>{esc(title)}｜{esc(SITE_NAME)}</title><meta name="description" content="{esc(desc)}">
+<title>{esc(title)}｜{esc(SITE_NAME)}</title><meta name="description" content="{esc(desc)}"><meta name="theme-color" content="#667a17">
 <link rel="icon" href="assets/favicon.ico?v={CSS_VER}" sizes="32x32"><link rel="icon" href="assets/favicon.svg?v={CSS_VER}" type="image/svg+xml"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v={CSS_VER}">
 <script>document.documentElement.className+=' js'</script>
 <link rel="stylesheet" href="assets/style.css?v={CSS_VER}">{"".join(f'<link rel="stylesheet" href="assets/{c}?v={CSS_VER}">' for c in css)}</head><body>
 <a class="skip" href="#main">本文へ移動</a>
-<header class="top"><div class="in"><a class="home" href="index.html">{esc(SITE_NAME)}</a>
+<header class="top"><div class="in"><a class="home" href="index.html"><img class="logo" src="assets/favicon.svg?v={CSS_VER}" alt="" width="24" height="24">{esc(SITE_NAME)}</a>
 <button type="button" class="menu-btn" aria-expanded="false" aria-controls="site-menu"><span class="menu-ic" aria-hidden="true"></span><span class="mt">メニュー</span></button>
 <nav class="menu" id="site-menu" aria-label="サイトのメニュー">{nav}</nav></div></header>
 {crumb}
